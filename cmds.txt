@@ -1,0 +1,1 @@
+python test.py --model resnet50 --batch_size 4 --profile_group 0

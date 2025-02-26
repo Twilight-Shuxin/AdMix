@@ -1,0 +1,341 @@
+./test_subs.sh resnet50 32 -1 18 1
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 0 --end 1
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 1 --end 2
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 2 --end 3
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 3 --end 4
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 4 --end 5
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 5 --end 6
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 6 --end 7
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 7 --end 8
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 8 --end 9
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 9 --end 10
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 10 --end 11
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 11 --end 12
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 12 --end 13
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 13 --end 14
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 14 --end 15
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 15 --end 16
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 16 --end 17
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 17 --end 18
+here test
+32 True
+32 True
+32 True
+./test_subs.sh resnet50 32 -1 18 2
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 0 --end 2
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 2 --end 4
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 4 --end 6
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 6 --end 8
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 8 --end 10
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 10 --end 12
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 12 --end 14
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 14 --end 16
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 16 --end 18
+here test
+32 True
+32 True
+32 True
+./test_subs.sh resnet50 32 -1 18 4
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 0 --end 4
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 4 --end 8
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 8 --end 12
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 12 --end 16
+here test
+32 True
+32 True
+32 True
+python test.py --model resnet50 --batch_size 32 --profile_group -1 --start 16 --end 18
+here test
+32 True
+32 True
+32 True
+./test_subs.sh inception_v3 32 -1 14 1
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 0 --end 1
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 1 --end 2
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 2 --end 3
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 3 --end 4
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 4 --end 5
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 5 --end 6
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 6 --end 7
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 7 --end 8
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 8 --end 9
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 9 --end 10
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 10 --end 11
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 11 --end 12
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 12 --end 13
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 13 --end 14
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+./test_subs.sh inception_v3 32 -1 14 2
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 0 --end 2
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 2 --end 4
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 4 --end 6
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 6 --end 8
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 8 --end 10
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 10 --end 12
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 12 --end 14
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+./test_subs.sh inception_v3 32 -1 14 4
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 0 --end 4
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 4 --end 8
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 8 --end 12
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
+python test.py --model inception_v3 --batch_size 32 --profile_group -1 --start 12 --end 14
+/home/k43015/MPSTest/profile/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
+  warnings.warn(
+here test
+32 True
+32 True
+32 True
