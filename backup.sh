@@ -1,2 +1,2 @@
 # rm -rf $1
-cp -r data/* $1/data/
+cp -r data/*.log $1/

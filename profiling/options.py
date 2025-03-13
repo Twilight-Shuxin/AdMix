@@ -1,15 +1,20 @@
 import argparse
 import os
+from profiling.constants import *
 
 class ProfileConfig:
     def __init__(self, args) -> None:
-        self.model_name = args.model
-        self.start = args.start
-        self.end = args.end
-        self.batch_size = args.batch_size
-        self.profile_group = args.profile_group
+        self.model_names = get_comma_list(args.model, ArgsType.STRING)
+        self.model_cnt = len(self.model_names)
+        self.mps_list = get_comma_list(args.mps, ArgsType.INT, self.model_cnt)
+        self.starts = get_comma_list(args.start, ArgsType.INT, self.model_cnt)
+        self.ends = get_comma_list(args.end, ArgsType.INT, self.model_cnt)
+        self.batch_sizes = get_comma_list(args.batch_size, ArgsType.INT, self.model_cnt)
+        self.profile_groups = get_comma_list(args.profile_group, ArgsType.INT, self.model_cnt)
         self.device = args.device
         self.path = args.path
+        self.trace_path = get_comma_list(args.trace, ArgsType.STRING)
+        self.seq_len = get_comma_list_or_single(args.seqlen, ArgsType.INT)
 
 def parse_profile_options():
     parser = argparse.ArgumentParser(description = "TestMPS")
@@ -17,25 +22,29 @@ def parse_profile_options():
         "--model",
         type = str,
         required = True,
-        choices = ["resnet50", "vgg19", "inception_v3", "bert"],
+    )
+    parser.add_argument(
+        "--mps",
+        type = str,
+        default = "-1",
     )
     parser.add_argument(
         "--batch_size",
-        type = int,
-        required = True,
+        type = str,
+        default = "1",
     )
     parser.add_argument(
         "--start",
-        type = int,
-        default = -1,
+        type = str,
+        default = "-1",
     )
     parser.add_argument(
         "--end",
-        type = int,
-        default = -1,
+        type = str,
+        default = "-1",
     )
     parser.add_argument(
-        "--profile_group", type = int, required = True, choices=range(-1, 7)
+        "--profile_group", type = str, required = True
     )
     parser.add_argument(
         "--device", type = str, default="cuda:0"
@@ -43,6 +52,12 @@ def parse_profile_options():
     dirname, filename = os.path.split(os.path.abspath(__file__))
     parser.add_argument(
         "--path", type = str, default=dirname+"/../data"
+    )
+    parser.add_argument(
+        "--trace", type = str, default=None
+    )
+    parser.add_argument(
+        "--seqlen", type = str, default="-1"
     )
     args = parser.parse_args()
     profile_config = ProfileConfig(args=args)
