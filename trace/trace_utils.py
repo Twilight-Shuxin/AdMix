@@ -10,7 +10,13 @@ def read_trace(filename, scale = 1):
             req_timestamps.append(float(line.strip('\n')) / scale)
     return req_timestamps
 
-def read_burstgpt_trace(filename, scale = 200, total_prompt_num=10000):
+def read_burstgpt_trace(filename, scale = None, total_prompt_num=10000):
+    foo = os.environ.get('GVLLM_TRACE_SCALE')
+    if(foo is not None):
+        scale = float(foo)
+    else:
+        if(scale == None):
+            scale = 200
     filename = os.path.dirname(os.path.realpath(__file__)) + "/" + filename
     chunk_iter = pd.read_csv(filename, chunksize=20)
     chunks = []
@@ -59,4 +65,4 @@ class BurstGPTTrace(Trace):
         if sampled_output_len >= self.max_gen_len:
             sampled_output_len = self.max_gen_len - 1
         self.index += 1
-        return query_time, sampled_prompt_len, sampled_output_len
+        return query_time, sampled_prompt_len, int(sampled_output_len)

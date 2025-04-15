@@ -6,8 +6,8 @@ import random
 import numpy as np
 
 class BertWorker(ModelWorker):
-    def __init__(self, mps, pipe, barrier, log_path):
-        super().__init__("bert", mps, pipe, barrier, log_path)
+    def __init__(self, device_id, mps, pipe, barrier, log_path):
+        super().__init__("bert", device_id, mps, pipe, barrier, log_path)
         self.supported_seqlen = [8, 16, 32, 64]
     
     def _inference(self, input, start, end):

@@ -1,4 +1,12 @@
+environment variables:
+GVLLM_KV_MEM kv cache memory percentage in regards of full GPU memory
+GVLLM_TRACE_SCALE trace scale
+
+sudo systemctl --now enable nvidia-dcgm
+
+
 python test.py --model resnet50 --batch_size 4 --profile_group 0
 python test.py --model resnet50,vgg19 --batch_size 4 --profile_group -1
 python test.py --model llm --profile_group -1 --seqlen 10,10
-python test.py --model llm --profile_group -1 --seqlen 10,10 --trace BurstGPT_1.csv
+python test.py --model llm --profile_group -1 --seqlen 10,10 --trace BurstGPT_1.csv --device 1
+python test.py --model resnet50,llm --batch_size 4 --profile_group -1 --mps 20 --trace ,BurstGPT_1.csv

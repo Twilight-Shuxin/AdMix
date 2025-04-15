@@ -20,16 +20,32 @@ class ProfileServer():
         self.trace_path = profile_config.trace_path
         self.seq_len = profile_config.seq_len
         self.dirname = os.path.split(os.path.abspath(__file__))[0]
+        self.global_tag = profile_config.global_tag
         self.pipe_map = {}
+    
+    def get_global_tag(self):
+        if(self.global_tag != None):
+            return self.global_tag
+        if(self.model_cnt == 1):
+            return None
+        self.global_tag = ""
+        for id, model_name in enumerate(self.model_names):
+            self.pipe_map[model_name].send(("tag"))
+            testconfig = TestConfig(self.model_cnt, None, self.batch_sizes[id], self.starts[id], self.ends[id], 
+                self.profile_groups[id], self.seq_len)
+            self.pipe_map[model_name].send(testconfig)
+            self.global_tag += self.pipe_map[model_name].recv()
+        return self.global_tag
 
     def run(self):
-        global model_worker, profile_dict, profile_group_dict
+        global model_workers, profile_dict, profile_group_dict
         self.barrier = mp.Barrier(self.model_cnt + 1)
         for id, model_name in enumerate(self.model_names):
             pipe_parent, pipe_child = mp.Pipe()
             if(self.mps_list[id] != -1):
                 os.environ["CUDA_MPS_ACTIVE_THREAD_PERCENTAGE"] = str(self.mps_list[id])
-            worker = model_worker[model_name](
+            worker = model_workers[model_name](
+                self.device,
                 self.mps_list[id],
                 pipe_child,
                 self.barrier,
@@ -38,23 +54,19 @@ class ProfileServer():
             worker.start()
             self.pipe_map[model_name] = pipe_parent
         self.barrier.wait()
-        tag = "".join(self.model_names)
-        if(self.model_cnt == 1):
-            tag = None
-        elif(self.mps_list[0] != -1):
-            tag = ""
-            for id, model_name in enumerate(self.model_names):
-                if(model_name != "llm"):
-                    tag += model_name + "(" + str(self.batch_sizes[id])  + "_" + str(self.mps_list[id]) + ")"
-                else: 
-                    tag += model_name + "(" + str(self.mps_list[id]) + ")"
+    
+        self.get_global_tag()
+        
         for id, model_name in enumerate(self.model_names):
             self.pipe_map[model_name].send(("test"))
-            testconfig = TestConfig(self.model_cnt, tag, self.batch_sizes[id], self.starts[id], self.ends[id], 
+            testconfig = TestConfig(self.model_cnt, self.global_tag, self.batch_sizes[id], self.starts[id], self.ends[id], 
                 self.profile_groups[id], self.seq_len)
             # testconfig.nosync = True
             testconfig.trace_path = self.trace_path[id]
             self.pipe_map[model_name].send(testconfig)
+        
+        for id, model_name in enumerate(self.model_names):
+            self.pipe_map[model_name].send(("stop"))
 
 
 

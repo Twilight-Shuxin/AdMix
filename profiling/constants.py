@@ -12,8 +12,7 @@ GPU_UUID = [
     "GPU-52d1d800-a5dc-f06d-1e17-7778d35b591b"
 ]
 
-def device_init(device):
-    device_id = int(device.split(":")[1])
+def device_init(device_id):
     os.environ["CUDA_VISIBLE_DEVICES"]=GPU_UUID[device_id]
     os.environ["CUDA_MPS_PIPE_DIRECTORY"]="/tmp/nvidia-mps-" + GPU_UUID[device_id]
     os.environ["CUDA_MPS_LOG_DIRECTORY"]="/tmp/nvidia-mps-" + GPU_UUID[device_id]
@@ -106,6 +105,10 @@ class TestConfig():
         self.nosync = False
         self.trace_path = None
     
+    def get_tag(self, model_worker):
+        self_tag = model_worker.get_tag(self)
+        self.tag = "-".join([self_tag, self.tag]) if self.tag is not None else self_tag
+    
     def fit(self, model_worker):
         if(self.start == -1):
             self.start = 0
@@ -114,26 +117,9 @@ class TestConfig():
         self.inter_flag = (self.start != 0) or (self.end != model_worker.total_module)
         if(model_worker.model_name != "bert" and self.inter_flag):
             model_worker.submodel = torch.nn.Sequential(*model_worker.submodules[self.start:self.end])
-        if(self.global_cnt == 1 and model_worker.mps != -1 and model_worker.mps != 100):
-            if(model_worker.model_name != "llm"):
-                tag = "_".join([model_worker.model_name + "(" + str(model_worker.mps) + ")", str(self.batch_size)])
-            else:
-                tag = model_worker.model_name + "(" + str(model_worker.mps) + ")"
-        else:
-            if(model_worker.model_name != "llm"):
-                tag = "_".join([model_worker.model_name, str(self.batch_size)])
-            else:
-                tag = model_worker.model_name 
-        if(self.inter_flag):
-            tag += "[" + str(self.start) + "-" + str(self.end) + "]"
-        if(self.tag != None):
-            self.tag = tag + "_" + self.tag
-        else:
-            self.tag = tag
-
+        self.get_tag(model_worker)
         if(self.trace_path != None):
             model_worker.get_trace(self.trace_path)
-            
     
 def stop_dcgm(pids):
     for pid in pids:

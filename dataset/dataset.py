@@ -1,16 +1,20 @@
 import os
 import json
 import numpy as np
+import random
 
 def load_data_from_path(file_path:str):
     with open(file_path, "r") as f:
         data_json = json.load(f)
         f.close()
     processed_data = []
+    id = 0
     for idx, data in data_json.items():
-        processed_data.append((data_json[idx]["prompt"], data_json[idx]["len_prompt"],
-                        data_json[idx]["len_output"], data_json[idx]['output']))
-    processed_data.sort(key=lambda x: (x[1], x[2]))
+        id += 1
+        processed_data.append((data_json[idx]["prompt"], data_json[idx]["len_prompt"]))
+        print(data_json[idx]["len_prompt"])
+    print("total: ", id)
+    processed_data.sort(key=lambda x: (x[1]))
     return processed_data
 
 class Dataset(object):
@@ -21,7 +25,7 @@ class Dataset(object):
         self.query_time = 0
         self.max_prompt_len = 1024
         self.max_gen_len = 1024
-        self.prefill_idx = self.get_prefill_idx()
+        # self.prefill_idx = self.get_prefill_idx()
         self.zipf_param = 1.1
         self.gamma_shape = 0.25
         self.gamma_scale = 2
@@ -99,8 +103,12 @@ class Dataset(object):
         return prefill_idx
 
     def get_query(self, test_config):
-        sampled_prompt_len = test_config.seq_len[0]
-        sampled_output_len = test_config.seq_len[1]
+        if(test_config.seq_len != -1):
+            sampled_prompt_len = test_config.seq_len[0]
+            sampled_output_len = test_config.seq_len[1]
+        else:
+            sampled_prompt_len = random.randint(1, self.max_prompt_len - 1)
+            sampled_output_len = random.randint(1, self.max_gen_len - 1)
         prompt_len = self.data[self.prefill_idx[sampled_prompt_len]
                                     [sampled_output_len]][1]
         output_len = self.data[self.prefill_idx[sampled_prompt_len]

@@ -13,8 +13,9 @@ class ProfileConfig:
         self.profile_groups = get_comma_list(args.profile_group, ArgsType.INT, self.model_cnt)
         self.device = args.device
         self.path = args.path
-        self.trace_path = get_comma_list(args.trace, ArgsType.STRING)
+        self.trace_path = get_comma_list(args.trace, ArgsType.STRING, self.model_cnt)
         self.seq_len = get_comma_list_or_single(args.seqlen, ArgsType.INT)
+        self.global_tag = args.tag
 
 def parse_profile_options():
     parser = argparse.ArgumentParser(description = "TestMPS")
@@ -47,17 +48,20 @@ def parse_profile_options():
         "--profile_group", type = str, required = True
     )
     parser.add_argument(
-        "--device", type = str, default="cuda:0"
+        "--device", type = int, default = 0
     )
     dirname, filename = os.path.split(os.path.abspath(__file__))
     parser.add_argument(
-        "--path", type = str, default=dirname+"/../data"
+        "--path", type = str, default = dirname+"/../data"
     )
     parser.add_argument(
-        "--trace", type = str, default=None
+        "--trace", type = str, default = ''
     )
     parser.add_argument(
-        "--seqlen", type = str, default="-1"
+        "--seqlen", type = str, default = "-1"
+    )
+    parser.add_argument(
+        "--tag", type = str, default = None
     )
     args = parser.parse_args()
     profile_config = ProfileConfig(args=args)
