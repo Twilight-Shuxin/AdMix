@@ -15,6 +15,7 @@ class ProfileConfig:
         self.path = args.path
         self.trace_path = get_comma_list(args.trace, ArgsType.STRING, self.model_cnt)
         self.seq_len = get_comma_list_or_single(args.seqlen, ArgsType.INT)
+        self.test_time = args.test_time
         self.global_tag = args.tag
 
 def parse_profile_options():
@@ -62,6 +63,9 @@ def parse_profile_options():
     )
     parser.add_argument(
         "--tag", type = str, default = None
+    )
+    parser.add_argument(
+        "--test_time", type = float, default = None
     )
     args = parser.parse_args()
     profile_config = ProfileConfig(args=args)

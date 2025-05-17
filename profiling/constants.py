@@ -2,10 +2,22 @@ import os
 import torch
 from enum import Enum
 from trace.trace_utils import Trace
+import numpy as np
 
 class ArgsType(Enum):
     INT = 1
     STRING = 2
+
+class RecordingAction(Enum):
+    NO_RECORD = 0
+    DCGM_ONLY = 1
+    STATISTICS_ONLY = 2
+    ALL = 3
+
+RECORDING_ACTION_MAP = {
+    "dcgm": [RecordingAction.DCGM_ONLY, RecordingAction.ALL],
+    "statistics": [RecordingAction.STATISTICS_ONLY, RecordingAction.ALL]
+}
 
 GPU_UUID = [
     "GPU-dbbfc53e-396c-4cfb-bce3-88dc1c760e98",
@@ -68,6 +80,9 @@ profile_dict = {
     'nvlink_rx_bytes': 1012,
 }
 
+PARTIAL_MODEL_STRIDE = int(os.environ["GVLLM_PARTIAL_STRIDE"]) if 'GVLLM_PARTIAL_STRIDE' in os.environ else 1
+PIPE_PATH = os.path.join(os.getenv("TMPDIR"), "shuxin_pipe")
+
 def get_comma_list(strlist, argstype, expand = None, default = None):
     results = strlist.strip("\n").split(",")
     if(argstype == ArgsType.INT):
@@ -94,7 +109,7 @@ def list_to_string(data, delimiter = " "):
     return delimiter.join(data)
 
 class TestConfig():
-    def __init__(self, global_cnt, tag, batch_size, start, end, dcgm_group, seq_len = None):
+    def __init__(self, global_cnt, tag, batch_size, start, end, dcgm_group, seq_len = None, **kwargs):
         self.global_cnt = global_cnt
         self.tag = tag
         self.batch_size = batch_size
@@ -104,17 +119,25 @@ class TestConfig():
         self.seq_len = seq_len
         self.nosync = False
         self.trace_path = None
+        self.test_time = kwargs["test_time"] if "test_time" in kwargs else None
+        self.recording_action = kwargs["recording_action"] if "recording_action" in kwargs else None
     
-    def get_tag(self, model_worker):
-        self_tag = model_worker.get_tag(self)
-        self.tag = "-".join([self_tag, self.tag]) if self.tag is not None else self_tag
-    
-    def fit(self, model_worker):
+    def get_inter_tag(self, model_worker):
         if(self.start == -1):
             self.start = 0
         if(self.end == -1):
             self.end = model_worker.total_module
         self.inter_flag = (self.start != 0) or (self.end != model_worker.total_module)
+
+    def get_tag(self, model_worker):
+        self.get_inter_tag(model_worker)
+        self_tag = model_worker.get_tag(self)
+        if(self.inter_flag):
+            self_tag += "[" + str(self.start) + "," + str(self.end) + "]"
+        self.tag = "-".join([self_tag, self.tag]) if self.tag is not None else self_tag
+    
+    def fit(self, model_worker):
+        self.get_inter_tag(model_worker)
         if(model_worker.model_name != "bert" and self.inter_flag):
             model_worker.submodel = torch.nn.Sequential(*model_worker.submodules[self.start:self.end])
         self.get_tag(model_worker)
@@ -125,3 +148,15 @@ def stop_dcgm(pids):
     for pid in pids:
         command = "kill -9 {}".format(str(pid))
         os.system(command)
+
+def get_dcgm_analysis(profile_filepath):
+    values = []
+    with open(profile_filepath, 'r') as profile_file:
+        lines = profile_file.readlines()
+        for line in lines:
+            line = line.strip('\n').strip(' ')
+            if line and not line.startswith("#Entity") and not line.startswith("ID"):
+                # print(line, line.split("      "))
+                _, value = line.split("      ")
+                values.append(float(value))
+    return np.mean(values) if values else None
