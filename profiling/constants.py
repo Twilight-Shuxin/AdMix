@@ -95,6 +95,9 @@ def get_comma_list(strlist, argstype, expand = None, default = None):
                 results.append(default)
     return results
 
+def bin_records_append_timestamps(record_list, bin_size):
+    return [[i * bin_size, record_list[i]] for i in range(len(record_list))]
+
 def get_comma_list_or_single(strlist, argstype, expand = None, default = None):
     comma_list = get_comma_list(strlist, argstype, expand, default)
     if(len(comma_list) == 1): 

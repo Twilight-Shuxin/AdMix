@@ -137,6 +137,9 @@ class ModelWorker(Process):
         self.write_all(test_config, "all.log", list(map(list, zip(*self.logs))))
         # 0: produced time; 1: processed time
     
+    def write_log_oppserve_additional(self, test_config):
+        self.write_all(test_config, "flow.log", bin_records_append_timestamps(self.absolute_throughput_time_bins, BIN_SIZE))
+      
     def check_performace(self, test_config):
         return self.absolute_throughput, self.throughput
 
@@ -259,6 +262,7 @@ class ModelWorker(Process):
             stop_dcgm(pids) 
         if(rec in RECORDING_ACTION_MAP["statistics"]):
             self.write_log_normal(test_config)
+            self.write_log_oppserve_additional(test_config)
 
     def run(self) -> None:
         self.init_start()

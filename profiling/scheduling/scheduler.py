@@ -7,20 +7,19 @@ import time
 BasicSchedulePlan = namedtuple('BasicSchedulePlan', ['batch_size'])
 SchedulerInfo = namedtuple('SchedulerInfo', ['scheduler', 'default_data', 'pack_func', 'schedule_plan'])
 
-# def basic_recorder(model_worker, schedule_plan : BasicSchedulePlan, rec):
-#     if(rec == False):
-#         return
-#     model_worker.absolute_throughput_records[] += schedule_plan.batch_size
+# entering basic recorder: in statistics recording mode
+def basic_recorder(model_worker, schedule_plan : BasicSchedulePlan):
+    current_timestamp = time.perf_counter() - model_worker.start_time_pointer
+    model_worker.absolute_throughput += schedule_plan.batch_size
+    model_worker.throughput += 1
+    model_worker.absolute_throughput_time_bins[int(current_timestamp / BIN_SIZE)] += schedule_plan.batch_size
 
 def BasicSchedulePlanExecute(model_worker, schedule_plan, rec):
     # Currently schedule plan is simple batch size
     if(schedule_plan.batch_size == 0):
         return
     if(rec):
-        current_timestamp = time.perf_counter() - model_worker.start_time_pointer
-        model_worker.absolute_throughput += schedule_plan.batch_size
-        model_worker.throughput += 1
-        model_worker.absolute_throughput_time_bins[int(current_timestamp / BIN_SIZE)] += schedule_plan.batch_size
+        basic_recorder(model_worker, schedule_plan)
     input = model_worker.get_input(InputConfig(schedule_plan.batch_size))
     model_worker.inference(input, 0, model_worker.total_module, True, rec)
 
