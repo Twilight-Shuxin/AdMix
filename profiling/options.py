@@ -10,7 +10,7 @@ class ProfileConfig:
         self.starts = get_comma_list(args.start, ArgsType.INT, self.model_cnt)
         self.ends = get_comma_list(args.end, ArgsType.INT, self.model_cnt)
         self.batch_sizes = get_comma_list(args.batch_size, ArgsType.INT, self.model_cnt)
-        self.profile_groups = get_comma_list(args.profile_group, ArgsType.INT, self.model_cnt)
+        self.profile_groups = get_comma_list(args.profile_group, ArgsType.INT)
         self.device = args.device
         self.path = args.path
         self.trace_path = get_comma_list(args.trace, ArgsType.STRING, self.model_cnt)

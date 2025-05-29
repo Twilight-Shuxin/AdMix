@@ -12,3 +12,4 @@ class VggWorker(ModelWorker):
             batch_size: torch.rand(batch_size, 3, 224, 224).cuda(self.device)
             for batch_size in self.supported_batchsize
         }
+        

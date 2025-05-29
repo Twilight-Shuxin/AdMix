@@ -35,10 +35,10 @@ def get_bin_from_intervals(time_intervals):
     
     # Calculate midpoints of bins for intensity plotting
     bin_midpoints = bins[:-1] + np.diff(bins) / 2
-    return intensity, bin_midpoints
+    return (bin_midpoints, intensity)
 
-def trace_plot_aggregated_intensity_with_analysis_data(time_intervals, analysis_data, y_tag, plot_file):
-    intensity, bin_midpoints = get_bin_from_intervals(time_intervals)
+def trace_plot_aggregated_intensity_with_analysis_data(aggregated_intensity, analysis_data, y_tag, plot_file):
+    bin_midpoints, intensity = aggregated_intensity
     # Extract latency timestamps and values
     analysis_data_timestamps = [entry[0] for entry in analysis_data]
     analysis_data_values = [entry[1] for entry in analysis_data]
@@ -65,8 +65,8 @@ def trace_plot_aggregated_intensity_with_analysis_data(time_intervals, analysis_
     plt.savefig(plot_file)
 
 
-def trace_plot_aggregated_intensity(time_intervals, plot_file):
-    intensity, bin_midpoints = get_bin_from_intervals(time_intervals)
+def trace_plot_aggregated_intensity(aggregated_intensity, plot_file):
+    bin_midpoints, intensity = aggregated_intensity
     # Plotting the data
     plt.figure(figsize=(10, 5))
     plt.plot(bin_midpoints, intensity, linestyle='-', color='b')
@@ -128,3 +128,29 @@ def trace_plot_intensity_with_analysis_data(intensity_data_all, intensity_data_f
     plt.title("Request Intensity & Latency")
     plt.savefig(plot_file)
     plt.show()
+
+def trace_plot_request_intensity(timestamps, plot_file):
+    # Convert timestamps to NumPy array for efficient processing
+    SUB_BIN_SIZE = 1
+    timestamps = np.array(timestamps)
+
+    # Define bin edges from min to max timestamp
+    min_time, max_time = np.min(timestamps), np.max(timestamps)
+    bins = np.arange(min_time, max_time + SUB_BIN_SIZE, SUB_BIN_SIZE)
+
+    # Count occurrences per bin
+    intensity, _ = np.histogram(timestamps, bins=bins)
+
+    # Compute bin centers for plotting
+    bin_centers = bins[:-1] + (SUB_BIN_SIZE / 2)
+
+    # Create the plot
+    plt.figure(figsize=(10, 5))
+    plt.plot(bin_centers, intensity, linestyle="-", color="blue", label="Request Intensity")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Request Count")
+    plt.title("Request Intensity Over Time")
+    plt.grid(True, linestyle="--", alpha=0.5)
+    plt.legend()
+    plt.savefig(plot_file)
+

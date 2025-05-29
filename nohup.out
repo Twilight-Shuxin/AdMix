@@ -1,126 +1,10 @@
-python test.py --model resnet50,vgg19 --batch_size 1,1 --profile_group -1 --mps 40,60
-python test.py --model resnet50,vgg19 --batch_size 1,1 --profile_group -1 --mps 50,50
-python test.py --model resnet50,vgg19 --batch_size 1,1 --profile_group -1 --mps 60,40
-python test.py --model resnet50,vgg19 --batch_size 2,2 --profile_group -1 --mps 40,60
-python test.py --model resnet50,vgg19 --batch_size 2,2 --profile_group -1 --mps 50,50
-python test.py --model resnet50,vgg19 --batch_size 2,2 --profile_group -1 --mps 60,40
-python test.py --model resnet50,vgg19 --batch_size 4,4 --profile_group -1 --mps 40,60
-python test.py --model resnet50,vgg19 --batch_size 4,4 --profile_group -1 --mps 50,50
-python test.py --model resnet50,vgg19 --batch_size 4,4 --profile_group -1 --mps 60,40
-python test.py --model resnet50,vgg19 --batch_size 8,8 --profile_group -1 --mps 40,60
-python test.py --model resnet50,vgg19 --batch_size 8,8 --profile_group -1 --mps 50,50
-python test.py --model resnet50,vgg19 --batch_size 8,8 --profile_group -1 --mps 60,40
-python test.py --model resnet50,vgg19 --batch_size 16,16 --profile_group -1 --mps 40,60
-python test.py --model resnet50,vgg19 --batch_size 16,16 --profile_group -1 --mps 50,50
-python test.py --model resnet50,vgg19 --batch_size 16,16 --profile_group -1 --mps 60,40
-python test.py --model resnet50,vgg19 --batch_size 32,32 --profile_group -1 --mps 40,60
-python test.py --model resnet50,vgg19 --batch_size 32,32 --profile_group -1 --mps 50,50
-python test.py --model resnet50,vgg19 --batch_size 32,32 --profile_group -1 --mps 60,40
-python test.py --model resnet50,inception_v3 --batch_size 1,1 --profile_group -1 --mps 40,60
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 1,1 --profile_group -1 --mps 50,50
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 1,1 --profile_group -1 --mps 60,40
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 2,2 --profile_group -1 --mps 40,60
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 2,2 --profile_group -1 --mps 50,50
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 2,2 --profile_group -1 --mps 60,40
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 4,4 --profile_group -1 --mps 40,60
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 4,4 --profile_group -1 --mps 50,50
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 4,4 --profile_group -1 --mps 60,40
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 8,8 --profile_group -1 --mps 40,60
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 8,8 --profile_group -1 --mps 50,50
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 8,8 --profile_group -1 --mps 60,40
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 16,16 --profile_group -1 --mps 40,60
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 16,16 --profile_group -1 --mps 50,50
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 16,16 --profile_group -1 --mps 60,40
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 32,32 --profile_group -1 --mps 40,60
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 32,32 --profile_group -1 --mps 50,50
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model resnet50,inception_v3 --batch_size 32,32 --profile_group -1 --mps 60,40
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 1,1 --profile_group -1 --mps 40,60
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 1,1 --profile_group -1 --mps 50,50
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 1,1 --profile_group -1 --mps 60,40
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 2,2 --profile_group -1 --mps 40,60
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 2,2 --profile_group -1 --mps 50,50
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 2,2 --profile_group -1 --mps 60,40
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 4,4 --profile_group -1 --mps 40,60
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 4,4 --profile_group -1 --mps 50,50
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 4,4 --profile_group -1 --mps 60,40
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 8,8 --profile_group -1 --mps 40,60
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 8,8 --profile_group -1 --mps 50,50
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 8,8 --profile_group -1 --mps 60,40
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 16,16 --profile_group -1 --mps 40,60
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 16,16 --profile_group -1 --mps 50,50
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 16,16 --profile_group -1 --mps 60,40
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 32,32 --profile_group -1 --mps 40,60
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 32,32 --profile_group -1 --mps 50,50
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
-python test.py --model vgg19,inception_v3 --batch_size 32,32 --profile_group -1 --mps 60,40
-/home/k43015/MPSTest/profiling/models/split/inception.py:89: FutureWarning: The default weight initialization of inception_v3 will be changed in future releases of torchvision. If you wish to keep the old behavior (which leads to long initialization times due to scipy/scipy#11299), please set init_weights=True.
-  warnings.warn(
+Loading safetensors checkpoint shards:   0% Completed | 0/2 [00:00<?, ?it/s]
+Loading safetensors checkpoint shards:  50% Completed | 1/2 [00:00<00:00,  3.46it/s]
+Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:28<00:00, 16.91s/it]
+Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:28<00:00, 14.42s/it]
+
+Capturing CUDA graph shapes:   0%|          | 0/35 [00:00<?, ?it/s]Capturing CUDA graph shapes:   3%|▎         | 1/35 [00:00<00:17,  1.98it/s]Capturing CUDA graph shapes:   6%|▌         | 2/35 [00:00<00:13,  2.39it/s]Capturing CUDA graph shapes:   9%|▊         | 3/35 [00:01<00:12,  2.57it/s]Capturing CUDA graph shapes:  11%|█▏        | 4/35 [00:01<00:11,  2.65it/s]Capturing CUDA graph shapes:  14%|█▍        | 5/35 [00:01<00:11,  2.71it/s]Capturing CUDA graph shapes:  17%|█▋        | 6/35 [00:02<00:11,  2.55it/s]Capturing CUDA graph shapes:  20%|██        | 7/35 [00:02<00:10,  2.64it/s]Capturing CUDA graph shapes:  23%|██▎       | 8/35 [00:03<00:10,  2.67it/s]Capturing CUDA graph shapes:  26%|██▌       | 9/35 [00:03<00:09,  2.73it/s]Capturing CUDA graph shapes:  29%|██▊       | 10/35 [00:03<00:09,  2.78it/s]Capturing CUDA graph shapes:  31%|███▏      | 11/35 [00:04<00:08,  2.80it/s]Capturing CUDA graph shapes:  34%|███▍      | 12/35 [00:04<00:08,  2.82it/s]Capturing CUDA graph shapes:  37%|███▋      | 13/35 [00:04<00:07,  2.84it/s]Capturing CUDA graph shapes:  40%|████      | 14/35 [00:05<00:07,  2.85it/s]Capturing CUDA graph shapes:  43%|████▎     | 15/35 [00:05<00:06,  2.86it/s]Capturing CUDA graph shapes:  46%|████▌     | 16/35 [00:05<00:06,  2.87it/s]Capturing CUDA graph shapes:  49%|████▊     | 17/35 [00:06<00:06,  2.89it/s]Capturing CUDA graph shapes:  51%|█████▏    | 18/35 [00:06<00:05,  2.92it/s]Capturing CUDA graph shapes:  54%|█████▍    | 19/35 [00:06<00:05,  2.94it/s]Capturing CUDA graph shapes:  57%|█████▋    | 20/35 [00:07<00:05,  2.96it/s]Capturing CUDA graph shapes:  60%|██████    | 21/35 [00:07<00:04,  2.97it/s]Capturing CUDA graph shapes:  63%|██████▎   | 22/35 [00:07<00:04,  2.99it/s]Capturing CUDA graph shapes:  66%|██████▌   | 23/35 [00:08<00:03,  3.00it/s]Capturing CUDA graph shapes:  69%|██████▊   | 24/35 [00:08<00:03,  3.01it/s]Capturing CUDA graph shapes:  71%|███████▏  | 25/35 [00:08<00:03,  2.94it/s]Capturing CUDA graph shapes:  74%|███████▍  | 26/35 [00:09<00:03,  2.98it/s]Capturing CUDA graph shapes:  77%|███████▋  | 27/35 [00:09<00:02,  2.98it/s]Capturing CUDA graph shapes:  80%|████████  | 28/35 [00:09<00:02,  2.98it/s]Capturing CUDA graph shapes:  83%|████████▎ | 29/35 [00:10<00:01,  3.01it/s]Capturing CUDA graph shapes:  86%|████████▌ | 30/35 [00:10<00:01,  3.03it/s]Capturing CUDA graph shapes:  89%|████████▊ | 31/35 [00:10<00:01,  3.05it/s]Capturing CUDA graph shapes:  91%|█████████▏| 32/35 [00:11<00:00,  3.05it/s]Capturing CUDA graph shapes:  94%|█████████▍| 33/35 [00:11<00:00,  3.04it/s]Capturing CUDA graph shapes:  97%|█████████▋| 34/35 [00:11<00:00,  3.07it/s]Capturing CUDA graph shapes: 100%|██████████| 35/35 [00:12<00:00,  3.07it/s]Capturing CUDA graph shapes: 100%|██████████| 35/35 [00:12<00:00,  2.88it/s]
+INFO:     Started server process [15593]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)

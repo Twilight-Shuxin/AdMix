@@ -1,7 +1,6 @@
 from profiling.options import parse_profile_options
 import torch.multiprocessing as mp  
 from profiling.profiler import ProfileServer  
-from profiling.dummy import Dummy
 from trace.trace_utils import BurstGPTTrace
 from plotting.trace_plot import *
 import time
@@ -32,6 +31,7 @@ if __name__=="__main__":
     profile_config = parse_profile_options()
     profile_server = ProfileServer(profile_config)
     profile_server.setup()
-    profile_server.test()
+    # profile_server.test()
+    profile_server.serve()
     profile_server.collect_data()
     profile_server.shutdown()

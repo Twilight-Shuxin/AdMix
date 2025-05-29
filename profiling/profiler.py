@@ -33,7 +33,7 @@ class ProfileServer():
         for id, model_name in enumerate(self.model_names):
             self.pipe_map[model_name].send(("tag"))
             testconfig = TestConfig(self.model_cnt, None, self.batch_sizes[id], self.starts[id], self.ends[id], 
-                self.profile_groups[id], self.seq_len)
+                -1, self.seq_len)
             self.pipe_map[model_name].send(testconfig)
             self.global_tag += self.pipe_map[model_name].recv()
         return self.global_tag
@@ -57,22 +57,29 @@ class ProfileServer():
         self.barrier.wait()
         self.get_global_tag()
 
-    def test(self):
+    def test(self, serve_flag = False):
+        print("start test")
         for prof_id, prof_group in enumerate(self.profile_groups):
             for id, model_name in enumerate(self.model_names):
-                self.pipe_map[model_name].send("test")
+                self.pipe_map[model_name].send("test" if(model_name == "llm" or serve_flag == False) else "opp_serve")
                 if (prof_id == 0):
                     recording_action = RecordingAction.ALL if (id == 0) else RecordingAction.STATISTICS_ONLY
                 elif (id == 0):
                     recording_action = RecordingAction.DCGM_ONLY
                 else:
                     recording_action = RecordingAction.NO_RECORD
-                testconfig = TestConfig(self.model_cnt, self.global_tag, self.batch_sizes[id], self.starts[id], self.ends[id], 
+                test_config = TestConfig(self.model_cnt, self.global_tag, self.batch_sizes[id], self.starts[id], self.ends[id], 
                     prof_group, self.seq_len, test_time = self.test_time, recording_action = recording_action)
-                # testconfig.nosync = True
-                testconfig.trace_path = self.trace_path[id]
-                self.pipe_map[model_name].send(testconfig)
+                if(serve_flag):
+                    test_config.scheduler = "AIMD"
+                # test_config.nosync = True
+                test_config.trace_path = self.trace_path[id]
+                self.pipe_map[model_name].send(test_config)
             self.barrier.wait()
+            print("round one end")
+    
+    def serve(self):
+        self.test(True)
 
     def shutdown(self):
         for id, model_name in enumerate(self.model_names):
@@ -105,9 +112,9 @@ class ProfileServer():
                     dcgm_data = self.pipe_map[model_name].recv()
                 print("==== Profile:", model_name)
                 if(model_name != "llm"):
-                    passed_flag, passed, total, slo_info = self.pipe_map[model_name].recv()
-                    print("* Passed:", passed_flag, "Met", passed, "Total", total, "SLO_info", slo_info)
-                    summary_file.write(model_name + " " + str(passed_flag) + " " + str(passed) + "/" + str(total) + " " + str(slo_info) + "\n")
+                    absolute_throughput, throughput = self.pipe_map[model_name].recv()
+                    print("* Absolute throughput:", absolute_throughput, "Throughput", throughput)
+                    summary_file.write(model_name + " " + str(absolute_throughput) + " " + str(throughput) + "\n")
                 else:
                     passed_flag, passed, total_fixed, total, slo_info = self.pipe_map[model_name].recv()
                     print("* Passed:", passed_flag, "Met", passed, "Total Fixed", total_fixed, "Total Submitted", total, "SLO_info", slo_info)

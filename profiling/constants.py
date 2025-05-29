@@ -80,8 +80,6 @@ profile_dict = {
     'nvlink_rx_bytes': 1012,
 }
 
-PARTIAL_MODEL_STRIDE = int(os.environ["GVLLM_PARTIAL_STRIDE"]) if 'GVLLM_PARTIAL_STRIDE' in os.environ else 1
-PIPE_PATH = os.path.join(os.getenv("TMPDIR"), "shuxin_pipe")
 
 def get_comma_list(strlist, argstype, expand = None, default = None):
     results = strlist.strip("\n").split(",")
@@ -105,8 +103,18 @@ def get_comma_list_or_single(strlist, argstype, expand = None, default = None):
 
 def list_to_string(data, delimiter = " "):
     data_string = ""
-    data = [str(x) for x in data]
+    if (isinstance(data, list)):
+        data = [str(x) for x in data]
+    else:
+        data = [str(data)]
     return delimiter.join(data)
+
+class InputConfig():
+    def __init__(self, batch_size, **kwargs):
+        self.batch_size = batch_size
+        self.nosync = kwargs["nosync"] if "nosync" in kwargs else None
+        self.inter_flag = kwargs["inter_flag"] if "inter_flag" in kwargs else None
+        self.start = kwargs["start"] if "start" in kwargs else None
 
 class TestConfig():
     def __init__(self, global_cnt, tag, batch_size, start, end, dcgm_group, seq_len = None, **kwargs):
@@ -121,6 +129,7 @@ class TestConfig():
         self.trace_path = None
         self.test_time = kwargs["test_time"] if "test_time" in kwargs else None
         self.recording_action = kwargs["recording_action"] if "recording_action" in kwargs else None
+        self.scheduler = kwargs["scheduler"] if "scheduler" in kwargs else None
     
     def get_inter_tag(self, model_worker):
         if(self.start == -1):
@@ -149,7 +158,7 @@ def stop_dcgm(pids):
         command = "kill -9 {}".format(str(pid))
         os.system(command)
 
-def get_dcgm_analysis(profile_filepath):
+def get_dcgm_data(profile_filepath):
     values = []
     with open(profile_filepath, 'r') as profile_file:
         lines = profile_file.readlines()
@@ -159,4 +168,8 @@ def get_dcgm_analysis(profile_filepath):
                 # print(line, line.split("      "))
                 _, value = line.split("      ")
                 values.append(float(value))
+    return values
+
+def get_dcgm_analysis(profile_filepath):
+    values = get_dcgm_data(profile_filepath)
     return np.mean(values) if values else None
