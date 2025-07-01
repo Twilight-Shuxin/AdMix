@@ -6,8 +6,8 @@ import random
 import numpy as np
 
 class BertWorker(ModelWorker):
-    def __init__(self, device_id, mps, pipe, barrier, log_path):
-        super().__init__("bert", device_id, mps, pipe, barrier, log_path)
+    def __init__(self, device_id, mps, pipe, barrier, log_path, profile_path):
+        super().__init__("bert", device_id, mps, pipe, barrier, log_path, profile_path)
         self.supported_seqlen = [8, 16, 32, 64]
     
     def _inference(self, input, start, end):
@@ -18,7 +18,7 @@ class BertWorker(ModelWorker):
         if(test_config.nosync):
             batch_size = 1
         seq_len = random.choice(self.supported_seqlen)
-        if(test_config.seq_len != -1):
+        if(test_config.seq_len != None):
             seq_len = test_config.seq_len
         if test_config.inter_flag:
             return self.partial_input[batch_size][seq_len][test_config.start], self.random_masks[batch_size][seq_len]

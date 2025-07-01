@@ -7,7 +7,7 @@ sudo systemctl --now enable nvidia-dcgm
 
 
 python test.py --model resnet50 --batch_size 4 --profile_group 0
-python test.py --model resnet50,vgg19 --batch_size 4 --profile_group -1
+python test_llm.py --model resnet50,vgg19 --batch_size 4 --profile_group -1
 python test.py --model llm --profile_group -1 --seqlen 10,10
 python test.py --model llm --profile_group -1 --seqlen 10,10 --trace BurstGPT_1.csv --device 1
 python test.py --model llm --profile_group 0 --trace BurstGPT_1.csv --device 1
@@ -19,3 +19,8 @@ python test_llm.py --model resnet50,inception_v3,llm --batch_size 32,32 --profil
 
 systemctl start rabbitmq-server.service
 systemctl stop rabbitmq-server.service
+
+python test_llm.py --model unet3d,llm --trace ,BurstGPT_1.csv[6] --device 1 --test_time 80 --mode SERVE --scheduler AIMD
+python test_llm.py --model llm --trace BurstGPT_1.csv[0] --device 1 --test_time 100
+python test_llm.py --model unet3d --device 1 --mode PROFILE
+python test_llm.py --model llm  --device 1 --test_time 50 --seqlen 472,18

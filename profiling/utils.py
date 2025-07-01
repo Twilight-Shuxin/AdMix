@@ -6,5 +6,6 @@ model_workers = {
     "vgg19": VggWorker,
     "inception_v3": InceptionWorker,
     "bert": BertWorker,
-    "llm": LLMWorker
+    "llm": LLMWorker,
+    "unet3d": UNet3DWorker,
 }

@@ -4,8 +4,8 @@ import torch
 import os
 
 class ResnetWorker(ModelWorker):
-    def __init__(self, device_id, mps, pipe, barrier, log_path):
-        super().__init__("resnet50", device_id, mps, pipe, barrier, log_path)
+    def __init__(self, device_id, mps, pipe, barrier, log_path, profile_path):
+        super().__init__("resnet50", device_id, mps, pipe, barrier, log_path, profile_path)
     
     def init_start(self):
         self.model = resnet50().cuda(self.device).eval()

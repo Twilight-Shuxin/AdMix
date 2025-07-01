@@ -5,6 +5,7 @@ from trace.trace_utils import BurstGPTTrace
 from plotting.trace_plot import *
 import time
 from profiling.constants import *
+import sys
 
 # if __name__=="__main__":
 #     mp.set_start_method('spawn')
@@ -31,7 +32,12 @@ if __name__=="__main__":
     profile_config = parse_profile_options()
     profile_server = ProfileServer(profile_config)
     profile_server.setup()
+
     # profile_server.test()
-    profile_server.serve()
-    profile_server.collect_data()
+    if(profile_server.mode == RuntimeMode.PROFILE):
+        print("profile")
+        profile_server.profile()
+    else:
+        profile_server.serve()
+        profile_server.collect_data()
     profile_server.shutdown()

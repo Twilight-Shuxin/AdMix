@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import json
 
 def read_trace(filename, scale = 1):
     req_timestamps = []
@@ -10,19 +11,35 @@ def read_trace(filename, scale = 1):
             req_timestamps.append(float(line.strip('\n')) / scale)
     return req_timestamps
 
-def read_burstgpt_trace(filename, scale = None, max_total_prompt_num=15000):
-    foo = os.environ.get('GVLLM_TRACE_SCALE')
-    if(foo is not None):
-        scale = float(foo)
-    else:
-        if(scale == None):
-            scale = 51
+def get_burstgpt_trace_tag():
+    chunk_size, start_id, max_total_prompt_num, scale = read_burstgpt_trace_config("trace_config.json")
+    trace_arg = [chunk_size, start_id, max_total_prompt_num, scale]
+    trace_tag = ",".join([str(x) for x in trace_arg])
+    return trace_tag
+
+def read_burstgpt_trace_config(filename):
     filename = os.path.dirname(os.path.realpath(__file__)) + "/" + filename
-    chunk_iter = pd.read_csv(filename, chunksize=100)
+    with open(filename, 'r') as trace_config_file:
+        data = json.load(trace_config_file)
+    return data["chunk_size"], data["start_id"], data["max_prompt_cnt"], data["scale"]
+
+def set_burstgpt_trace_config(id):
+    config_list_filename = os.path.dirname(os.path.realpath(__file__)) + "/" + "trace_config_list.json"
+    config_filename = os.path.dirname(os.path.realpath(__file__)) + "/" + "trace_config.json"
+    with open(config_list_filename, "r", encoding="utf-8") as config_list_file:
+            data = json.load(config_list_file)  # Load as a list
+            selected_config = data[id]
+            with open(config_filename, "w", encoding="utf-8") as f:
+                json.dump(selected_config, f, indent=4)
+
+def read_burstgpt_trace(filename):
+    chunk_size, start_id, max_total_prompt_num, scale = read_burstgpt_trace_config("trace_config.json")
+    filename = os.path.dirname(os.path.realpath(__file__)) + "/" + filename
+    chunk_iter = pd.read_csv(filename, chunksize=chunk_size)
     chunks = []
     total_prompt_num = 0
     for id, chunk in enumerate(chunk_iter):
-        if(id <= 10):
+        if(id < start_id):
             continue
         chunks.append(chunk)
         total_prompt_num += len(chunk)
@@ -35,8 +52,8 @@ def read_burstgpt_trace(filename, scale = None, max_total_prompt_num=15000):
     trace.reset_index(drop=True, inplace=True)
     start_time = trace.at[0, 'Timestamp']
     trace['Timestamp'] = trace['Timestamp'] - start_time
-    print("max request tokens: ", trace['Request tokens'].max(), "; min request tokens",  trace['Request tokens'].min())
-    print("max response tokens: ", trace['Response tokens'].max(), "; min response tokens", trace['Response tokens'].min())
+    # print("max request tokens: ", trace['Request tokens'].max(), "; min request tokens",  trace['Request tokens'].min())
+    # print("max response tokens: ", trace['Response tokens'].max(), "; min response tokens", trace['Response tokens'].min())
     trace['Timestamp'] = trace['Timestamp'] / scale
     time_length = trace['Timestamp'].max()
     print('Trace length', time_length, 'Average', total_prompt_num / time_length)

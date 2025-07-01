@@ -20,7 +20,7 @@ def recover_intervals(start_times, intervals, max_end_time):
 def get_bin_from_intervals(time_intervals):
     # Extract the maximum timestamp from the end times
     max_time = max(end for _, end in time_intervals)
-    time_period = BIN_SIZE
+    time_period = PLOTTING_BIN_SIZE
     bins = np.arange(0, max_time + time_period, time_period)
 
     # Create an array to store intensity values
@@ -35,10 +35,11 @@ def get_bin_from_intervals(time_intervals):
     
     # Calculate midpoints of bins for intensity plotting
     bin_midpoints = bins[:-1] + np.diff(bins) / 2
-    return (bin_midpoints, intensity)
+    return list(map(list, zip(bin_midpoints, intensity)))
 
 def trace_plot_aggregated_intensity_with_analysis_data(aggregated_intensity, analysis_data, y_tag, plot_file):
-    bin_midpoints, intensity = aggregated_intensity
+    bin_midpoints = [x[0] for x in aggregated_intensity]
+    intensity = [x[1] for x in aggregated_intensity]
     # Extract latency timestamps and values
     analysis_data_timestamps = [entry[0] for entry in analysis_data]
     analysis_data_values = [entry[1] for entry in analysis_data]
@@ -66,7 +67,8 @@ def trace_plot_aggregated_intensity_with_analysis_data(aggregated_intensity, ana
 
 
 def trace_plot_aggregated_intensity(aggregated_intensity, plot_file):
-    bin_midpoints, intensity = aggregated_intensity
+    bin_midpoints = [x[0] for x in aggregated_intensity]
+    intensity = [x[1] for x in aggregated_intensity]
     # Plotting the data
     plt.figure(figsize=(10, 5))
     plt.plot(bin_midpoints, intensity, linestyle='-', color='b')
@@ -77,7 +79,7 @@ def trace_plot_aggregated_intensity(aggregated_intensity, plot_file):
     plt.tight_layout()
     plt.savefig(plot_file)
 
-def bin_data(data, bin_size=BIN_SIZE):
+def bin_data(data, bin_size=PLOTTING_BIN_SIZE):
     """
     Groups data into bins of `bin_size` seconds and computes the average.
     
@@ -98,34 +100,67 @@ def bin_data(data, bin_size=BIN_SIZE):
 
     return [(t, v) for t, v in binned_values if not np.isnan(v)]  # Remove NaNs
 
-def trace_plot_intensity_with_analysis_data(intensity_data_all, intensity_data_first_received, analysis_data, plot_file):
+def trace_plot_two_intensity_with_analysis_data(intensity_data_one, label1, intensity_data_two, label2, analysis_data, analysis_label, analysis_tag, plot_file):
     fig, ax1 = plt.subplots(figsize=(10, 5))
 
     # Bin intensity data
-    binned_all = bin_data(intensity_data_all)
-    binned_first = bin_data(intensity_data_first_received)
+    binned_one = bin_data(intensity_data_one)
+    binned_two = bin_data(intensity_data_two)
 
     # Extract timestamps and values
-    timestamps_all, values_all = zip(*binned_all)
-    timestamps_first, values_first = zip(*binned_first)
+    timestamps_one, values_one = zip(*binned_one)
+    timestamps_two, values_two = zip(*binned_two)
 
     # Plot smoothed intensity data on left y-axis
-    ax1.plot(timestamps_all, values_all, label="All", color="#4B0082", linestyle="-")
-    ax1.plot(timestamps_first, values_first, label="Waiting First", color="#377eb8", linestyle="--")
+    ax1.plot(timestamps_one, values_one, label=label1, color="#4B0082", linestyle="-")
+    ax1.plot(timestamps_two, values_two, label=label2, color="#377eb8", linestyle="--")
     ax1.set_xlabel("Time (s)")
     ax1.set_ylabel("Intensity")
     ax1.legend(loc="upper left")
     ax1.grid(True, linestyle="--", alpha=0.5)
 
     # Create right y-axis for analysis data
-    ax2 = ax1.twinx()
+    ax2 = ax1.twinx() 
     timestamps_analysis, values_analysis = zip(*analysis_data)
-    ax2.plot(timestamps_analysis, values_analysis, label="Analysis Data", color="#FF4500", linestyle=":")
-    ax2.set_ylabel("Latency (s)")
+    ax2.plot(timestamps_analysis, values_analysis, label=analysis_label, color="#FF4500", linestyle=":")
+    analysis_tag_name, analysis_tag_unit = analysis_tag
+    ax2.set_ylabel((analysis_tag_name + ' ' + analysis_tag_unit) if(len(analysis_tag_unit) > 0) else analysis_tag_name)
     ax2.legend(loc="upper right")
 
     # Save plot
-    plt.title("Request Intensity & Latency")
+    plt.title("Request Intensity & " + analysis_tag_name)
+    plt.savefig(plot_file)
+    plt.show()
+
+def trace_plot_two_intensity_with_analysis_data_bar_plot(intensity_data_one, label1, intensity_data_two, label2, analysis_data, analysis_label, analysis_tag, plot_file):
+    fig, ax1 = plt.subplots(figsize=(10, 5))
+
+    # Bin intensity data
+    binned_one = bin_data(intensity_data_one)
+    binned_two = bin_data(intensity_data_two)
+
+    # Extract timestamps and values
+    timestamps_one, values_one = zip(*binned_one)
+    timestamps_two, values_two = zip(*binned_two)
+
+    # Plot smoothed intensity data on left y-axis
+    ax1.plot(timestamps_one, values_one, label=label1, color="#4B0082", linestyle="-")
+    ax1.plot(timestamps_two, values_two, label=label2, color="#377eb8", linestyle="--")
+    ax1.set_xlabel("Time (s)")
+    ax1.set_ylabel("Intensity")
+    ax1.legend(loc="upper left")
+    ax1.grid(True, linestyle="--", alpha=0.5)
+
+    ax2 = ax1.twinx()  # Create secondary y-axis
+    timestamps_analysis, values_analysis = zip(*analysis_data)
+    # Change plot to a bar plot
+    ax2.bar(timestamps_analysis, values_analysis, label=analysis_label, color="#FF4500", alpha=0.5)
+    analysis_tag_name, analysis_tag_unit = analysis_tag
+    ax2.set_ylabel((analysis_tag_name + ' ' + analysis_tag_unit) if(len(analysis_tag_unit) > 0) else analysis_tag_name)
+    ax2.legend(loc="upper right")
+
+    # Save plot
+    plt.title("Request Intensity & " + analysis_tag_name)
     plt.savefig(plot_file)
     plt.show()
 

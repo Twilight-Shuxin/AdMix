@@ -12,11 +12,16 @@ class ProfileConfig:
         self.batch_sizes = get_comma_list(args.batch_size, ArgsType.INT, self.model_cnt)
         self.profile_groups = get_comma_list(args.profile_group, ArgsType.INT)
         self.device = args.device
-        self.path = args.path
+        dirname, filename = os.path.split(os.path.abspath(__file__))
+        self.path = dirname + "/../" +args.path
+        self.profile_path = dirname+"/../" + args.profile_path
+
         self.trace_path = get_comma_list(args.trace, ArgsType.STRING, self.model_cnt)
         self.seq_len = get_comma_list_or_single(args.seqlen, ArgsType.INT)
         self.test_time = args.test_time
         self.global_tag = args.tag
+        self.mode = RuntimeMode(args.mode)
+        self.scheduler = args.scheduler
 
 def parse_profile_options():
     parser = argparse.ArgumentParser(description = "TestMPS")
@@ -28,44 +33,54 @@ def parse_profile_options():
     parser.add_argument(
         "--mps",
         type = str,
-        default = "-1",
+        default = "",
     )
     parser.add_argument(
         "--batch_size",
         type = str,
-        default = "1",
+        default = "",
     )
     parser.add_argument(
         "--start",
         type = str,
-        default = "-1",
+        default = "",
     )
     parser.add_argument(
         "--end",
         type = str,
-        default = "-1",
+        default = "",
     )
     parser.add_argument(
-        "--profile_group", type = str, required = True
+        "--profile_group", 
+        type = str,
+        default = "",
     )
     parser.add_argument(
         "--device", type = int, default = 0
     )
-    dirname, filename = os.path.split(os.path.abspath(__file__))
     parser.add_argument(
-        "--path", type = str, default = dirname+"/../data"
+        "--path", type = str, default = "data"
+    )
+    parser.add_argument(
+        "--profile_path", type = str, default = "profile_data"
     )
     parser.add_argument(
         "--trace", type = str, default = ''
     )
     parser.add_argument(
-        "--seqlen", type = str, default = "-1"
+        "--seqlen", type = str, default = ""
     )
     parser.add_argument(
         "--tag", type = str, default = None
     )
     parser.add_argument(
         "--test_time", type = float, default = None
+    )
+    parser.add_argument(
+        "--mode", type = str, default = RuntimeMode.TEST.value
+    )
+    parser.add_argument(
+        "--scheduler", type = str, default = None
     )
     args = parser.parse_args()
     profile_config = ProfileConfig(args=args)
