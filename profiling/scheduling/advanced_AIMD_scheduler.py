@@ -123,14 +123,14 @@ class AdvancedAIMDScheduler(Scheduler):
 
         if(prefill_cnt == 0 and decode_cnt == 0 and self.state != self.SchedulerState.SOLO):
             self.step_in_solo(intensity_data)
-            formatted_values = tuple(
-                float(f"{v:.2f}") if isinstance(v, float) else v for v in intensity_data
-            )
+            # formatted_values = tuple(
+            #     float(f"{v:.2f}") if isinstance(v, float) else v for v in intensity_data
+            # )
 
-            print(f"{time.perf_counter() - self.start_timepointer:.2f}", 
-                self.state, 
-                len(self.window_btt), 
-                formatted_values)
+            # print(f"{time.perf_counter() - self.start_timepointer:.2f}", 
+            #     self.state, 
+            #     len(self.window_btt), 
+            #     formatted_values)
         
         if(self.state == self.SchedulerState.SOLO):
             # print(intensity_data, "hi")
@@ -141,14 +141,14 @@ class AdvancedAIMDScheduler(Scheduler):
                 self.execute_single()
                 return
         
-        formatted_values = tuple(
-            float(f"{v:.2f}") if isinstance(v, float) else v for v in intensity_data
-        )
+        # formatted_values = tuple(
+        #     float(f"{v:.2f}") if isinstance(v, float) else v for v in intensity_data
+        # )
 
-        print(f"{time.perf_counter() - self.start_timepointer:.2f}", 
-            self.state, (self.batch_size, self.max_exec_cnt),
-            len(self.window_btt), 
-            formatted_values)
+        # print(f"{time.perf_counter() - self.start_timepointer:.2f}", 
+        #     self.state, (self.batch_size, self.max_exec_cnt),
+        #     len(self.window_btt), 
+        #     formatted_values)
         
         # time.sleep(self.time_interval)
         # return
@@ -209,6 +209,7 @@ class AdvancedAIMDScheduler(Scheduler):
         self.model_worker = model_worker
         self.scheduler_init()
         self.rec = rec
+        model_worker.single_barrier.wait()
         while(True):
             if(time.perf_counter() > time_limit):
                 break

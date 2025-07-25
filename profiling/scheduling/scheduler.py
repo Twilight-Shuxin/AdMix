@@ -11,5 +11,8 @@ class SchedulingDataFormat():
         pass
 
 class Scheduler():
+    profiling_executor = None
+    monitor = None
+
     def serve(self, model_worker, test_time, rec):
         pass

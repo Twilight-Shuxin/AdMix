@@ -1,6 +1,7 @@
 from plotting.trace_plot import *
-from trace.trace_utils import BurstGPTTrace
+from trace.trace_utils import BurstGPTTrace, set_burstgpt_trace_config
 from profiling.constants import *
+import sys
 
 DATA_PREFIX = "/home/k43015/MPSTest/data/llm/"
 
@@ -10,18 +11,22 @@ DATA_PREFIX = "/home/k43015/MPSTest/data/llm/"
 
 # trace_plot_request_intensity(timestamps, '/home/k43015/MPSTest/data_llm(100,501,15000,3.7)/a_request_intensity.png')
 
-# trace = BurstGPTTrace('BurstGPT_1.csv')
-# with open('/home/k43015/MPSTest/data/request_intensity.txt', 'w') as log_file:
-#     while(True):
-#         req_time, sample_in_length, sample_out_length = trace.next()
-#         log_file.write(str(req_time) + '\n')
-#         if(req_time > 300):
-#             break
+trace = BurstGPTTrace('BurstGPT_1.csv')
+trace_config_id = int(sys.argv[1])
 
-# with open(DATA_PREFIX + 'request_intensity.txt') as input_file:
-#     lines = input_file.readlines()
-#     timestamps = [float(line.strip('\n')) for line in lines]
-
+set_burstgpt_trace_config(trace_config_id)
+trace = BurstGPTTrace('BurstGPT_1.csv')
+time_limit = float(sys.argv[2])
+logs = []
+while True:
+    timestamp = trace.next()[0]
+    if(timestamp > time_limit):
+        break
+    logs.append(timestamp)
+print("-----")
+for log in logs:
+    print(log)
+print("=====")
 # trace_plot_request_intensity(timestamps, DATA_PREFIX + 'a_request_intensity.png')
 
 

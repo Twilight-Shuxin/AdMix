@@ -2,62 +2,99 @@ from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
 from profiling.scheduling.monitor import get_llm_intensity_unix
 from plotting.constants import *
-from profiling.constants import EPS
+from profiling.constants import EPS, list_to_string
+from threading import Thread
 import struct
 import time
+import signal
+import os
+import asyncio
 
 class AIMDSchedulingDataFormat(SchedulingDataFormat):
     def default_data():
-        return 0,0,0
+        return 0,0
     
     def pack_data(llm_worker):
-        current_timestamp = (time.perf_counter() - llm_worker.start_time_pointer)
-        current_bin_timestamp = int(current_timestamp / PLOTTING_BIN_SIZE)
-        left = max(current_bin_timestamp - 5, 0)
-        ft = 0
-        bt = 0
-        for i in range(left, current_bin_timestamp + 1):
-            ft = max(ft, llm_worker.time_bins_rt[i][0])
-            bt = max(bt, llm_worker.time_bins_rt[i][1])
-        return struct.pack("iff", llm_worker.queue_record[0], ft, bt)
+        return struct.pack("fi", llm_worker.uncompleted_tokens_last_record[0], llm_worker.uncompleted_tokens_last_record[1])
     
     def read_data(client_socket):
         data = client_socket.recv(32)
-        return struct.unpack("iff", data)
+        return struct.unpack("fi", data)
+
+async def AIMD_monitor(llm_worker):
+    llm_worker.uncompleted_tokens_last_record = (0,0)
+    timestamp = 0
+    try:
+        while(True):
+            llm_worker.uncompleted_tokens_last_record = (timestamp, llm_worker.uncompleted_tokens)
+            await asyncio.sleep(0.1)
+            timestamp += 0.1
+    except asyncio.CancelledError:
+        raise
+
+async def AIMD_profiler(llm_worker):
+    logs = []
+    timestamp = 0
+    try:
+        print("started profiling")
+        while(True):
+            logs.append([timestamp, llm_worker.uncompleted_tokens])
+            await asyncio.sleep(0.1)
+            timestamp += 0.1
+    except asyncio.CancelledError:
+        with open(os.path.join(llm_worker.profile_path, llm_worker.model_name + ".log"), "w") as profile_file:
+            for log_record in logs: 
+                profile_file.write(list_to_string(log_record) + "\n")
+        raise
+    except Exception as e:
+        print(e)
 
 class AIMDScheduler(Scheduler):
     data_format = AIMDSchedulingDataFormat
     scheduling_plan = BasicSchedulePlan
+    profiling_executor = AIMD_profiler
+    monitor = AIMD_monitor
 
     def __init__(self):
-        self.batch_size = 0
+        self.batch_size = 1
         self.key = True
+        self.last = -1
+        self.logs = []
 
     def schedule(self, intensity_data):
         # intensity of queries waiting for first token
-        current_intensity, max_first_token_time, max_between_token_time = intensity_data
-
-        print(max_first_token_time, max_between_token_time)
-        # profiled 99% latency
-        if (max_first_token_time > 0.58 or max_between_token_time > 0.09):
-            self.batch_size = self.batch_size // 2
-        elif (self.batch_size < self.max_batch_size):
-            if(self.key):
-                self.batch_size += 1
-                self.key = False
-            else:
-                self.key = True
-        if(self.batch_size == 0):
-            time.sleep(0.5)
+        current_timestamp, uncompleted_tokens = intensity_data
+        while (self.profile_pointer + 1 < len(self.profile) and current_timestamp - self.profile[self.profile_pointer][0] > 0.025):
+            self.profile_pointer += 1
+        if (uncompleted_tokens > 10 and self.profile[self.profile_pointer][1] * 1.1 < uncompleted_tokens):
+            self.batch_size //= 2
+        elif (self.last != self.profile_pointer and self.batch_size < self.max_batch_size):
+            self.batch_size += 1
+        if(self.last != self.profile_pointer):
+            # print(current_timestamp, self.profile[self.profile_pointer], 
+            #     uncompleted_tokens, self.batch_size)
+            self.logs.append([current_timestamp, self.profile[self.profile_pointer], uncompleted_tokens, self.batch_size])
+            self.last = self.profile_pointer
         return BasicSchedulePlan(self.batch_size)
     
     def serve(self, model_worker, test_time, rec):
-        start_time_pointer = time.perf_counter()
+        self.profile = []
+        self.profile_pointer = 0
         self.max_batch_size = model_worker.supported_batchsize[-1]
-        time_limit = start_time_pointer + test_time
+        with open(os.path.join(model_worker.profile_path, "llm.log"), "r") as profile_file:
+            lines = profile_file.readlines()
+            for line in lines:
+                self.profile.append([float(x) for x in line.strip().split(" ")])
+
+        model_worker.single_barrier.wait()
+        self.start_time_pointer = time.perf_counter()
+        time_limit = self.start_time_pointer + test_time
+        time.sleep(0.1)
         while(True):
             if(time.perf_counter() > time_limit):
                 break
-            current_intensity = get_llm_intensity_unix(AIMDScheduler.data_format)
-            schedule_plan = self.schedule(current_intensity)
+            schedule_plan = self.schedule(get_llm_intensity_unix(AIMDScheduler.data_format))
             schedule_plan.execute(model_worker, rec)
+        for log in self.logs:
+            print(log)
+        

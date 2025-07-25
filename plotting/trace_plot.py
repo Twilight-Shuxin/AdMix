@@ -4,39 +4,6 @@ import matplotlib.pyplot as plt
 import math
 from plotting.constants import *
 
-def recover_intervals(start_times, intervals, max_end_time):
-    existing_starts = {start for start, end in intervals}
-    merged_intervals = intervals[:]
-    last_start = start_times[0]
-    recorded_id = 0
-    for id, start in enumerate(start_times):
-        if(recorded_id >= len(existing_starts) or math.fabs(start - existing_starts[recorded_id]) > 1e-16):
-            merged_intervals.apend(start, max_end_time)
-        else:
-            recorded_id += 1
-    merged_intervals.sort()
-    return merged_intervals
-
-def get_bin_from_intervals(time_intervals):
-    # Extract the maximum timestamp from the end times
-    max_time = max(end for _, end in time_intervals)
-    time_period = PLOTTING_BIN_SIZE
-    bins = np.arange(0, max_time + time_period, time_period)
-
-    # Create an array to store intensity values
-    intensity = np.zeros(len(bins) - 1)
-
-    # Iterate over each time interval
-    for start, end in time_intervals:
-        active_bins = np.digitize(np.arange(start, end, time_period), bins) - 1
-        for idx in active_bins:
-            if 0 <= idx < len(intensity):
-                intensity[idx] += 1
-    
-    # Calculate midpoints of bins for intensity plotting
-    bin_midpoints = bins[:-1] + np.diff(bins) / 2
-    return list(map(list, zip(bin_midpoints, intensity)))
-
 def trace_plot_aggregated_intensity_with_analysis_data(aggregated_intensity, analysis_data, y_tag, plot_file):
     bin_midpoints = [x[0] for x in aggregated_intensity]
     intensity = [x[1] for x in aggregated_intensity]

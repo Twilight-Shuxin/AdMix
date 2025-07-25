@@ -50,24 +50,23 @@ class LLMWorker(ModelWorker):
         self.idle_time_slo = 0.5
         self.queue_total_submitted_record = []
         self.queue_total_waiting_first_record = []
+        self.intensity_server = None
+        self.intensity_profiler = None
+        self.scheduler_monitor = None
         
     def recording_queue_records(self, rec, target_id, target_list, timestamp, value):
         self.queue_record[target_id] += value
-        if(rec != False):
+        if(rec != False and timestamp < self.time_limit):
             target_list.append((timestamp, self.queue_record[target_id]))
     
     def statistics_recording_init(self, test_config):
         time_len = self.test_time if test_config.test_time == None else test_config.test_time
         self.time_bins = [[[],[]] for x in timebin_ranges(PLOTTING_BIN_SIZE, time_len)]
         self.time_bins_failed_record = [0 for x in timebin_ranges(PLOTTING_BIN_SIZE, time_len)]
-        self.completed = 0
-        self.failed = 0
-        self.total_submitted = 0
         self.logs = []
         # total_submitted & waiting_first
         self.queue_total_submitted_record = []
         self.queue_total_waiting_first_record = []
-        self.time_intervals = []
     
     def init_start(self):
         # self.start_server()
@@ -143,13 +142,24 @@ class LLMWorker(ModelWorker):
     
     def write_log(self, test_config):
         self.write_basic_logs(test_config)
-        
         average_ftt_list = []
         average_btt_list = []
         throughput_list = []
         tt_logs = []
+        pointer_first = 0
+        pointer_all = 0
+        first_intensity = 0
+        all_intensity = 0
         for id, bin in enumerate(self.time_bins): 
             bin_start = id * PLOTTING_BIN_SIZE
+            while(pointer_first < len(self.queue_total_waiting_first_record) 
+                and self.queue_total_waiting_first_record[pointer_first][0] < bin_start + 0.02):
+                first_intensity = self.queue_total_waiting_first_record[pointer_first][1]
+                pointer_first += 1
+            while(pointer_all < len(self.queue_total_submitted_record) 
+                and self.queue_total_submitted_record[pointer_all][0] < bin_start + 0.02):
+                all_intensity = self.queue_total_submitted_record[pointer_all][1]
+                pointer_all += 1
             average_ftt = np.average(bin[0]) if len(bin[0]) > 0 else 0
             max_ftt = np.max(bin[0]) if len(bin[0]) > 0 else 0
             average_btt = np.average(bin[1]) if len(bin[1]) > 0 else 0
@@ -157,17 +167,19 @@ class LLMWorker(ModelWorker):
             average_ftt_list.append(average_ftt)
             average_btt_list.append(average_btt)
             throughput_list.append(len(bin[1]) + len(bin[0]))
-            tt_logs.append([bin_start, len(bin[0]), len(bin[1]), average_ftt, max_ftt, average_btt, max_btt])
+            tt_logs.append([bin_start, first_intensity, all_intensity - first_intensity, len(bin[0]), len(bin[1]), average_ftt, max_ftt, average_btt, max_btt])
         self.write_list_to_csv(test_config, "ttsummary.csv", 
-            ['Bin Timestamp (s)', 'FT throughput', 'BT throughput', 'Average TFT (s)', 'Max TFT (s)', 'Average TBT (s)', 'Max TBT(s)'], 
+            ['Bin Timestamp (s)', 'Prefill intensity', 'Decode intensity', 'FT throughput', 'BT throughput', 'Average TFT (s)', 'Max TFT (s)', 'Average TBT (s)', 'Max TBT(s)'], 
             tt_logs)
         
         average_ftt_list = bin_records_append_timestamps(average_ftt_list, PLOTTING_BIN_SIZE)
         average_btt_list = bin_records_append_timestamps(average_btt_list, PLOTTING_BIN_SIZE)
         throughput_list = bin_records_append_timestamps(throughput_list, PLOTTING_BIN_SIZE)
         failed_record_list = bin_records_append_timestamps(self.time_bins_failed_record, PLOTTING_BIN_SIZE)
+
+        aggregated_intensity = bin_data(self.queue_total_submitted_record)
+
         if(test_config.trace_path != None):
-            aggregated_intensity = get_bin_from_intervals(self.time_intervals)
             self.write_all(test_config, "aggregated_intensity_all.log", aggregated_intensity)
             self.write_all(test_config, "failed_records.log", failed_record_list)
             trace_plot_two_intensity_with_analysis_data(self.queue_total_submitted_record, "All", self.queue_total_waiting_first_record, "First",
@@ -177,6 +189,8 @@ class LLMWorker(ModelWorker):
             trace_plot_two_intensity_with_analysis_data_bar_plot(self.queue_total_submitted_record, "All", self.queue_total_waiting_first_record, "First",
                 failed_record_list, "Failed", ('Case Count', ''), self.get_file_path(test_config, 'aggregated_failed.png'))
             trace_plot_aggregated_intensity(aggregated_intensity, self.get_file_path(test_config, 'aggregated.png'))
+            trace_plot_aggregated_intensity_with_analysis_data(bin_data(self.queue_total_waiting_first_record), average_btt_list,
+                ('Latency', '(s)'), self.get_file_path(test_config, 'prefill_bt_latency.png'))
             trace_plot_aggregated_intensity_with_analysis_data(aggregated_intensity, average_btt_list,
                 ('Latency', '(s)'), self.get_file_path(test_config, 'aggregated_bt_latency.png'))
             trace_plot_aggregated_intensity_with_analysis_data(aggregated_intensity, average_ftt_list,
@@ -187,25 +201,22 @@ class LLMWorker(ModelWorker):
     def check_performace(self, test_config):
         return self.total_submitted * 0.01 >= self.failed, self.completed, self.total_submitted - self.failed, self.total_submitted, (self.first_token_slo, self.idle_time_slo)
 
-    # Entering into this function automatically indicates is under statistics recording mode
     # Return True: meet slo; False: violated slo
-    def check_single_query_performance(self, request_timestamp, first_chunk_time, user_idle_info):
+    def check_single_query_performance(self, request_timestamp, first_chunk_time, user_idle_info, rec):
         user_idle_time, user_idle_time_info_record = user_idle_info
         if(request_timestamp == None):
             return True
         self.total_submitted += 1
-        current_timestamp = time.perf_counter() - self.start_time_pointer
-        self.time_intervals.append((request_timestamp, current_timestamp))
-        if(first_chunk_time == None):
-            first_chunk_time = current_timestamp - request_timestamp
         if(first_chunk_time > self.first_token_slo):
             self.failed += 1
-            self.time_bins_failed_record[int((request_timestamp + self.first_token_slo) / PLOTTING_BIN_SIZE)] += 1
+            if(rec):
+                self.time_bins_failed_record[int((request_timestamp + self.first_token_slo) / PLOTTING_BIN_SIZE)] += 1
             return False
         else:
             if(user_idle_time_info_record != None):
                 self.failed += 1
-                self.time_bins_failed_record[int(user_idle_time_info_record / PLOTTING_BIN_SIZE)] += 1
+                if(rec):
+                    self.time_bins_failed_record[int(user_idle_time_info_record / PLOTTING_BIN_SIZE)] += 1
                 return False
         return True
 
@@ -222,19 +233,21 @@ class LLMWorker(ModelWorker):
         user_idle_time = 0
         user_idle_time_info_record = None
         last_received_time = request_timestamp
-        reading_time = 0
+        reading_time = self.SPEED_CONST
         waiting_time = 0
         try:
             async for chunk in receiver:
                 # If this is the first chunk, record the time taken
                 current_timestamp = time.perf_counter() - self.start_time_pointer
+                if(current_timestamp > self.time_limit):
+                    raise asyncio.CancelledError
                 current_plotting_bin_timestamp = int(current_timestamp / PLOTTING_BIN_SIZE)
                 between_token_time = current_timestamp - last_received_time
+                self.uncompleted_tokens -= 1
                 if first_chunk_time == None:
                     first_chunk_time = between_token_time
                     if(rec): 
                         self.time_bins[current_plotting_bin_timestamp][0].append(first_chunk_time)
-                    self.time_bins_rt[current_plotting_bin_timestamp][0] = max(self.time_bins_rt[current_plotting_bin_timestamp][0], first_chunk_time)
                     self.recording_queue_records(rec, 1, self.queue_total_waiting_first_record, current_timestamp, -1)
                     self.ftt_cnt_rt += 1
                 else:
@@ -243,12 +256,11 @@ class LLMWorker(ModelWorker):
                         self.time_bins[current_plotting_bin_timestamp][1].append(between_token_time)
                     self.total_btt_rt += between_token_time
                     self.btt_cnt_rt += 1
-                    self.time_bins_rt[current_plotting_bin_timestamp][1] = max(self.time_bins_rt[current_plotting_bin_timestamp][1], between_token_time)
                     user_idle_time_info_record, user_idle_time = update_user_idle_time_info_record(
                         user_idle_time_info_record, user_idle_time, waiting_time - reading_time, self.idle_time_slo)
                     reading_time += self.SPEED_CONST
                 last_received_time = current_timestamp
-            return first_chunk_time, user_idle_time, user_idle_time_info_record
+            return first_chunk_time, user_idle_time, user_idle_time_info_record, 1
         except asyncio.CancelledError:
             current_timestamp = time.perf_counter() - self.start_time_pointer
             between_token_time = current_timestamp - last_received_time
@@ -256,13 +268,17 @@ class LLMWorker(ModelWorker):
                 waiting_time += between_token_time
                 user_idle_time_info_record, user_idle_time = update_user_idle_time_info_record(
                     user_idle_time_info_record, user_idle_time, waiting_time - reading_time, self.idle_time_slo)
-            return first_chunk_time, user_idle_time, user_idle_time_info_record
+            else:
+                first_chunk_time = between_token_time
+            return first_chunk_time, user_idle_time, user_idle_time_info_record, 0
 
     async def _inference(self, input, rec, max_tokens):
         first_chunk_time = None 
         user_idle_time = 0 
         user_idle_time_info_record = None
         request_timestamp = None
+        self.uncompleted_tokens += max_tokens
+        completed = False
         try:
             # no start & end available for LLMworker served by vllm
             timeout = aiohttp.ClientTimeout(total=4 * 60 * 60)
@@ -285,53 +301,37 @@ class LLMWorker(ModelWorker):
                         print(f"Error: {resp.status} {resp.reason}")
                         print(await resp.text())
                         return
-                    first_chunk_time, user_idle_time, user_idle_time_info_record = await \
+                    first_chunk_time, user_idle_time, user_idle_time_info_record, completed = await \
                         self.stream_response(rec, resp.content.iter_any(), request_timestamp)
                     # output = json.loads(buffer.decode("utf-8"))  # Decode JSON
-                    current_timestamp = time.perf_counter() - self.start_time_pointer
-                    self.recording_queue_records(rec, 0, self.queue_total_submitted_record, current_timestamp, -1) 
-            if(rec):
+            current_timestamp = time.perf_counter() - self.start_time_pointer
+            self.recording_queue_records(rec, 0, self.queue_total_submitted_record, current_timestamp, -1) 
+            if(completed):
                 self.completed += 1
-                result = self.check_single_query_performance(request_timestamp, first_chunk_time, (user_idle_time, user_idle_time_info_record))
-                self.logs.append([request_timestamp, input[0], max_tokens, first_chunk_time, current_timestamp - request_timestamp, user_idle_time, result])
-        except asyncio.CancelledError:
+                latency = current_timestamp - request_timestamp
+            else:
+                latency = -1
+            result = self.check_single_query_performance(request_timestamp, first_chunk_time, (user_idle_time, user_idle_time_info_record), rec)
             if(rec):
-                result = self.check_single_query_performance(request_timestamp, first_chunk_time, (user_idle_time, user_idle_time_info_record))
-                self.logs.append([request_timestamp, input[0], max_tokens, first_chunk_time, -1, user_idle_time, result])
+                self.logs.append([request_timestamp, input[0], max_tokens, first_chunk_time, latency, user_idle_time, result])
+        except asyncio.CancelledError:
             raise
 
     def inference(self, input, rec = False, max_tokens = 15):
         self.loop.run_until_complete(self._inference(input, rec, max_tokens))
     
-    async def simple_stream_response(self, rec, receiver, request_timestamp):
-        def update_user_idle_time_info_record(user_idle_time_info_record, user_idle_time, idle_time, idle_slo):
-            if(idle_time > user_idle_time):
-                user_idle_time = idle_time
-                if(user_idle_time_info_record == None and idle_time > idle_slo):
-                        user_idle_time_info_record = current_timestamp - user_idle_time + idle_slo
-            return user_idle_time_info_record, user_idle_time
-
-        first_chunk_time = None
-        user_idle_time = 0
-        user_idle_time_info_record = None
+    async def simple_stream_response(self, receiver, request_timestamp):
+        bt_recs = []
         last_received_time = request_timestamp
-        reading_time = 0
-        waiting_time = 0
         async for chunk in receiver:
             # If this is the first chunk, record the time taken
             current_timestamp = time.perf_counter() - self.start_time_pointer
             between_token_time = current_timestamp - last_received_time
-            if first_chunk_time == None:
-                first_chunk_time = between_token_time
-            else:
-                waiting_time += between_token_time
-                user_idle_time_info_record, user_idle_time = update_user_idle_time_info_record(
-                    user_idle_time_info_record, user_idle_time, waiting_time - reading_time, self.idle_time_slo)
-                reading_time += self.SPEED_CONST
+            bt_recs.append(between_token_time)
             last_received_time = current_timestamp
-        return first_chunk_time, user_idle_time, user_idle_time_info_record
+        return bt_recs
 
-    async def simple_inference(self, input, rec = False, max_tokens = 15):
+    async def simple_inference(self, input, max_tokens = 15):
         first_chunk_time = None 
         user_idle_time = 0 
         user_idle_time_info_record = None
@@ -354,18 +354,19 @@ class LLMWorker(ModelWorker):
                     print(f"Error: {resp.status} {resp.reason}")
                     print(await resp.text())
                     return
-                first_chunk_time, user_idle_time, user_idle_time_info_record = await \
-                    self.simple_stream_response(rec, resp.content.iter_any(), request_timestamp)
-                current_timestamp = time.perf_counter() - self.start_time_pointer
-        if(rec):
-            self.logs.append([request_timestamp, input[0], max_tokens, first_chunk_time, current_timestamp - request_timestamp, user_idle_time, 
-                first_chunk_time <= self.first_token_slo and user_idle_time_info_record == None])
+                bt_recs = await self.simple_stream_response(resp.content.iter_any(), request_timestamp)
+        return bt_recs
+        # self.logs.append([request_timestamp, input[0], max_tokens, first_chunk_time, current_timestamp - request_timestamp, user_idle_time])
 
     def random_test_period(self, test_config, time_len, rec = False):
         self.start_time_pointer = time.perf_counter()
+        self.completed = 0
+        self.failed = 0
+        self.total_submitted = 0
         self.monitor_init(test_config)
         if(test_config.seq_len == None):
             test_config.seq_len = [10, 10]
+        self.time_limit = time_len
         time_limit = self.start_time_pointer + time_len
         while(time.perf_counter() < time_limit):
             input = self.get_input(test_config)
@@ -374,14 +375,15 @@ class LLMWorker(ModelWorker):
     def profile(self):
         self.start_time_pointer = time.perf_counter()
         test_config = TestConfig(1, None, 1, 0, self.total_module, None, None)
-        for input_seqlen in range(1, 20):
-            for output_seqlen in range(1, 20):
+        test_list = [[2000, 100], [5, 2000], [2000,2000]]
+        for _ in range(1):
+            for input_seqlen, output_seqlen in test_list:
                 test_config.seq_len = [input_seqlen, output_seqlen]
                 input = self.get_input(test_config)
-                self.loop.run_until_complete(self.simple_inference(input, True, output_seqlen))
+                bt_rect = self.loop.run_until_complete(self.simple_inference(input, output_seqlen))   
+                print(input_seqlen, output_seqlen, bt_rect)
         test_config = TestConfig(1, None, 1, 0, self.total_module, None, None)
         test_config.tag = "llm_PROFILE"
-        self.write_basic_logs(test_config)
 
     # async def intensity_monitor_udp(self):
     #     print("Starting UDP server")
@@ -403,36 +405,35 @@ class LLMWorker(ModelWorker):
         self.intensity_server = None
         self.intensity_server = await asyncio.start_unix_server(self.unix_handler, LLM_SOCKET_PATH)
     
-    async def intensity_monitor(self):
-        try:
-            while(True):
-                await asyncio.sleep(0.3)
-        except asyncio.CancelledError:
-            raise
-    
     def monitor_init(self, test_config):
         time_len = self.test_time if test_config.test_time == None else test_config.test_time
         # decoding_cnt, prefill_cnt
         self.queue_record = [0, 0]
-        self.time_bins_rt = [[0,0] for x in timebin_ranges(PLOTTING_BIN_SIZE, time_len)]
         self.total_btt_rt = 0
         self.btt_cnt_rt = 0
         self.ftt_cnt_rt = 0
+        self.uncompleted_tokens = 0
 
     # rec: true or false
     async def trace_test_period(self, test_config, time_len, rec = False):
-        self.start_time_pointer = time.perf_counter()
-        time_limit = self.start_time_pointer + time_len
-        
         self.monitor_init(test_config)
-        asyncio.create_task(self.intensity_server_unix())
-        asyncio.create_task(self.intensity_monitor())
+        if(test_config.global_cnt > 1): # Serving mode
+            asyncio.create_task(self.intensity_server_unix())
+            if(schedulers[test_config.scheduler].monitor != None):
+                self.scheduler_monitor = asyncio.create_task(schedulers[test_config.scheduler].monitor(self))
+        elif (test_config.scheduler != None): # Profiling mode
+            print("scheduler profiling")
+            self.intensity_profiler = asyncio.create_task(schedulers[test_config.scheduler].profiling_executor(self))
         max_in_tokens = 0
         min_in_tokens = 10000000
         max_out_tokens = 0
         min_out_tokens = 10000000
-
         task_list = []
+
+        if(test_config.scheduler != None and test_config.global_cnt > 1):
+            self.single_barrier.wait()
+        self.start_time_pointer = time.perf_counter()
+        time_counter = time_len
         while(True):
             req_time, sample_in_length, sample_out_length = self.trace.next()
             max_in_tokens = max(max_in_tokens, sample_in_length)
@@ -441,14 +442,16 @@ class LLMWorker(ModelWorker):
             min_out_tokens = min(min_out_tokens, sample_out_length)
             test_config.seq_len = [sample_in_length, sample_out_length]
             sleep_time = req_time + self.start_time_pointer - time.perf_counter()
-            if(sleep_time > 0):
-                await asyncio.sleep(sleep_time)
-            if(time.perf_counter() > time_limit):
+            if(time_counter - sleep_time > 0):
+                if(sleep_time > 0):
+                    await asyncio.sleep(sleep_time)
+                    time_counter -= sleep_time
+            else: 
                 break
             input = self.get_input(test_config)
             task_list.append(asyncio.create_task(self._inference(input, 
                 rec, sample_out_length)))
-        
+        await asyncio.sleep(time_counter)
         # await asyncio.gather(*task_list)
         for id, task in enumerate(task_list):
             if(not task.done()):
@@ -456,8 +459,13 @@ class LLMWorker(ModelWorker):
         if(self.intensity_server != None):
             self.intensity_server.close()
             print("intensity server stoped")
-            print("max request tokens: ", max_in_tokens, "; min request tokens", min_in_tokens)
-            print("max response tokens: ", max_out_tokens, "; min response tokens", min_out_tokens)
+        if(self.intensity_profiler != None):
+            self.intensity_profiler.cancel()
+        if(self.scheduler_monitor != None):
+            self.scheduler_monitor.cancel()
+        print("max request tokens: ", max_in_tokens, "; min request tokens", min_in_tokens)
+        print("max response tokens: ", max_out_tokens, "; min response tokens", min_out_tokens)
+
         # print("processed:", cnt, "in", time.perf_counter() - test_start_time, "(s) uncompleted:", uncompleted)
     
     def common_start(self):
@@ -465,8 +473,12 @@ class LLMWorker(ModelWorker):
     
     def random_test(self, test_config):
         test_time = self.test_time if test_config.test_time == None else test_config.test_time
+        self.time_limit = test_time
         recording_action = RecordingAction.ALL if test_config.recording_action == None else test_config.recording_action
         self.monitor_init(test_config)
+        self.completed = 0
+        self.failed = 0
+        self.total_submitted = 0
 
         if(test_config.scheduler != None):
             global schedulers

@@ -17,11 +17,15 @@ def get_burstgpt_trace_tag():
     trace_tag = ",".join([str(x) for x in trace_arg])
     return trace_tag
 
-def read_burstgpt_trace_config(filename):
+def read_burstgpt_trace_config_json(filename):
     filename = os.path.dirname(os.path.realpath(__file__)) + "/" + filename
     with open(filename, 'r') as trace_config_file:
         data = json.load(trace_config_file)
-    return data["chunk_size"], data["start_id"], data["max_prompt_cnt"], data["scale"]
+    return data
+
+def read_burstgpt_trace_config(filename):
+    data = read_burstgpt_trace_config_json(filename)
+    return data["chunk_size"], data["start_id"], data["max_prompt_cnt"], data["scale"]  
 
 def set_burstgpt_trace_config(id):
     config_list_filename = os.path.dirname(os.path.realpath(__file__)) + "/" + "trace_config_list.json"

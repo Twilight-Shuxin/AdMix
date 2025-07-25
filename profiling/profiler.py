@@ -2,7 +2,7 @@ from profiling.utils import *
 from profiling.constants import *
 import torch.multiprocessing as mp
 from plotting.trace_plot import *
-from trace.trace_utils import set_burstgpt_trace_config
+from trace.trace_utils import set_burstgpt_trace_config, read_burstgpt_trace_config_json
 import random
 import subprocess 
 import time
@@ -22,13 +22,16 @@ class ProfileServer():
         self.log_path = profile_config.path
         self.profile_path = profile_config.profile_path
         self.trace_path = profile_config.trace_path
+        self.test_time = profile_config.test_time
         for id, trace in enumerate(self.trace_path):
             if(trace != None and "[" in trace):
                 self.trace_path[id], trace_config_id = trace.split("[")
                 trace_config_id = int(trace_config_id.strip("]"))
                 set_burstgpt_trace_config(trace_config_id)
+                trace_config = read_burstgpt_trace_config_json("trace_config.json")
+                if("time" in trace_config):
+                    self.test_time = trace_config["time"]
         self.seq_len = profile_config.seq_len
-        self.test_time = profile_config.test_time
         self.dirname = os.path.split(os.path.abspath(__file__))[0]
         self.global_tag = profile_config.global_tag
         self.mode = profile_config.mode

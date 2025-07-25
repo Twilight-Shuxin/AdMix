@@ -115,7 +115,7 @@ def get_comma_list_or_single(strlist, argstype, expand = None, default = None):
 
 def list_to_string(data, delimiter = " "):
     data_string = ""
-    if (isinstance(data, list)):
+    if (isinstance(data, list) or isinstance(data, tuple)):
         data = [str(x) for x in data]
     else:
         data = [str(data)]
@@ -152,7 +152,7 @@ class TestConfig():
 
     def get_tag(self, model_worker):
         self_tag = model_worker.get_tag(self)
-        self.tag = "-".join([model_worker.model_name, self.tag]) if (self.tag != None and self.tag != self_tag) \
+        self.tag = "-".join([model_worker.model_name, self.tag]) if (self.tag != None and self.global_cnt > 1) \
             else self_tag
     
     def fit(self, model_worker):
