@@ -32,7 +32,7 @@ async def AIMD_monitor(llm_worker):
     except asyncio.CancelledError:
         raise
 
-async def AIMD_profiler(llm_worker):
+async def AIMD_profiler(llm_worker, test_config):
     logs = []
     timestamp = 0
     try:

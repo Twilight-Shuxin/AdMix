@@ -116,7 +116,11 @@ class ModelWorker(Process):
             torch.cuda.synchronize()
         self.logs.append([input.shape[0], (time.perf_counter() - start_time) * 1000])
             
-    def get_file_path(self, test_config, file_name):
+    def get_file_path(self, test_config, file_name, subpath_name = None):
+        if(subpath_name != None):
+            print(self.log_path, subpath_name,  "-".join([test_config.tag, file_name]))
+            print("-->", os.path.join(self.log_path, subpath_name, "-".join([test_config.tag, file_name])))
+            return os.path.join(self.log_path, subpath_name, "-".join([test_config.tag, file_name]))
         return os.path.join(self.log_path, "-".join([test_config.tag, file_name]))
     
     def write_analytics(self, test_config, file_name, record_list):
@@ -138,8 +142,8 @@ class ModelWorker(Process):
             for log_record in record_list: 
                 log_output.write(list_to_string(log_record) + "\n")
     
-    def write_list_to_csv(self, test_config, file_name, headers, record_list):
-        log_filepath = self.get_file_path(test_config, file_name)
+    def write_list_to_csv(self, test_config, file_name, headers, record_list, subpath_name = None):
+        log_filepath = self.get_file_path(test_config, file_name, subpath_name)
         with open(log_filepath, "w", newline="", encoding="utf-8") as log_output:
             writer = csv.writer(log_output)
             writer.writerow(headers)

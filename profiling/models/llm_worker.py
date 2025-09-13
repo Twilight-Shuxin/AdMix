@@ -1,6 +1,6 @@
 from profiling.models.model_worker import ModelWorker
 from dataset.new_sharegpt_dataset import NewShareGPTDataset
-from trace.trace_utils import BurstGPTTrace,Trace, get_burstgpt_trace_tag
+from trace.trace_utils import Trace, get_LLM_trace, get_trace_tag
 from plotting.constants import *
 import requests
 import subprocess
@@ -109,7 +109,7 @@ class LLMWorker(ModelWorker):
         return test_config.seq_len[0], self.dataset.get_query(test_config)[0]
     
     def get_trace(self, trace_path):
-        self.trace = BurstGPTTrace(trace_path)
+        self.trace = get_LLM_trace(trace_path)
     
     def get_tag(self, test_config):
         tag = self.model_name
@@ -124,7 +124,7 @@ class LLMWorker(ModelWorker):
         if(len(subtag) != 0):
             tag = tag + "(" + subtag + ")"
         if(test_config.trace_path != None):
-            tag = tag + "[" + get_burstgpt_trace_tag() + "]"
+            tag = tag + "[" + get_trace_tag() + "]"
         return tag
     
     def warmup(self):
@@ -134,7 +134,7 @@ class LLMWorker(ModelWorker):
     
     def write_basic_logs(self, test_config):
         self.write_analytics(test_config, "ftsummary.log", [x[3] for x in self.logs])
-        self.write_analytics(test_config, "btsummary.log", [(x[4]/ x[2]) for x in self.logs])
+        self.write_analytics(test_config, "btsummary.log", [(x[4]/ x[2]) for x in self.logs if(x[4] > 0)])
         self.logs = sorted(self.logs, key = lambda x: x[0])
         self.write_list_to_csv(test_config, "all.csv", 
             ['Request timestamp (s)', 'Input token cnt', 'Output token cnt', 'TFT (s)', 'Latency (s)', 'Idle time (s)', 'Success'], 
@@ -220,7 +220,7 @@ class LLMWorker(ModelWorker):
                 return False
         return True
 
-    async def stream_response(self, rec, receiver, request_timestamp):
+    async def stream_response(self, input_length, rec, receiver, request_timestamp):
         
         def update_user_idle_time_info_record(user_idle_time_info_record, user_idle_time, idle_time, idle_slo):
             if(idle_time > user_idle_time):
@@ -235,6 +235,9 @@ class LLMWorker(ModelWorker):
         last_received_time = request_timestamp
         reading_time = self.SPEED_CONST
         waiting_time = 0
+        
+        token_cnt = input_length
+        decode_flag = False
         try:
             async for chunk in receiver:
                 # If this is the first chunk, record the time taken
@@ -243,23 +246,38 @@ class LLMWorker(ModelWorker):
                     raise asyncio.CancelledError
                 current_plotting_bin_timestamp = int(current_timestamp / PLOTTING_BIN_SIZE)
                 between_token_time = current_timestamp - last_received_time
+                token_cnt += 1
                 self.uncompleted_tokens -= 1
+
                 if first_chunk_time == None:
                     first_chunk_time = between_token_time
                     if(rec): 
                         self.time_bins[current_plotting_bin_timestamp][0].append(first_chunk_time)
                     self.recording_queue_records(rec, 1, self.queue_total_waiting_first_record, current_timestamp, -1)
                     self.ftt_cnt_rt += 1
+
+                    self.total_decode_length += token_cnt
+                    self.total_prefill_length -= input_length
+                    self.prefill_start_time -= request_timestamp
+                    self.decode_intensity += 1
+                    decode_flag = True
                 else:
                     waiting_time += between_token_time
                     if(rec):
                         self.time_bins[current_plotting_bin_timestamp][1].append(between_token_time)
                     self.total_btt_rt += between_token_time
                     self.btt_cnt_rt += 1
+
+                    self.total_decode_length += 1
+                    
                     user_idle_time_info_record, user_idle_time = update_user_idle_time_info_record(
                         user_idle_time_info_record, user_idle_time, waiting_time - reading_time, self.idle_time_slo)
                     reading_time += self.SPEED_CONST
                 last_received_time = current_timestamp
+            self.total_decode_length -= token_cnt
+            if(decode_flag):
+                self.decode_intensity -= 1
+                decode_flag = False
             return first_chunk_time, user_idle_time, user_idle_time_info_record, 1
         except asyncio.CancelledError:
             current_timestamp = time.perf_counter() - self.start_time_pointer
@@ -270,6 +288,9 @@ class LLMWorker(ModelWorker):
                     user_idle_time_info_record, user_idle_time, waiting_time - reading_time, self.idle_time_slo)
             else:
                 first_chunk_time = between_token_time
+            if(decode_flag):
+                self.decode_intensity -= 1
+                decode_flag = False
             return first_chunk_time, user_idle_time, user_idle_time_info_record, 0
 
     async def _inference(self, input, rec, max_tokens):
@@ -286,6 +307,13 @@ class LLMWorker(ModelWorker):
             self.recording_queue_records(rec, 0, self.queue_total_submitted_record, current_timestamp, 1)
             self.recording_queue_records(rec, 1, self.queue_total_waiting_first_record, current_timestamp, 1)
             request_timestamp = time.perf_counter() - self.start_time_pointer
+
+            self.prefill_start_time += request_timestamp
+            self.prefill_start_time_tmp += request_timestamp                        
+            self.total_prefill_length += input[0]
+            self.total_prefill_length_tmp += input[0]
+            self.prefill_intensity_tmp += 1
+
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 generation_input = {
                     "prompt": input[1],
@@ -302,9 +330,10 @@ class LLMWorker(ModelWorker):
                         print(await resp.text())
                         return
                     first_chunk_time, user_idle_time, user_idle_time_info_record, completed = await \
-                        self.stream_response(rec, resp.content.iter_any(), request_timestamp)
+                        self.stream_response(input[0], rec, resp.content.iter_any(), request_timestamp)
                     # output = json.loads(buffer.decode("utf-8"))  # Decode JSON
             current_timestamp = time.perf_counter() - self.start_time_pointer
+
             self.recording_queue_records(rec, 0, self.queue_total_submitted_record, current_timestamp, -1) 
             if(completed):
                 self.completed += 1
@@ -407,12 +436,27 @@ class LLMWorker(ModelWorker):
     
     def monitor_init(self, test_config):
         time_len = self.test_time if test_config.test_time == None else test_config.test_time
-        # decoding_cnt, prefill_cnt
+        # all_cnt, prefill_cnt ::::: Note the previous bug here! previous decode cnt, prefill_cnt (wrong)
         self.queue_record = [0, 0]
+
+        # advanced_aimd: total_btt_rt: total btt; btt_cnt_rt: bt throughput; ftt_cnt_rt: ft throughput
+        # Only adding here, cleared on query
+        # btt_cnt_rt & ftt_cnt_rt also used by $predict$
         self.total_btt_rt = 0
         self.btt_cnt_rt = 0
         self.ftt_cnt_rt = 0
+
+        # basic_aimd
         self.uncompleted_tokens = 0
+
+        # predict
+        self.total_prefill_length = 0
+        self.total_decode_length = 0
+        self.prefill_intensity_tmp = 0
+        self.total_prefill_length_tmp = 0 # Same as total_prefill_length but cleared on query
+        self.prefill_start_time = 0 # Sum of all request start time
+        self.prefill_start_time_tmp = 0 # Same as prefill_start_time but cleared on query
+        self.decode_intensity = 0
 
     # rec: true or false
     async def trace_test_period(self, test_config, time_len, rec = False):
@@ -423,7 +467,7 @@ class LLMWorker(ModelWorker):
                 self.scheduler_monitor = asyncio.create_task(schedulers[test_config.scheduler].monitor(self))
         elif (test_config.scheduler != None): # Profiling mode
             print("scheduler profiling")
-            self.intensity_profiler = asyncio.create_task(schedulers[test_config.scheduler].profiling_executor(self))
+            self.intensity_profiler = asyncio.create_task(schedulers[test_config.scheduler].profiling_executor(self, test_config))
         max_in_tokens = 0
         min_in_tokens = 10000000
         max_out_tokens = 0
@@ -453,9 +497,6 @@ class LLMWorker(ModelWorker):
                 rec, sample_out_length)))
         await asyncio.sleep(time_counter)
         # await asyncio.gather(*task_list)
-        for id, task in enumerate(task_list):
-            if(not task.done()):
-                task.cancel()
         if(self.intensity_server != None):
             self.intensity_server.close()
             print("intensity server stoped")
@@ -463,6 +504,9 @@ class LLMWorker(ModelWorker):
             self.intensity_profiler.cancel()
         if(self.scheduler_monitor != None):
             self.scheduler_monitor.cancel()
+        for id, task in enumerate(task_list):
+            if(not task.done()):
+                task.cancel()
         print("max request tokens: ", max_in_tokens, "; min request tokens", min_in_tokens)
         print("max response tokens: ", max_out_tokens, "; min response tokens", min_out_tokens)
 
