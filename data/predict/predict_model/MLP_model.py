@@ -23,7 +23,7 @@ class MLPPredictModel(PytorchPredictModel):
         self.model = MLPRegressor(input_dim, device)
         self.model_name = "MLP"
         self.saved_model_suffix_name = "pth"
-        self.get_saved_model_name(tag)
         self.device = device
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+        super().__init__(tag)

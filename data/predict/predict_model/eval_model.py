@@ -5,6 +5,7 @@ from MLP_model import MLPPredictModel
 from linear_model import LinearPredictModel
 from poisson_model import PoissonPredictModel
 from decision_tree_model import DecisionTreePredictModel
+from random_forest_model import RandomForestModel
 from plot import plot, plot_abs_error_cdf, plot_abs_pct_error_cdf
 import sys
 
@@ -16,9 +17,8 @@ pd.set_option('display.max_columns', None)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # Check for GPU availability
 
 predict_list = ["prefill", "decode"]
-# predict_list = ["prefill"]
 model_type = sys.argv[1]
-df = pd.read_csv(sys.argv[2] if len(sys.argv) > 2 else 'test_data.csv')
+df = pd.read_csv(sys.argv[2] if len(sys.argv) > 2 else 'test_data_saved.csv')
 test_results = {}
 
 for predict_name in predict_list:
@@ -34,11 +34,13 @@ for predict_name in predict_list:
         model = PoissonPredictModel(predict_name)
     elif (model_type == "decision_tree"):
         model = DecisionTreePredictModel(predict_name)
+    elif (model_type == "random_forest"):
+        model = RandomForestModel(predict_name)
     model.load()
-    test_result, test_loss = model.eval(X_test_np, y_test_np)
+    test_result, test_loss, avg_time = model.eval(X_test_np, y_test_np)
     test_results[predict_name] = [test_result, test_loss]
     df['Predicted ' + predict_name] = test_result
-    print(f"📉 Test Loss (MSE) {predict_name}: {test_loss:.4f}")
+    print(f"📉 Test Loss (MSE) {predict_name}: {test_loss:.4f}, process time (s):", avg_time)
     plot(df['Timestamp (s)'].values, y_test_np, test_result, predict_name + '_predicted_' + model_type)
     plot_abs_error_cdf(y_test_np, test_result, predict_name + '_abs_error_' + model_type)
 

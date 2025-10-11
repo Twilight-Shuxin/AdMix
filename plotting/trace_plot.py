@@ -59,13 +59,20 @@ def bin_data(data, bin_size=PLOTTING_BIN_SIZE):
     bins = np.arange(min_time, max_time + bin_size, bin_size)
     
     binned_values = []
+    pointer = 0
     for i in range(len(bins) - 1):
         bin_start, bin_end = bins[i], bins[i + 1]
-        bin_items = [v for t, v in data if bin_start <= t < bin_end]
-        avg_value = np.mean(bin_items) if bin_items else np.nan  # Handle empty bins
-        binned_values.append((bin_start, avg_value))
+        sum = 0
+        cnt = 0
+        while(pointer < len(data) and (bin_start <= data[pointer][0] < bin_end)):
+            sum += data[pointer][1]
+            cnt += 1
+            pointer += 1
+        if cnt > 0:
+            avg_value = sum / cnt
+            binned_values.append((bin_start, avg_value))
 
-    return [(t, v) for t, v in binned_values if not np.isnan(v)]  # Remove NaNs
+    return binned_values
 
 def trace_plot_two_intensity_with_analysis_data(intensity_data_one, label1, intensity_data_two, label2, analysis_data, analysis_label, analysis_tag, plot_file):
     fig, ax1 = plt.subplots(figsize=(10, 5))

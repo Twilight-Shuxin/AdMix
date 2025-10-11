@@ -32,7 +32,7 @@ def data_prep(data_path, data_type):
     y_prefill = df['Prefill throughput']
     y_decode = df['Decode throughput']
 
-    # 5. Train-test split
+    # 5. Train-validation split
     if(data_type == "train"):
         X_train, X_test, y1_train, y1_test = train_test_split(X.values, y_prefill.values, test_size=0.2, random_state=42)
         _, _, y2_train, y2_test = train_test_split(X.values, y_decode.values, test_size=0.2, random_state=42)

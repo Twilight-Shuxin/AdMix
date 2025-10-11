@@ -30,3 +30,25 @@ INFO:     Started server process [79711]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+Traceback (most recent call last):
+  File "/home/k43015/MPSTest/test_llm.py", line 3, in <module>
+    from profiling.profiler import ProfileServer  
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/k43015/MPSTest/profiling/profiler.py", line 1, in <module>
+    from profiling.utils import *
+  File "/home/k43015/MPSTest/profiling/utils.py", line 2, in <module>
+    from profiling.models import *
+  File "/home/k43015/MPSTest/profiling/models/__init__.py", line 1, in <module>
+    from .bert_worker import BertWorker
+  File "/home/k43015/MPSTest/profiling/models/bert_worker.py", line 2, in <module>
+    from profiling.models.model_worker import ModelWorker
+  File "/home/k43015/MPSTest/profiling/models/model_worker.py", line 9, in <module>
+    from profiling.scheduling.utils import schedulers
+  File "/home/k43015/MPSTest/profiling/scheduling/utils.py", line 3, in <module>
+    from profiling.scheduling.predictive_scheduler import PredictiveScheduler
+  File "/home/k43015/MPSTest/profiling/scheduling/predictive_scheduler.py", line 282
+    NP1 = self.monitored_data.NP2
+          ^^^^^^^^^^^^^^^^^^^^^^^
+SyntaxError: invalid syntax. Perhaps you forgot a comma?
+./temp2.sh: line 4: 411181 Killed                  python test_llm.py --model llm --scheduler predictive --trace LLM[14] --device 1 --path data/test_trace >> out.out 2>&1
+./temp2.sh: line 5: 413510 Killed                  python test_llm.py --model llm --scheduler predictive --trace LLM[15] --device 1 --path data/test_trace >> out.out 2>&1

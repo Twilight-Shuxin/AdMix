@@ -1,6 +1,7 @@
-from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat
+from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, unpack_data_bytes, get_data_length
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
 from profiling.scheduling.monitor import get_llm_intensity_unix
+from pydantic import BaseModel
 from plotting.constants import *
 from profiling.constants import EPS, list_to_string
 from threading import Thread
@@ -11,15 +12,22 @@ import os
 import asyncio
 
 class AIMDSchedulingDataFormat(SchedulingDataFormat):
+    class ObservationData(BaseModel):
+        current_timestamp: float = 0
+        uncompleted_tokens: int = 0
+
     def default_data():
-        return 0,0
+        return AIMDSchedulingDataFormat.ObservationData()
     
     def pack_data(llm_worker):
-        return struct.pack("fi", llm_worker.uncompleted_tokens_last_record[0], llm_worker.uncompleted_tokens_last_record[1])
-    
+        data =  AIMDSchedulingDataFormat.ObservationData(
+            current_timestamp=llm_worker.uncompleted_tokens_last_record[0], 
+            uncompleted_tokens=llm_worker.uncompleted_tokens_last_record[1])
+        return pack_data_bytes(data)
+
     def read_data(client_socket):
-        data = client_socket.recv(32)
-        return struct.unpack("fi", data)
+        length = get_data_length(client_socket)
+        return unpack_data_bytes(AIMDSchedulingDataFormat.ObservationData, client_socket, length)
 
 async def AIMD_monitor(llm_worker):
     llm_worker.uncompleted_tokens_last_record = (0,0)
@@ -43,6 +51,7 @@ async def AIMD_profiler(llm_worker, test_config):
             timestamp += 0.1
     except asyncio.CancelledError:
         with open(os.path.join(llm_worker.profile_path, llm_worker.model_name + ".log"), "w") as profile_file:
+            print("Writing logs to:", os.path.join(llm_worker.profile_path, llm_worker.model_name + ".log"))
             for log_record in logs: 
                 profile_file.write(list_to_string(log_record) + "\n")
         raise
@@ -63,7 +72,8 @@ class AIMDScheduler(Scheduler):
 
     def schedule(self, intensity_data):
         # intensity of queries waiting for first token
-        current_timestamp, uncompleted_tokens = intensity_data
+        current_timestamp = intensity_data.current_timestamp
+        uncompleted_tokens = intensity_data.uncompleted_tokens
         while (self.profile_pointer + 1 < len(self.profile) and current_timestamp - self.profile[self.profile_pointer][0] > 0.025):
             self.profile_pointer += 1
         if (uncompleted_tokens > 10 and self.profile[self.profile_pointer][1] * 1.1 < uncompleted_tokens):

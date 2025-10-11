@@ -13,12 +13,12 @@ def read_trace_config_json(filename):
 # trace_type, chunk_size, start_id, max_total_prompt_num, scale
 def read_trace_config(filename):
     data = read_trace_config_json(filename)
-    return data["trace"], data["chunk_size"], data["start_id"], data["max_prompt_cnt"], data["scale"]  
+    return data["trace"], data["trace_id"], data["chunk_size"], data["start_id"], data["max_prompt_cnt"], data["scale"]  
 
 # Get trace tag from config file
 def get_trace_tag():
-    trace_type, chunk_size, start_id, max_total_prompt_num, scale = read_trace_config("trace_config.json")
-    trace_arg = [trace_type, chunk_size, start_id, max_total_prompt_num, scale]
+    trace_type, trace_id, chunk_size, start_id, max_total_prompt_num, scale = read_trace_config("trace_config.json")
+    trace_arg = [trace_type + str(trace_id), chunk_size, start_id, max_total_prompt_num, scale]
     trace_tag = ",".join([str(x) for x in trace_arg])
     return trace_tag
 
@@ -33,12 +33,12 @@ def set_trace_config(id):
                 json.dump(selected_config, f, indent=4)
 
 # Get trace object
-def get_LLM_trace(filename):
-    trace_type, _, _, _, _ = read_trace_config("trace_config.json")
+def get_LLM_trace():
+    trace_type, trace_id, _, _, _, _ = read_trace_config("trace_config.json")
     if(trace_type == "BurstGPT"):
-        return BurstGPTTrace(filename)
+        return BurstGPTTrace(trace_type + str(trace_id))
     elif(trace_type == "Azure"):
-        return AzureLLMTrace(filename)
+        return AzureLLMTrace(trace_type + str(trace_id))
     return None
 
 class Trace:
@@ -92,8 +92,8 @@ class AzureLLMTrace(LLMTrace):
         self.trace_data = AzureLLMTrace.read_trace(filename)
     
     def read_trace(filename):
-        _, chunk_size, start_id, max_total_prompt_num, scale = read_trace_config("trace_config.json")
-        filename = os.path.dirname(os.path.realpath(__file__)) + "/" + filename
+        _, _, chunk_size, start_id, max_total_prompt_num, scale = read_trace_config("trace_config.json")
+        filename = os.path.dirname(os.path.realpath(__file__)) + "/" + filename  + ".csv"
         chunk_iter = pd.read_csv(filename, chunksize=chunk_size)
         chunks = []
         total_prompt_num = 0
@@ -130,8 +130,8 @@ class BurstGPTTrace(LLMTrace):
         self.trace_data = BurstGPTTrace.read_trace(filename)
     
     def read_trace(filename):
-        _, chunk_size, start_id, max_total_prompt_num, scale = read_trace_config("trace_config.json")
-        filename = os.path.dirname(os.path.realpath(__file__)) + "/" + filename
+        _, _, chunk_size, start_id, max_total_prompt_num, scale = read_trace_config("trace_config.json")
+        filename = os.path.dirname(os.path.realpath(__file__)) + "/" + filename  + ".csv"
         chunk_iter = pd.read_csv(filename, chunksize=chunk_size)
         chunks = []
         total_prompt_num = 0

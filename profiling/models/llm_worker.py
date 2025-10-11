@@ -108,8 +108,8 @@ class LLMWorker(ModelWorker):
     def get_input(self, test_config):
         return test_config.seq_len[0], self.dataset.get_query(test_config)[0]
     
-    def get_trace(self, trace_path):
-        self.trace = get_LLM_trace(trace_path)
+    def get_trace(self, trace_path = None):
+        self.trace = get_LLM_trace()
     
     def get_tag(self, test_config):
         tag = self.model_name
@@ -423,9 +423,11 @@ class LLMWorker(ModelWorker):
     #     )
     
     async def unix_handler(self, reader, writer):
-        data = await reader.read(32)
-        message = data.decode()
-        writer.write(self.scheduling_data_format.pack_data(self))
+        _ = await reader.read(32)
+        data = self.scheduling_data_format.pack_data(self)
+        writer.write(len(data).to_bytes(4, "big"))
+        await writer.drain()
+        writer.write(data)
         await writer.drain()
         writer.close()
     
