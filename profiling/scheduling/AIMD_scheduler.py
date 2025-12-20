@@ -50,8 +50,9 @@ async def AIMD_profiler(llm_worker, test_config):
             await asyncio.sleep(0.1)
             timestamp += 0.1
     except asyncio.CancelledError:
-        with open(os.path.join(llm_worker.profile_path, llm_worker.model_name + ".log"), "w") as profile_file:
-            print("Writing logs to:", os.path.join(llm_worker.profile_path, llm_worker.model_name + ".log"))
+        file_path = os.path.join(llm_worker.profile_path, "-".join([llm_worker.model_name, test_config.tag])  + ".log")
+        with open(file_path, "w") as profile_file:
+            print("Writing logs to:", file_path)
             for log_record in logs: 
                 profile_file.write(list_to_string(log_record) + "\n")
         raise
@@ -77,13 +78,17 @@ class AIMDScheduler(Scheduler):
         while (self.profile_pointer + 1 < len(self.profile) and current_timestamp - self.profile[self.profile_pointer][0] > 0.025):
             self.profile_pointer += 1
         if (uncompleted_tokens > 10 and self.profile[self.profile_pointer][1] * 1.1 < uncompleted_tokens):
-            self.batch_size //= 2
+            self.batch_size //= self.beta
         elif (self.last != self.profile_pointer and self.batch_size < self.max_batch_size):
-            self.batch_size += 1
+            if(self.batch_size == 0):
+                self.batch_size = 1
+            else:
+                self.batch_size += self.alpha if self.batch_size != 1 else self.alpha - 1
+            self.batch_size = min(self.max_batch_size, self.batch_size)
         if(self.last != self.profile_pointer):
             # print(current_timestamp, self.profile[self.profile_pointer], 
             #     uncompleted_tokens, self.batch_size)
-            self.logs.append([current_timestamp, self.profile[self.profile_pointer], uncompleted_tokens, self.batch_size])
+            # self.logs.append([current_timestamp, self.profile[self.profile_pointer], uncompleted_tokens, self.batch_size])
             self.last = self.profile_pointer
         return BasicSchedulePlan(self.batch_size)
     
@@ -91,12 +96,15 @@ class AIMDScheduler(Scheduler):
         self.profile = []
         self.profile_pointer = 0
         self.max_batch_size = model_worker.supported_batchsize[-1]
-        with open(os.path.join(model_worker.profile_path, "llm.log"), "r") as profile_file:
+        self.alpha = model_worker.alpha
+        self.beta = model_worker.beta
+        with open(os.path.join(model_worker.profile_path, "-".join(["llm", self.llm_tag]) + ".log"), "r") as profile_file:
             lines = profile_file.readlines()
             for line in lines:
                 self.profile.append([float(x) for x in line.strip().split(" ")])
 
         model_worker.single_barrier.wait()
+        model_worker.start_time_pointer = time.perf_counter()
         self.start_time_pointer = time.perf_counter()
         time_limit = self.start_time_pointer + test_time
         time.sleep(0.1)
@@ -105,6 +113,6 @@ class AIMDScheduler(Scheduler):
                 break
             schedule_plan = self.schedule(get_llm_intensity_unix(AIMDScheduler.data_format))
             schedule_plan.execute(model_worker, rec)
-        for log in self.logs:
-            print(log)
+        # for log in self.logs:
+        #     print(log)
         

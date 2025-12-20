@@ -48,6 +48,6 @@ for predict_name in predict_name_list:
     model.load()
     model.train(X_train_np, y_train_np)
     model.save()
-    _, test_loss = model.eval(X_test_np, y_test_np)
+    _, test_loss, avg_time = model.eval(X_test_np, y_test_np)
 
-    print(f"📉 Final Validation Loss (MSE): {test_loss:.4f}")
+    print(f"📉 Final Validation Loss (MSE): {test_loss:.4f}, avg_time: {avg_time}")

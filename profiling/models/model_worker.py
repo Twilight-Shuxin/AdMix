@@ -1,4 +1,5 @@
 from torch.multiprocessing import Process
+from multiprocessing import Process as StdProcess, Pipe
 from profiling.constants import *
 import torch
 import time
@@ -6,8 +7,9 @@ import numpy as np
 from trace.trace_utils import Trace
 import os
 from profiling.scheduling.monitor import *
-from profiling.scheduling.utils import schedulers
+from profiling.scheduling.utils import get_scheduler
 from plotting.constants import *
+from plotting.plot_dcgm import plot_dcgm
 import csv
 import json
 
@@ -17,13 +19,12 @@ def read_intensity_from_pipe():
     return latest_value  
 
 def get_input_config_from_test_config(test_config):
-    return InputConfig(test_config.batch_size, nosync=test_config.nosync, start=test_config.start, 
+    return InputConfig(batch_size = test_config.batch_size, nosync=test_config.nosync, start=test_config.start, 
         inter_flag=test_config.inter_flag) 
 
 # device is limited to CUDA_VISIBLE_DEVICE set before worker creation, thus all worker only see 'cuda'
 class ModelWorker(Process):
     def __init__(self, model_name, device_id, mps, pipe, barrier, log_path, profile_path):
-        super().__init__()
         self.model_name = model_name
         self.mps = mps
         self.pipe = pipe
@@ -32,11 +33,13 @@ class ModelWorker(Process):
         self.profile_path = profile_path
         self.logs = []
         self.device = "cuda"
-        self.true_device_id = device_id
+        self.true_device_id = int(device_id) if device_id.isdigit() else device_id
         self.supported_batchsize = [x for x in range(1,33)]
         self.dirname, filename = os.path.split(os.path.abspath(__file__))
         self.warmup_time = 10
         self.test_time = 300
+        self.beta = 2
+        super().__init__()
 
     def serve():
        raise NotImplementedError
@@ -62,8 +65,8 @@ class ModelWorker(Process):
 
     def start_dcgm(self, test_config):
         if(test_config.dcgm_group == None):
-            return []
-        pids = []
+            return None
+        dcgm_procs = []
         for profile_statistic in profile_group_dict[test_config.dcgm_group]:
             profile_id = profile_dict[profile_statistic]
             log_filepath = self.get_dcgm_file_path(test_config,profile_statistic)
@@ -72,8 +75,11 @@ class ModelWorker(Process):
             os.system(command)
             with open('tmp.txt', 'r') as pid_file:
                 pid = int(pid_file.read())
-            pids.append(pid)
-        return pids
+            dcgm_procs.append((pid, command))
+        parent_conn, child_conn = Pipe()
+        monitor_proc = StdProcess(target=dcgm_monitor, args=(dcgm_procs, child_conn))
+        monitor_proc.start()
+        return parent_conn
     
     def get_tag(self, test_config):
         tag = self.model_name
@@ -114,7 +120,8 @@ class ModelWorker(Process):
         self._inference(input, start, end)
         if(sync): 
             torch.cuda.synchronize()
-        self.logs.append([input.shape[0], (time.perf_counter() - start_time) * 1000])
+        if(rec):
+            self.logs.append([input.shape[0], (time.perf_counter() - start_time) * 1000])
             
     def get_file_path(self, test_config, file_name, subpath_name = None):
         if(subpath_name != None):
@@ -154,7 +161,7 @@ class ModelWorker(Process):
                     writer.writerow([record])
     
     def write_log_normal(self, test_config):
-        self.write_analytics(test_config, "summary.log", self.logs)
+        self.write_analytics(test_config, "summary.log", [x[1] for x in self.logs])
         self.write_list_to_csv(test_config, "all.csv", ['Batch Size', 'Latency (ms)'], self.logs)
         self.write_all(test_config, "flow.log", bin_records_append_timestamps(self.absolute_throughput_time_bins, PLOTTING_BIN_SIZE))
     
@@ -170,6 +177,7 @@ class ModelWorker(Process):
     def random_test_period(self, test_config, time_len, rec = False):
         self.start_time_pointer = time.perf_counter()
         input = self.get_input(get_input_config_from_test_config(test_config))
+        self.inference(input, test_config.start, test_config.end, True, False)
         while(time.perf_counter() - self.start_time_pointer < time_len):
             if(test_config.nosync):
                 start_time_sub = time.perf_counter()
@@ -182,7 +190,7 @@ class ModelWorker(Process):
                     self.absolute_throughput_time_bins[int((time.perf_counter() - self.start_time_pointer) / PLOTTING_BIN_SIZE)] += test_config.batch_size
                     self.throughput += 1
             else:
-                self.inference(input, test_config.start, test_config.end, True, rec in RECORDING_ACTION_MAP["statistics"])
+                self.inference(input, test_config.start, test_config.end, True, rec)
                 if(rec):
                     self.absolute_throughput += test_config.batch_size
                     self.absolute_throughput_time_bins[int((time.perf_counter() - self.start_time_pointer) / PLOTTING_BIN_SIZE)] += test_config.batch_size
@@ -220,7 +228,7 @@ class ModelWorker(Process):
             self.statistics_recording_init(test_config)
 
         if(recording_action in RECORDING_ACTION_MAP["dcgm"]):
-            pids = self.start_dcgm(test_config)
+            dcgm_monitor_conn = self.start_dcgm(test_config)
         
         if(test_config.trace_path != None):
             self.trace_test_period(test_config, test_time, record_statistics)
@@ -228,7 +236,7 @@ class ModelWorker(Process):
             self.random_test_period(test_config, test_time, record_statistics)
 
         if(recording_action in RECORDING_ACTION_MAP["dcgm"]):
-            stop_dcgm(pids)
+            stop_dcgm(dcgm_monitor_conn)
         if(record_statistics):
             if(test_config.trace_path != None):
                 self.write_log_trace(test_config)
@@ -236,10 +244,15 @@ class ModelWorker(Process):
                 self.write_log_normal(test_config)
     
     def collect_dcgm(self, test_config):
+        plot_dcgm_statistics = ["sm_active", "dram_active"]
         dcgm_data = {}
         for dcgm_group in test_config.dcgm_group:
             for profile_statistic in profile_group_dict[dcgm_group]:
-                dcgm_data[profile_statistic] = get_dcgm_analysis(self.get_dcgm_file_path(test_config, profile_statistic))
+                data_path = self.get_dcgm_file_path(test_config, profile_statistic)
+                dcgm_data[profile_statistic] = get_dcgm_analysis(data_path)
+                if(profile_statistic in plot_dcgm_statistics):
+                    records = get_dcgm_data(data_path)
+                    plot_dcgm(records, os.path.join(self.log_path, test_config.tag + "-"), profile_statistic)
         return dcgm_data
 
     def common_start(self):
@@ -260,9 +273,8 @@ class ModelWorker(Process):
         #         self.partial_input[batch_size][right] = self._inference(partial_input_current, i, right)
     
     def warmup(self):
-        warmup_config = TestConfig(1, None, self.supported_batchsize[-1], 0, self.total_module, None, None)
-        warmup_config.fit(self)
-        self.random_test_period(warmup_config, 5)
+        for batch_size in self.supported_batchsize:
+            self.inference(self.random_input[batch_size], 0, self.total_module, True, False)
     
     def profile(self):
         max_iter = 20
@@ -285,21 +297,24 @@ class ModelWorker(Process):
         return self.profile_data
 
     def opportunistic_serve(self, test_config):
-        global schedulers
-        self.scheduler = schedulers[test_config.scheduler]()
-        self.scheduling_data_format = schedulers[test_config.scheduler].data_format
-
+        self.scheduler = get_scheduler(test_config.scheduler)
+        if(self.scheduler != None):
+            self.scheduler.llm_tag = test_config.llm_tag
+            self.scheduling_data_format = type(self.scheduler).data_format
+        self.test_config = test_config
         test_time = self.test_time if test_config.test_time == None else test_config.test_time
         rec = RecordingAction.NO_RECORD if test_config.recording_action == None else test_config.recording_action
         if(rec in RECORDING_ACTION_MAP["statistics"]):
             self.statistics_recording_init(test_config)
             
         if(rec in RECORDING_ACTION_MAP["dcgm"]):
-            pids = self.start_dcgm(test_config)
-        self.start_time_pointer = time.perf_counter()
-        self.scheduler.serve(self, test_time, rec)
+            dcgm_monitor_conn = self.start_dcgm(test_config)
+        if(self.scheduler != None):
+            self.scheduler.serve(self, test_time, rec)
+        else:
+            self.random_test_period(test_config, test_time, record_statistics)
         if(rec in RECORDING_ACTION_MAP["dcgm"]):
-            stop_dcgm(pids) 
+            stop_dcgm(dcgm_monitor_conn) 
         if(rec in RECORDING_ACTION_MAP["statistics"]):
             self.write_log_normal(test_config)
 

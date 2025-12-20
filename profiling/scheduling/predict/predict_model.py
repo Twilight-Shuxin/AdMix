@@ -11,7 +11,8 @@ from joblib import load
 
 class PredictModel():
     def __init__(self, tag):
-        self.path_prefix = "/home/k43015/MPSTest/data/predict/predict_model/results/BurstGPT2_100_300_400000_6"
+        current_file = os.path.abspath(__file__)
+        self.path_prefix = os.path.dirname(current_file)
         if(len(self.path_prefix) != 0):
             self.path_prefix += "/"
         self.get_saved_model_path(tag)

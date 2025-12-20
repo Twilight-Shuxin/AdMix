@@ -12,6 +12,9 @@ class ProfileConfig:
         self.batch_sizes = get_comma_list(args.batch_size, ArgsType.INT, self.model_cnt)
         self.profile_groups = get_comma_list(args.profile_group, ArgsType.INT)
         self.device = args.device
+
+        # Save log data to under MPSTest/args.path (default: MPSTest/data)
+        # Save profile data (data collected under running mode 'PROFILE') to under MPSTest/args.profile_path (default: MPSTest/profile_data)
         dirname, filename = os.path.split(os.path.abspath(__file__))
         self.path = dirname + "/../" +args.path
         self.profile_path = dirname+"/../" + args.profile_path
@@ -20,6 +23,8 @@ class ProfileConfig:
         self.seq_len = get_comma_list_or_single(args.seqlen, ArgsType.INT)
         self.test_time = args.test_time
         self.global_tag = args.tag
+
+        # Default runtime mode: TEST
         self.mode = RuntimeMode(args.mode)
         self.scheduler = args.scheduler
 
@@ -56,7 +61,7 @@ def parse_profile_options():
         default = "",
     )
     parser.add_argument(
-        "--device", type = int, default = 0
+        "--device", type = str, default = "0"
     )
     parser.add_argument(
         "--path", type = str, default = "data"

@@ -46,3 +46,23 @@ for predict_name in predict_list:
 
 # Save to new CSV file
 df.to_csv('predicted_data_' + model_type + '.csv', index=False)
+df_out = df[
+    [
+        "Timestamp (s)",
+        "t1 prefill average length",
+        "Prefill throughput",
+        "Predicted prefill",
+        "Decode throughput",
+        "Predicted decode",
+    ]
+].rename(
+    columns={
+        "Timestamp (s)": "Time",
+        "t1 prefill average length": "Batch Size",
+        "Prefill throughput": "Prefill_Tp",
+        "Predicted prefill": "Predicted_Prefill_Tp",
+        "Decode throughput": "Decode_Tp",
+        "Predicted decode": "Predicted_Decode_Tp",
+    }
+)
+df.to_csv('predicted_data_' + model_type + '_simplified.csv', index=False)

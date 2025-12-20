@@ -6,6 +6,8 @@ import os
 class ResnetWorker(ModelWorker):
     def __init__(self, device_id, mps, pipe, barrier, log_path, profile_path):
         super().__init__("resnet50", device_id, mps, pipe, barrier, log_path, profile_path)
+        self.supported_batchsize = [x for x in range(1,129)]
+        self.alpha = 8
     
     def init_start(self):
         self.model = resnet50().cuda(self.device).eval()

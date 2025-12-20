@@ -206,6 +206,7 @@ class AdvancedAIMDScheduler(Scheduler):
     def serve(self, model_worker, test_time, rec):
         time_limit = time.perf_counter() + test_time
         self.start_timepointer = time.perf_counter()
+        model_worker.start_time_pointer = time.perf_counter()
         self.model_worker = model_worker
         self.scheduler_init()
         self.rec = rec

@@ -27,8 +27,8 @@ class PredictModel():
 class SKLPredictModel(PredictModel):
     def train(self, X_data, y_data, train_config = {}):
         self.model.fit(X_data, y_data)
-        _, test_loss = self.eval(X_data, y_data)
-        print(f"📉 Final Train Loss (MSE): {test_loss:.4f}")
+        _, test_loss, avg_time = self.eval(X_data, y_data)
+        print(f"📉 Final Train Loss (MSE): {test_loss:.4f}, avg time(s): {avg_time}")
 
     def eval(self, X_data, y_data = None):
         test_outputs = self.model.predict(X_data)
@@ -55,7 +55,7 @@ class SKLPredictModel(PredictModel):
 
 class PytorchPredictModel(PredictModel):
     def train(self, X_data, y_data, train_config = {}):
-        num_epochs = train_config.get("num_epochs", 1000) 
+        num_epochs = train_config.get("num_epochs", 500) 
         batch_size = train_config.get("batch_size", 32)
         X_train_tensor = torch.from_numpy(X_data).float().to(self.device)
         y_train_tensor = torch.from_numpy(y_data).float().to(self.device)
@@ -85,6 +85,7 @@ class PytorchPredictModel(PredictModel):
         with torch.no_grad():
             test_outputs = self.model(X_test_tensor)
             test_outputs = test_outputs.squeeze()
+            test_outputs = torch.round(test_outputs).clamp(min=0)
             if isinstance(y_data, np.ndarray):
                 test_loss = self.model.criterion(test_outputs, y_test_tensor)
         start_time = time.time()

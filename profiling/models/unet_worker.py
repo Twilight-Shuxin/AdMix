@@ -14,7 +14,8 @@ from profiling.models.split.unet import UNet3D
 class UNet3DWorker(ModelWorker):
     def __init__(self, device_id, mps, pipe, barrier, log_path, profile_path):
         super().__init__("unet3d", device_id, mps, pipe, barrier, log_path, profile_path)
-        self.supported_batchsize = [x for x in range(1,15)]
+        self.supported_batchsize = [x for x in range(1,17)]
+        self.alpha = 1
 
     def init_start(self):
         self.model = UNet3D(in_channels=3, num_classes=1).cuda(self.device).eval()

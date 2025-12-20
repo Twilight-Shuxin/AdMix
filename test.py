@@ -4,9 +4,10 @@ import torch.multiprocessing as mp
 from plotting.trace_plot import *
 import numpy as np
 import matplotlib.pyplot as plt
-from trace.trace_utils import get_burstgpt_trace_tag, set_burstgpt_trace_config, read_burstgpt_trace_config_json
+from trace.trace_utils import get_trace_tag, set_trace_config, read_trace_config_json
 import pandas as pd
 import sys
+from profiling.scheduling.AIMD_scheduler import AIMDScheduler
 
 def test(average_tbt_array):
     tmp_array = []
@@ -85,17 +86,18 @@ if __name__=="__main__":
 
 
     # Load your CSV file
-    config_id =  int(sys.argv[1])
-    set_burstgpt_trace_config(config_id)
-    trace_config = read_burstgpt_trace_config_json("trace_config.json")
-    df = pd.read_csv('./data/llm[' + get_burstgpt_trace_tag() + ']-ttsummary.csv')
-    average_tbt_array = df['Average TBT (s)'].to_numpy()
-    if("time" in trace_config):
-        print("Total time", trace_config["time"])
-    if(len(sys.argv) > 2):
-        png_filename = sys.argv[2]
-    else:
-        png_filename = 'histo.png'
-    # test(average_tbt_array)
-    # test2(average_tbt_array)
-    get_interval_distribution(df, png_filename)
+    # config_id =  int(sys.argv[1])
+    # set_burstgpt_trace_config(config_id)
+    # trace_config = read_burstgpt_trace_config_json("trace_config.json")
+    # df = pd.read_csv('./data/llm[' + get_burstgpt_trace_tag() + ']-ttsummary.csv')
+    # average_tbt_array = df['Average TBT (s)'].to_numpy()
+    # if("time" in trace_config):
+    #     print("Total time", trace_config["time"])
+    # if(len(sys.argv) > 2):
+    #     png_filename = sys.argv[2]
+    # else:
+    #     png_filename = 'histo.png'
+    # # test(average_tbt_array)
+    # # test2(average_tbt_array)
+    # get_interval_distribution(df, png_filename)
+    print(type(AIMDScheduler()).monitor)

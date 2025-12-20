@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# models=("decision_tree" "random_forest" "linear" "poisson" "MLP")
-models=("MLP")
+models=("decision_tree" "random_forest" "linear" "poisson" "MLP")
 
 for i in "${!models[@]}"; do 
     echo python train_model.py ${models[$i]} prefill &

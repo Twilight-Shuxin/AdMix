@@ -29,7 +29,8 @@ class ProfileServer():
                 trace_config_id = int(trace_config_id.strip("]"))
                 set_trace_config(trace_config_id)
                 trace_config = read_trace_config_json("trace_config.json")
-                if("time" in trace_config):
+                # Prioritize test time in cmd args
+                if(self.test_time is None and "time" in trace_config):
                     self.test_time = trace_config["time"]
         self.seq_len = profile_config.seq_len
         self.dirname = os.path.split(os.path.abspath(__file__))[0]
@@ -84,8 +85,8 @@ class ProfileServer():
     def test(self, scheduler = None):
         print("start test", self.global_tag)
         for prof_id, prof_group in enumerate(self.profile_groups):
+            test_configs = {}
             for id, model_name in enumerate(self.model_names):
-                self.pipe_map[model_name].send("test" if(model_name == "llm" or scheduler == None) else "opp_serve")
                 if (prof_id == 0):
                     recording_action = RecordingAction.ALL if (id == 0) else RecordingAction.STATISTICS_ONLY
                 elif (id == 0):
@@ -98,6 +99,15 @@ class ProfileServer():
                     test_config.scheduler = scheduler
                 # test_config.nosync = True
                 test_config.trace_path = self.trace_path[id]
+                test_configs[model_name] = test_config
+            if("llm" in self.model_names):
+                self.pipe_map["llm"].send("tag")
+                self.pipe_map["llm"].send(test_configs["llm"])
+                llm_tag = self.pipe_map["llm"].recv()
+            for model_name, test_config in test_configs.items():
+                self.pipe_map[model_name].send("test" if(model_name == "llm" or scheduler == None) else "opp_serve")
+                if("llm" in self.model_names and model_name != "llm"):
+                    test_config.llm_tag = llm_tag
                 self.pipe_map[model_name].send(test_config)
             self.barrier.wait()
             print("round one end")
@@ -137,6 +147,9 @@ class ProfileServer():
         if(tag == None):
             tag = random.choice(list(self.model_worker_tags.values()))
         log_filepath = os.path.join(self.log_path, tag + '-final_summary.log')
+        passed_flag = True
+        total = 0
+        passed = 0
         print(log_filepath)
         with open(log_filepath, 'w+') as summary_file:
             for id, model_name in enumerate(self.model_names):
@@ -157,8 +170,8 @@ class ProfileServer():
                     summary_file.write(model_name + " " + str(absolute_throughput) + " " + str(throughput) + "\n")
                 else:
                     passed_flag, completed, passed, total, slo_info = self.pipe_map[model_name].recv()
-                    print("* Passed:", passed_flag, "Total Completed", completed, "Met", passed, "Total Submitted", total, "SLO_info", slo_info)
-                    summary_file.write(model_name + " " + str(passed_flag) + " " + str(completed) + "/" + str(passed) + "/" + str(total) + " " + str(slo_info) + "\n")
+                    print("* Passed:", passed_flag, "Total Completed", completed, "Met", passed, "Total Submitted", total, "Percentage", passed / total, "SLO_info", slo_info)
+                    summary_file.write(model_name + " " + str(passed_flag) + " " + str(completed) + "/" + str(passed) + "/" + str(total) + " " + str(passed / total) + " " + str(slo_info) + "\n")
             summary_file.write("============================\n")
             if(dcgm_data != None):
                 print(dcgm_data)
@@ -185,6 +198,7 @@ class ProfileServer():
                 
                 trace_plot_aggregated_intensity_with_analysis_data(intensity_list, values, ('Side Absolute Throughput', ''), 
                     self.get_model_worker_filename(model_name, 'aggregated_intensity_absolute_throughput.png'))
+        return passed_flag, passed, total 
 
 
     def run(self):

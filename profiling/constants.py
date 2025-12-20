@@ -5,6 +5,9 @@ from trace.trace_utils import Trace
 import numpy as np
 import heapq
 from collections import deque
+import time
+import heapq
+from collections import Counter
 
 EPS = 1e-6
 
@@ -18,6 +21,9 @@ class RecordingAction(Enum):
     STATISTICS_ONLY = 2
     ALL = 3
 
+"""
+    Runtime Mode of profiler.
+"""
 class RuntimeMode(Enum):
     TEST = "TEST" # Original mode with all free functionalities
     PROFILE = "PROFILE" # Profile single model worker
@@ -34,9 +40,10 @@ GPU_UUID = [
 ]
 
 def device_init(device_id):
-    os.environ["CUDA_VISIBLE_DEVICES"]=GPU_UUID[device_id]
-    os.environ["CUDA_MPS_PIPE_DIRECTORY"]="/tmp/nvidia-mps-" + GPU_UUID[device_id]
-    os.environ["CUDA_MPS_LOG_DIRECTORY"]="/tmp/nvidia-mps-" + GPU_UUID[device_id]
+    UUID = GPU_UUID[int(device_id)] if device_id.isdigit() else device_id
+    os.environ["CUDA_VISIBLE_DEVICES"]=UUID
+    os.environ["CUDA_MPS_PIPE_DIRECTORY"]="/tmp/nvidia-mps-" + UUID
+    os.environ["CUDA_MPS_LOG_DIRECTORY"]="/tmp/nvidia-mps-" + UUID
 
 
 def background(cmd, log):
@@ -89,7 +96,13 @@ profile_dict = {
     'nvlink_rx_bytes': 1012,
 }
 
-
+"""
+    Given a string list 'x1, x2, x3' (ending \n will be stripped);
+    Change it into list [x1, x2, x3];
+    If argstype is int, the list will be a int list;
+    If given expend (int), it requires the list to be expanded into [x1, x2, ..., x_{expand}]
+    If default is given, expand list with default; else expand with x1. 
+"""
 def get_comma_list(strlist, argstype, expand = None, default = None):
     results = strlist.strip("\n").split(",")
     if(argstype == ArgsType.INT):
@@ -104,15 +117,28 @@ def get_comma_list(strlist, argstype, expand = None, default = None):
                 results.append(default)
     return results
 
-def bin_records_append_timestamps(record_list, bin_size):
-    return [[i * bin_size, value] for i, value in enumerate(record_list)]
-
+"""
+    Same functionality as get_comma_list↑, only with 'x1' return x1 instead of [x1]
+"""
 def get_comma_list_or_single(strlist, argstype, expand = None, default = None):
     comma_list = get_comma_list(strlist, argstype, expand, default)
     if(len(comma_list) == 1): 
         return comma_list[0]
     return comma_list
 
+"""
+    Given a record_list that a_x is the record for time interval [t_x, t_{x + 1}] (that is [bin_size * x, bin_size * (x + 1)]),
+    expand it into [(bin_size * x, a_x)]
+"""
+def bin_records_append_timestamps(record_list, bin_size):
+    return [[i * bin_size, value] for i, value in enumerate(record_list)]
+
+
+"""
+    Given a list / tuple data, change it into a string with delimiter.
+    [1,2] (1,2) -> "1 2" (delimiter = " ")
+    If data is already string, then no change is done
+"""
 def list_to_string(data, delimiter = " "):
     data_string = ""
     if (isinstance(data, list) or isinstance(data, tuple)):
@@ -121,13 +147,26 @@ def list_to_string(data, delimiter = " "):
         data = [str(data)]
     return delimiter.join(data)
 
+"""
+    A class used to pack all configs related to getting a input tensor.
+    batch size: /
+    no sync: True / False, if set to true always get a input tensor of batch size 1 
+            (input data will be manually submitted up to batch size times at a time without synchronizing the GPU)
+    inter_flag: True / False, if set to true means get a partial input
+    start: id, indicating which partial result to fetch. get the result generated after executing the (id - 1) operators
+         (operator count start from 0)
+"""
 class InputConfig():
-    def __init__(self, batch_size, **kwargs):
-        self.batch_size = batch_size
+    def __init__(self, **kwargs):
+        self.batch_size = kwargs["batch_size"] if "batch_size" in kwargs else None
         self.nosync = kwargs["nosync"] if "nosync" in kwargs else None
         self.inter_flag = kwargs["inter_flag"] if "inter_flag" in kwargs else None
         self.start = kwargs["start"] if "start" in kwargs else None
 
+"""
+    A class used to pack all configs related to a running work for the worker to perform.
+
+"""
 class TestConfig():
     def __init__(self, global_cnt, tag, batch_size, start, end, dcgm_group, seq_len = None, **kwargs):
         self.global_cnt = global_cnt
@@ -162,12 +201,51 @@ class TestConfig():
         self.get_tag(model_worker)
         if(self.trace_path != None):
             model_worker.get_trace(self.trace_path)
-    
-def stop_dcgm(pids):
-    for pid in pids:
+
+
+"""
+    Monitors the running dcgm processes dcgm_procs, and report the process ids through conn.
+    If dcgm processes are not detected (died), start a new one in replace. 
+    Upon receiving message from conn, report the final pids of the processes through conn and stop the monitoring process. 
+"""
+def dcgm_monitor(dcgm_procs, conn):
+    while(True):
+        if conn.poll():
+            msg = conn.recv()
+            conn.send([pid for pid, cmd in dcgm_procs])
+            break
+        time.sleep(5)
+        for id, dcgm_proc in enumerate(dcgm_procs):
+            pid, cmd = dcgm_proc
+            try:
+                os.kill(pid, 0)  # Doesn't actually kill; just checks permission/existence
+            except ProcessLookupError:
+                os.system(cmd + " append")
+                with open('tmp.txt', 'r') as pid_file:
+                    pid = int(pid_file.read())
+                dcgm_procs[id] = (pid, cmd)
+            except PermissionError:
+                pass
+            else:
+                pass
+
+"""
+    Stop dcgm process through process connection.
+"""
+def stop_dcgm(conn):
+    if(conn is None):
+        return
+    conn.send("stop")
+    final_pids = conn.recv()
+    print("Final PID list:", final_pids)
+    for pid in final_pids:
         command = "kill -9 {}".format(str(pid))
         os.system(command)
 
+"""
+    Given a profile_filepath pointing to a file generated by dcgm, 
+    get the data inside and return a list containing the data.
+"""
 def get_dcgm_data(profile_filepath):
     values = []
     with open(profile_filepath, 'r') as profile_file:
@@ -180,10 +258,19 @@ def get_dcgm_data(profile_filepath):
                 values.append(float(value))
     return values
 
+
+"""
+    Given a profile_filepath pointing to a file generated by dcgm, 
+    get the mean value of the profiled metric.
+"""
 def get_dcgm_analysis(profile_filepath):
     values = get_dcgm_data(profile_filepath)
     return np.mean(values) if values else None
 
+"""
+    Given a profile_filepath pointing to a file generated by dcgm, 
+    get the mean value of the profiled metric excluding zero values.
+"""
 def get_dcgm_analysis_excluding_zeros(profile_filepath):
     values = get_dcgm_data(profile_filepath)
     filtered = [v for v in values if v != 0]
@@ -267,3 +354,43 @@ class AvgDequeWithTimestamp():
 
 def timebin_ranges(time_bin_len, time_len):
     return np.arange(0, time_len + 5, time_bin_len)
+
+class DeletableHeap:
+    def __init__(self, float_fmt=".5f"):
+        self.heap = []               # stores (-key, key, str_val, float_val)
+        self.counter = Counter()
+        self.float_fmt = float_fmt
+
+    def _normalize(self, t):
+        key = t[0]
+        val = t[1]
+        str_val = format(val, self.float_fmt)
+        return key, str_val
+
+    def push(self, t):
+        key, str_val = self._normalize(t)
+        heapq.heappush(self.heap, (-key, str_val))
+        self.counter[(-key, str_val)] += 1
+
+    def delete(self, t):
+        key, str_val = self._normalize(t)
+        self.counter[(-key, str_val)] -= 1
+
+    def _clean_top(self):
+        while self.heap and self.counter[(self.heap[0][0], self.heap[0][1])] == 0:
+            heapq.heappop(self.heap)
+
+    def top(self):
+        self._clean_top()
+        if not self.heap:
+            return None
+        key, str_val = self.heap[0]
+        return (-key, float(str_val))
+
+    def pop(self):
+        self._clean_top()
+        if not self.heap:
+            return None
+        key, str_val = heapq.heappop(self.heap)
+        self.counter[(key, str_val)] -= 1
+        return (-key, float(str_val))

@@ -32,12 +32,16 @@ if __name__=="__main__":
     profile_config = parse_profile_options()
     profile_server = ProfileServer(profile_config)
     profile_server.setup()
-
+    result = True
+    all_submitted = 0
+    passed = 0
     # profile_server.test()
     if(profile_server.mode == RuntimeMode.PROFILE):
         print("profile")
         profile_server.profile()
     else:
         profile_server.serve()
-        profile_server.collect_data()
+        result, passed, all_submitted = profile_server.collect_data()
+    with open('result.log', 'w') as f:
+        f.write(str(result) + ' ' + str(passed) + ' ' + str(all_submitted))
     profile_server.shutdown()

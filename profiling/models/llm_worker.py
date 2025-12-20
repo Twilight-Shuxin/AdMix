@@ -14,9 +14,10 @@ import aiohttp
 import json
 import struct
 import logging
+import heapq
 from plotting.trace_plot import *
 from profiling.scheduling.monitor import *
-from profiling.scheduling.utils import schedulers
+from profiling.scheduling.utils import get_scheduler
 
 async def get_chunk_with_timeout(receiver):
     timeout_setting = 0.93
@@ -43,16 +44,18 @@ class LLMWorker(ModelWorker):
             "temperature": 0,
             "stream": True
         }
-        self.SPEED_CONST = 0.25
+        self.SPEED_CONST = 0.2
+        self.initial_time = 0.2
         self.server_proc = None
         self.time_bins = None
         self.first_token_slo = 1
-        self.idle_time_slo = 0.5
+        self.idle_time_slo = 0
         self.queue_total_submitted_record = []
         self.queue_total_waiting_first_record = []
         self.intensity_server = None
         self.intensity_profiler = None
         self.scheduler_monitor = None
+        self.device = device_id
         
     def recording_queue_records(self, rec, target_id, target_list, timestamp, value):
         self.queue_record[target_id] += value
@@ -199,7 +202,7 @@ class LLMWorker(ModelWorker):
                 ('Throughput', ''), self.get_file_path(test_config, 'aggregated_throughput.png'))
     
     def check_performace(self, test_config):
-        return self.total_submitted * 0.01 >= self.failed, self.completed, self.total_submitted - self.failed, self.total_submitted, (self.first_token_slo, self.idle_time_slo)
+        return self.total_submitted * 0.01 >= self.failed, self.completed, self.total_submitted - self.failed, self.total_submitted, (self.first_token_slo, self.idle_time_slo, self.SPEED_CONST, self.initial_time)
 
     # Return True: meet slo; False: violated slo
     def check_single_query_performance(self, request_timestamp, first_chunk_time, user_idle_info, rec):
@@ -220,7 +223,7 @@ class LLMWorker(ModelWorker):
                 return False
         return True
 
-    async def stream_response(self, input_length, rec, receiver, request_timestamp):
+    async def stream_response(self, input_length, output_length, rec, receiver, request_timestamp):
         
         def update_user_idle_time_info_record(user_idle_time_info_record, user_idle_time, idle_time, idle_slo):
             if(idle_time > user_idle_time):
@@ -233,11 +236,15 @@ class LLMWorker(ModelWorker):
         user_idle_time = 0
         user_idle_time_info_record = None
         last_received_time = request_timestamp
-        reading_time = self.SPEED_CONST
+        reading_time = self.initial_time
         waiting_time = 0
         
         token_cnt = input_length
         decode_flag = False
+        output_cnt = 0
+
+        received_token_tmp = 0
+        last_refreshed_flag = self.refreshed_flag
         try:
             async for chunk in receiver:
                 # If this is the first chunk, record the time taken
@@ -248,6 +255,7 @@ class LLMWorker(ModelWorker):
                 between_token_time = current_timestamp - last_received_time
                 token_cnt += 1
                 self.uncompleted_tokens -= 1
+                output_cnt += 1
 
                 if first_chunk_time == None:
                     first_chunk_time = between_token_time
@@ -255,13 +263,17 @@ class LLMWorker(ModelWorker):
                         self.time_bins[current_plotting_bin_timestamp][0].append(first_chunk_time)
                     self.recording_queue_records(rec, 1, self.queue_total_waiting_first_record, current_timestamp, -1)
                     self.ftt_cnt_rt += 1
-
                     self.total_decode_length += token_cnt
                     self.total_prefill_length -= input_length
                     self.prefill_start_time -= request_timestamp
+                    self.prefill_length_heap.delete((input_length, request_timestamp))
                     self.decode_intensity += 1
                     decode_flag = True
                 else:
+                    if(last_refreshed_flag != self.refreshed_flag):
+                        received_token_tmp = 0
+                        last_refreshed_flag = self.refreshed_flag
+                    received_token_tmp += 1
                     waiting_time += between_token_time
                     if(rec):
                         self.time_bins[current_plotting_bin_timestamp][1].append(between_token_time)
@@ -275,9 +287,14 @@ class LLMWorker(ModelWorker):
                     reading_time += self.SPEED_CONST
                 last_received_time = current_timestamp
             self.total_decode_length -= token_cnt
+            if(last_refreshed_flag == self.refreshed_flag):
+                self.finished_token_tmp += received_token_tmp
+                self.finished_tmp += 1
             if(decode_flag):
                 self.decode_intensity -= 1
                 decode_flag = False
+            if(output_length != output_cnt):
+                self.uncompleted_tokens -= output_length - output_cnt
             return first_chunk_time, user_idle_time, user_idle_time_info_record, 1
         except asyncio.CancelledError:
             current_timestamp = time.perf_counter() - self.start_time_pointer
@@ -312,6 +329,8 @@ class LLMWorker(ModelWorker):
             self.prefill_start_time_tmp += request_timestamp                        
             self.total_prefill_length += input[0]
             self.total_prefill_length_tmp += input[0]
+            self.prefill_length_heap.push((input[0], request_timestamp))
+            heapq.heappush(self.prefill_length_heap_tmp, (-input[0], request_timestamp))
             self.prefill_intensity_tmp += 1
 
             async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -330,7 +349,7 @@ class LLMWorker(ModelWorker):
                         print(await resp.text())
                         return
                     first_chunk_time, user_idle_time, user_idle_time_info_record, completed = await \
-                        self.stream_response(input[0], rec, resp.content.iter_any(), request_timestamp)
+                        self.stream_response(input[0], max_tokens, rec, resp.content.iter_any(), request_timestamp)
                     # output = json.loads(buffer.decode("utf-8"))  # Decode JSON
             current_timestamp = time.perf_counter() - self.start_time_pointer
 
@@ -458,18 +477,25 @@ class LLMWorker(ModelWorker):
         self.total_prefill_length_tmp = 0 # Same as total_prefill_length but cleared on query
         self.prefill_start_time = 0 # Sum of all request start time
         self.prefill_start_time_tmp = 0 # Same as prefill_start_time but cleared on query
+        self.prefill_length_heap_tmp = []
+        self.prefill_length_heap = DeletableHeap()
         self.decode_intensity = 0
+        self.finished_tmp = 0
+        self.refreshed_flag = 0
+        self.finished_token_tmp = 0
 
     # rec: true or false
     async def trace_test_period(self, test_config, time_len, rec = False):
         self.monitor_init(test_config)
-        if(test_config.global_cnt > 1): # Serving mode
+        if(test_config.global_cnt > 1 and test_config.scheduler != None): # Serving mode
             asyncio.create_task(self.intensity_server_unix())
-            if(schedulers[test_config.scheduler].monitor != None):
-                self.scheduler_monitor = asyncio.create_task(schedulers[test_config.scheduler].monitor(self))
+            scheduler_type = type(get_scheduler(test_config.scheduler))
+            if(scheduler_type.monitor != None):
+                self.scheduler_monitor = asyncio.create_task(scheduler_type.monitor(self))
         elif (test_config.scheduler != None): # Profiling mode
             print("scheduler profiling")
-            self.intensity_profiler = asyncio.create_task(schedulers[test_config.scheduler].profiling_executor(self, test_config))
+            scheduler_type = type(get_scheduler(test_config.scheduler))
+            self.intensity_profiler = asyncio.create_task(scheduler_type.profiling_executor(self, test_config))
         max_in_tokens = 0
         min_in_tokens = 10000000
         max_out_tokens = 0
@@ -527,15 +553,14 @@ class LLMWorker(ModelWorker):
         self.total_submitted = 0
 
         if(test_config.scheduler != None):
-            global schedulers
-            self.scheduling_data_format = schedulers[test_config.scheduler].data_format
+            self.scheduling_data_format = type(get_scheduler(test_config.scheduler)).data_format
         
         record_statistics = (recording_action in RECORDING_ACTION_MAP["statistics"])
         if(record_statistics):
             self.statistics_recording_init(test_config)
 
         if(recording_action in RECORDING_ACTION_MAP["dcgm"]):
-            pids = self.start_dcgm(test_config)
+            dcgm_monitor_conn = self.start_dcgm(test_config)
         
         if(test_config.trace_path != None):
             self.loop.run_until_complete(self.trace_test_period(test_config, test_time, record_statistics))
@@ -543,7 +568,7 @@ class LLMWorker(ModelWorker):
             self.random_test_period(test_config, test_time, record_statistics)
 
         if(recording_action in RECORDING_ACTION_MAP["dcgm"]):
-            stop_dcgm(pids)
+            stop_dcgm(dcgm_monitor_conn)
 
         if(record_statistics):
             self.write_log(test_config)

@@ -5,6 +5,7 @@ import torch
 import sys
 from joblib import dump, load
 import os
+from plot import plot_distributions
 
 # python data_prep.py data.csv
 
@@ -15,7 +16,7 @@ def save_processed_data(X, y1, y2, tag):
     torch.save((X_tensor, y1_tensor), 'prefill_' + tag + '.pt')
     torch.save((X_tensor, y2_tensor), 'decode_' + tag + '.pt')
 
-def data_prep(data_path):
+def data_prep(data_path, all_test):
     # 1. Load data
     # df = pd.read_csv('../train_data/llm[BurstGPT].csv')
     df = pd.read_csv(data_path)
@@ -24,6 +25,7 @@ def data_prep(data_path):
     df.insert(len(df.columns) - 2 , "t1 prefill average length squared", df["t1 prefill average length"] ** 2)
     df.insert(len(df.columns) - 2 , "t1 decode average length squared", df["t1 decode average length"] ** 2)
     df.insert(len(df.columns) - 2 , "t1~t2 prefill average length squared", df["t1~t2 prefill average length"] ** 2)
+    df = df.drop(columns=['t1~t2 finished', 't1~t2 finished average throughput'])
     headers = df.columns.tolist()
 
     # 2. Drop non-feature columns
@@ -44,6 +46,7 @@ def data_prep(data_path):
     )
     sc = StandardScaler()
     model_path = os.getenv("MODEL_PATH", "")
+    plot_distributions(X_train, y_prefill_train, y_decode_train, headers[1:], 'train')
     if(len(model_path) != 0):
         model_path += "/"
         sc=load(model_path + 'std_scaler.bin')
@@ -60,9 +63,14 @@ def data_prep(data_path):
         dump(sc, 'std_scaler.bin', compress=True)
         print("✅ Data Scaler saved to std_scaler.bin")
 
+    if(all_test):
+        X_test = X.values
+        y_prefill_test = y_prefill.values
+        y_decode_test = y_decode.values
+    plot_distributions(X_test, y_prefill_test, y_decode_test, headers[1:], 'test')
     X_test_std = sc.transform(X_test)
     save_processed_data(X_test_std, y_prefill_test, y_decode_test, "test")
-    print("✅ Data is ready for PyTorch testing!")
+    print("✅ Data is ready for PyTorch testing! All:", all_test)
 
     # Combine test data back into one DataFrame
     df_test = pd.DataFrame(X_test, columns=headers[1:-2])  # X_test retains feature names
@@ -76,7 +84,10 @@ def data_prep(data_path):
 
 def main():
     data_path = sys.argv[1]
-    data_prep(data_path)
+    all_test = False
+    if(len(sys.argv) > 2):
+        all_test = bool(sys.argv[2])
+    data_prep(data_path, all_test)
 
 if __name__ == "__main__":
     main()

@@ -1,54 +1,2089 @@
-Loading safetensors checkpoint shards:   0% Completed | 0/2 [00:00<?, ?it/s]
-Loading safetensors checkpoint shards:  50% Completed | 1/2 [00:00<00:00,  3.46it/s]
-Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:28<00:00, 16.91s/it]
-Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:28<00:00, 14.42s/it]
-
-Capturing CUDA graph shapes:   0%|          | 0/35 [00:00<?, ?it/s]Capturing CUDA graph shapes:   3%|▎         | 1/35 [00:00<00:17,  1.98it/s]Capturing CUDA graph shapes:   6%|▌         | 2/35 [00:00<00:13,  2.39it/s]Capturing CUDA graph shapes:   9%|▊         | 3/35 [00:01<00:12,  2.57it/s]Capturing CUDA graph shapes:  11%|█▏        | 4/35 [00:01<00:11,  2.65it/s]Capturing CUDA graph shapes:  14%|█▍        | 5/35 [00:01<00:11,  2.71it/s]Capturing CUDA graph shapes:  17%|█▋        | 6/35 [00:02<00:11,  2.55it/s]Capturing CUDA graph shapes:  20%|██        | 7/35 [00:02<00:10,  2.64it/s]Capturing CUDA graph shapes:  23%|██▎       | 8/35 [00:03<00:10,  2.67it/s]Capturing CUDA graph shapes:  26%|██▌       | 9/35 [00:03<00:09,  2.73it/s]Capturing CUDA graph shapes:  29%|██▊       | 10/35 [00:03<00:09,  2.78it/s]Capturing CUDA graph shapes:  31%|███▏      | 11/35 [00:04<00:08,  2.80it/s]Capturing CUDA graph shapes:  34%|███▍      | 12/35 [00:04<00:08,  2.82it/s]Capturing CUDA graph shapes:  37%|███▋      | 13/35 [00:04<00:07,  2.84it/s]Capturing CUDA graph shapes:  40%|████      | 14/35 [00:05<00:07,  2.85it/s]Capturing CUDA graph shapes:  43%|████▎     | 15/35 [00:05<00:06,  2.86it/s]Capturing CUDA graph shapes:  46%|████▌     | 16/35 [00:05<00:06,  2.87it/s]Capturing CUDA graph shapes:  49%|████▊     | 17/35 [00:06<00:06,  2.89it/s]Capturing CUDA graph shapes:  51%|█████▏    | 18/35 [00:06<00:05,  2.92it/s]Capturing CUDA graph shapes:  54%|█████▍    | 19/35 [00:06<00:05,  2.94it/s]Capturing CUDA graph shapes:  57%|█████▋    | 20/35 [00:07<00:05,  2.96it/s]Capturing CUDA graph shapes:  60%|██████    | 21/35 [00:07<00:04,  2.97it/s]Capturing CUDA graph shapes:  63%|██████▎   | 22/35 [00:07<00:04,  2.99it/s]Capturing CUDA graph shapes:  66%|██████▌   | 23/35 [00:08<00:03,  3.00it/s]Capturing CUDA graph shapes:  69%|██████▊   | 24/35 [00:08<00:03,  3.01it/s]Capturing CUDA graph shapes:  71%|███████▏  | 25/35 [00:08<00:03,  2.94it/s]Capturing CUDA graph shapes:  74%|███████▍  | 26/35 [00:09<00:03,  2.98it/s]Capturing CUDA graph shapes:  77%|███████▋  | 27/35 [00:09<00:02,  2.98it/s]Capturing CUDA graph shapes:  80%|████████  | 28/35 [00:09<00:02,  2.98it/s]Capturing CUDA graph shapes:  83%|████████▎ | 29/35 [00:10<00:01,  3.01it/s]Capturing CUDA graph shapes:  86%|████████▌ | 30/35 [00:10<00:01,  3.03it/s]Capturing CUDA graph shapes:  89%|████████▊ | 31/35 [00:10<00:01,  3.05it/s]Capturing CUDA graph shapes:  91%|█████████▏| 32/35 [00:11<00:00,  3.05it/s]Capturing CUDA graph shapes:  94%|█████████▍| 33/35 [00:11<00:00,  3.04it/s]Capturing CUDA graph shapes:  97%|█████████▋| 34/35 [00:11<00:00,  3.07it/s]Capturing CUDA graph shapes: 100%|██████████| 35/35 [00:12<00:00,  3.07it/s]Capturing CUDA graph shapes: 100%|██████████| 35/35 [00:12<00:00,  2.88it/s]
-INFO:     Started server process [15593]
+Running batch size 1
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 1 --path data/tmp --test_time 30
+start test resnet50(1_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(1_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 5333 Throughput 5333
+{'sm_active': np.float64(0.06123529411764707), 'sm_occupancy': np.float64(0.026352941176470586), 'tensor_active': np.float64(0.009617647058823528), 'fp64_active': np.float64(0.0)}
+Final PID list: [1503894, 1503898, 1503902, 1503906]
+Running batch size 2
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 2 --path data/tmp --test_time 30
+start test resnet50(2_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(2_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 7844 Throughput 3922
+{'sm_active': np.float64(0.07364705882352941), 'sm_occupancy': np.float64(0.03079411764705883), 'tensor_active': np.float64(0.013735294117647057), 'fp64_active': np.float64(0.0)}
+Final PID list: [1504330, 1504334, 1504338, 1504342]
+Running batch size 3
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 3 --path data/tmp --test_time 30
+start test resnet50(3_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(3_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 8907 Throughput 2969
+{'sm_active': np.float64(0.07697058823529412), 'sm_occupancy': np.float64(0.03297058823529412), 'tensor_active': np.float64(0.016088235294117646), 'fp64_active': np.float64(0.0)}
+Final PID list: [1504748, 1504752, 1504756, 1504760]
+Running batch size 4
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 4 --path data/tmp --test_time 30
+start test resnet50(4_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(4_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 10132 Throughput 2533
+{'sm_active': np.float64(0.07732352941176471), 'sm_occupancy': np.float64(0.0325), 'tensor_active': np.float64(0.018352941176470593), 'fp64_active': np.float64(0.0)}
+Final PID list: [1505164, 1505168, 1505172, 1505176]
+Running batch size 5
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 5 --path data/tmp --test_time 30
+start test resnet50(5_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(5_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 9900 Throughput 1980
+{'sm_active': np.float64(0.07894117647058822), 'sm_occupancy': np.float64(0.03802941176470589), 'tensor_active': np.float64(0.017676470588235293), 'fp64_active': np.float64(0.0)}
+Final PID list: [1505581, 1505585, 1505589, 1505593]
+Running batch size 6
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 6 --path data/tmp --test_time 30
+start test resnet50(6_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(6_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 10272 Throughput 1712
+{'sm_active': np.float64(0.079), 'sm_occupancy': np.float64(0.037294117647058825), 'tensor_active': np.float64(0.01926470588235294), 'fp64_active': np.float64(0.0)}
+Final PID list: [1506062, 1506066, 1506070, 1506074]
+Running batch size 7
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 7 --path data/tmp --test_time 30
+start test resnet50(7_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(7_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11319 Throughput 1617
+{'sm_active': np.float64(0.07941176470588236), 'sm_occupancy': np.float64(0.034176470588235294), 'tensor_active': np.float64(0.0185), 'fp64_active': np.float64(0.0)}
+Final PID list: [1506473, 1506477, 1506481, 1506485]
+Running batch size 1
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 1 --path data/tmp --test_time 30
+start test resnet50(1_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(1_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 5790 Throughput 5790
+{'sm_active': np.float64(0.07397058823529412), 'sm_occupancy': np.float64(0.029411764705882353), 'tensor_active': np.float64(0.010705882352941176), 'fp64_active': np.float64(0.0)}
+Final PID list: [1506923, 1506927, 1506931, 1506935]
+Running batch size 2
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 2 --path data/tmp --test_time 30
+start test resnet50(2_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(2_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11234 Throughput 5617
+{'sm_active': np.float64(0.11370588235294118), 'sm_occupancy': np.float64(0.044941176470588234), 'tensor_active': np.float64(0.020088235294117646), 'fp64_active': np.float64(0.0)}
+Final PID list: [1507353, 1507357, 1507361, 1507365]
+Running batch size 3
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 3 --path data/tmp --test_time 30
+start test resnet50(3_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(3_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 15471 Throughput 5157
+{'sm_active': np.float64(0.14091176470588238), 'sm_occupancy': np.float64(0.06055882352941177), 'tensor_active': np.float64(0.02688235294117647), 'fp64_active': np.float64(0.0)}
+Final PID list: [1507769, 1507773, 1507778, 1507782]
+Running batch size 4
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 4 --path data/tmp --test_time 30
+start test resnet50(4_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(4_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 17980 Throughput 4495
+{'sm_active': np.float64(0.14429411764705885), 'sm_occupancy': np.float64(0.06070588235294118), 'tensor_active': np.float64(0.03079411764705883), 'fp64_active': np.float64(0.0)}
+Final PID list: [1508188, 1508192, 1508196, 1508200]
+Running batch size 5
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 5 --path data/tmp --test_time 30
+start test resnet50(5_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(5_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 17890 Throughput 3578
+{'sm_active': np.float64(0.148), 'sm_occupancy': np.float64(0.07061764705882352), 'tensor_active': np.float64(0.03135294117647059), 'fp64_active': np.float64(0.0)}
+Final PID list: [1508605, 1508609, 1508613, 1508617]
+Running batch size 6
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 6 --path data/tmp --test_time 30
+start test resnet50(6_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(6_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 19056 Throughput 3176
+{'sm_active': np.float64(0.15247058823529414), 'sm_occupancy': np.float64(0.07597058823529412), 'tensor_active': np.float64(0.033882352941176475), 'fp64_active': np.float64(0.0)}
+Final PID list: [1509034, 1509038, 1509042, 1509046]
+Running batch size 7
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 7 --path data/tmp --test_time 30
+start test resnet50(7_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(7_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 20580 Throughput 2940
+{'sm_active': np.float64(0.14961764705882352), 'sm_occupancy': np.float64(0.06505882352941175), 'tensor_active': np.float64(0.03638235294117648), 'fp64_active': np.float64(0.0)}
+Final PID list: [1509491, 1509495, 1509499, 1509503]
+Running batch size 1
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 1 --path data/tmp --test_time 30
+start test resnet50(1_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(1_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 5709 Throughput 5709
+{'sm_active': np.float64(0.08152941176470588), 'sm_occupancy': np.float64(0.029529411764705884), 'tensor_active': np.float64(0.010029411764705882), 'fp64_active': np.float64(0.0)}
+Final PID list: [1509902, 1509906, 1509910, 1509914]
+Running batch size 2
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 2 --path data/tmp --test_time 30
+start test resnet50(2_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(2_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11592 Throughput 5796
+{'sm_active': np.float64(0.1266764705882353), 'sm_occupancy': np.float64(0.04547058823529412), 'tensor_active': np.float64(0.020235294117647056), 'fp64_active': np.float64(0.0)}
+Final PID list: [1510313, 1510317, 1510321, 1510325]
+Running batch size 3
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 3 --path data/tmp --test_time 30
+start test resnet50(3_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(3_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 17211 Throughput 5737
+{'sm_active': np.float64(0.16511764705882354), 'sm_occupancy': np.float64(0.06726470588235293), 'tensor_active': np.float64(0.030147058823529416), 'fp64_active': np.float64(0.0)}
+Final PID list: [1510722, 1510726, 1510730, 1510734]
+Running batch size 4
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 4 --path data/tmp --test_time 30
+start test resnet50(4_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(4_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 22892 Throughput 5723
+{'sm_active': np.float64(0.1927941176470588), 'sm_occupancy': np.float64(0.07852941176470588), 'tensor_active': np.float64(0.04097058823529411), 'fp64_active': np.float64(0.0)}
+Final PID list: [1511131, 1511135, 1511139, 1511143]
+Running batch size 5
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 5 --path data/tmp --test_time 30
+start test resnet50(5_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(5_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 26220 Throughput 5244
+{'sm_active': np.float64(0.22749999999999998), 'sm_occupancy': np.float64(0.10623529411764707), 'tensor_active': np.float64(0.04552941176470588), 'fp64_active': np.float64(0.0)}
+Final PID list: [1511580, 1511584, 1511588, 1511592]
+Running batch size 6
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 6 --path data/tmp --test_time 30
+start test resnet50(6_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(6_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 27378 Throughput 4563
+{'sm_active': np.float64(0.22988235294117643), 'sm_occupancy': np.float64(0.1111764705882353), 'tensor_active': np.float64(0.04555882352941176), 'fp64_active': np.float64(0.0)}
+Final PID list: [1512006, 1512010, 1512014, 1512018]
+Running batch size 7
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 7 --path data/tmp --test_time 30
+start test resnet50(7_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(7_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 30212 Throughput 4316
+{'sm_active': np.float64(0.2295294117647059), 'sm_occupancy': np.float64(0.0983235294117647), 'tensor_active': np.float64(0.05064705882352941), 'fp64_active': np.float64(0.0)}
+Final PID list: [1512432, 1512436, 1512440, 1512444]
+Running batch size 1
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 1 --path data/tmp --test_time 30
+start test resnet50(1_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(1_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 5755 Throughput 5755
+{'sm_active': np.float64(0.08988235294117647), 'sm_occupancy': np.float64(0.029470588235294116), 'tensor_active': np.float64(0.009823529411764705), 'fp64_active': np.float64(0.0)}
+Final PID list: [1512864, 1512868, 1512872, 1512876]
+Running batch size 2
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 2 --path data/tmp --test_time 30
+start test resnet50(2_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(2_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11678 Throughput 5839
+{'sm_active': np.float64(0.12979411764705884), 'sm_occupancy': np.float64(0.044647058823529415), 'tensor_active': np.float64(0.01964705882352941), 'fp64_active': np.float64(0.0)}
+Final PID list: [1513291, 1513295, 1513299, 1513303]
+Running batch size 3
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 3 --path data/tmp --test_time 30
+start test resnet50(3_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(3_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 17625 Throughput 5875
+{'sm_active': np.float64(0.17605882352941177), 'sm_occupancy': np.float64(0.06805882352941177), 'tensor_active': np.float64(0.03232352941176471), 'fp64_active': np.float64(0.0)}
+Final PID list: [1513712, 1513716, 1513720, 1513724]
+Running batch size 4
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 4 --path data/tmp --test_time 30
+start test resnet50(4_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(4_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 23364 Throughput 5841
+{'sm_active': np.float64(0.20420588235294118), 'sm_occupancy': np.float64(0.08061764705882352), 'tensor_active': np.float64(0.042676470588235295), 'fp64_active': np.float64(0.0)}
+Final PID list: [1514131, 1514135, 1514139, 1514143]
+Running batch size 5
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 5 --path data/tmp --test_time 30
+start test resnet50(5_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(5_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 27345 Throughput 5469
+{'sm_active': np.float64(0.24435294117647058), 'sm_occupancy': np.float64(0.11173529411764706), 'tensor_active': np.float64(0.04629411764705882), 'fp64_active': np.float64(0.0)}
+Final PID list: [1514551, 1514555, 1514559, 1514563]
+Running batch size 6
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 6 --path data/tmp --test_time 30
+start test resnet50(6_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(6_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 32196 Throughput 5366
+{'sm_active': np.float64(0.2805294117647059), 'sm_occupancy': np.float64(0.12847058823529411), 'tensor_active': np.float64(0.053882352941176465), 'fp64_active': np.float64(0.0)}
+Final PID list: [1515091, 1515095, 1515099, 1515103]
+Running batch size 7
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 7 --path data/tmp --test_time 30
+start test resnet50(7_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(7_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 35133 Throughput 5019
+{'sm_active': np.float64(0.27602941176470586), 'sm_occupancy': np.float64(0.1174705882352941), 'tensor_active': np.float64(0.06017647058823529), 'fp64_active': np.float64(0.0)}
+Final PID list: [1515528, 1515532, 1515536, 1515540]
+Running batch size 1
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 1 --path data/tmp --test_time 30
+start test resnet50(1_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(1_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 5622 Throughput 5622
+{'sm_active': np.float64(0.09741176470588236), 'sm_occupancy': np.float64(0.02938235294117647), 'tensor_active': np.float64(0.010117647058823528), 'fp64_active': np.float64(0.0)}
+Final PID list: [1515965, 1515969, 1515973, 1515977]
+Running batch size 2
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 2 --path data/tmp --test_time 30
+start test resnet50(2_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(2_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11954 Throughput 5977
+{'sm_active': np.float64(0.14350000000000002), 'sm_occupancy': np.float64(0.04661764705882353), 'tensor_active': np.float64(0.021205882352941175), 'fp64_active': np.float64(0.0)}
+Final PID list: [1516394, 1516398, 1516402, 1516406]
+Running batch size 3
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 3 --path data/tmp --test_time 30
+start test resnet50(3_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(3_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 17940 Throughput 5980
+{'sm_active': np.float64(0.1886764705882353), 'sm_occupancy': np.float64(0.06914705882352941), 'tensor_active': np.float64(0.031441176470588236), 'fp64_active': np.float64(0.0)}
+Final PID list: [1516891, 1516895, 1516899, 1516903]
+Running batch size 4
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 4 --path data/tmp --test_time 30
+start test resnet50(4_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(4_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 23404 Throughput 5851
+{'sm_active': np.float64(0.21473529411764702), 'sm_occupancy': np.float64(0.08094117647058824), 'tensor_active': np.float64(0.04167647058823529), 'fp64_active': np.float64(0.0)}
+Final PID list: [1517340, 1517344, 1517348, 1517352]
+Running batch size 5
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 5 --path data/tmp --test_time 30
+start test resnet50(5_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(5_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 28355 Throughput 5671
+{'sm_active': np.float64(0.27452941176470586), 'sm_occupancy': np.float64(0.12544117647058825), 'tensor_active': np.float64(0.04688235294117647), 'fp64_active': np.float64(0.0)}
+Final PID list: [1517763, 1517767, 1517771, 1517775]
+Running batch size 6
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 6 --path data/tmp --test_time 30
+start test resnet50(6_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(6_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 33762 Throughput 5627
+{'sm_active': np.float64(0.305264705882353), 'sm_occupancy': np.float64(0.1371764705882353), 'tensor_active': np.float64(0.05779411764705883), 'fp64_active': np.float64(0.0)}
+Final PID list: [1518178, 1518182, 1518186, 1518190]
+Running batch size 7
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 7 --path data/tmp --test_time 30
+start test resnet50(7_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(7_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 39137 Throughput 5591
+{'sm_active': np.float64(0.32205882352941173), 'sm_occupancy': np.float64(0.13364705882352942), 'tensor_active': np.float64(0.06520588235294118), 'fp64_active': np.float64(0.0)}
+Final PID list: [1518594, 1518598, 1518602, 1518606]
+Running batch size 1
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 1 --path data/tmp --test_time 30
+start test resnet50(1_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(1_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 5733 Throughput 5733
+{'sm_active': np.float64(0.10458823529411765), 'sm_occupancy': np.float64(0.02988235294117647), 'tensor_active': np.float64(0.009676470588235293), 'fp64_active': np.float64(0.0)}
+Final PID list: [1519011, 1519015, 1519019, 1519023]
+Running batch size 2
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 2 --path data/tmp --test_time 30
+start test resnet50(2_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(2_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11622 Throughput 5811
+{'sm_active': np.float64(0.14676470588235294), 'sm_occupancy': np.float64(0.04505882352941176), 'tensor_active': np.float64(0.019970588235294115), 'fp64_active': np.float64(0.0)}
+Final PID list: [1519452, 1519456, 1519460, 1519464]
+Running batch size 3
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 3 --path data/tmp --test_time 30
+start test resnet50(3_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(3_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 17790 Throughput 5930
+{'sm_active': np.float64(0.19826470588235293), 'sm_occupancy': np.float64(0.07014705882352941), 'tensor_active': np.float64(0.031558823529411764), 'fp64_active': np.float64(0.0)}
+Final PID list: [1519868, 1519872, 1519876, 1519880]
+Running batch size 4
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 4 --path data/tmp --test_time 30
+start test resnet50(4_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(4_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 23420 Throughput 5855
+{'sm_active': np.float64(0.22841176470588234), 'sm_occupancy': np.float64(0.0846764705882353), 'tensor_active': np.float64(0.04211764705882353), 'fp64_active': np.float64(0.0)}
+Final PID list: [1520284, 1520288, 1520292, 1520296]
+Running batch size 5
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 5 --path data/tmp --test_time 30
+start test resnet50(5_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(5_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 29000 Throughput 5800
+{'sm_active': np.float64(0.28355882352941175), 'sm_occupancy': np.float64(0.1252058823529412), 'tensor_active': np.float64(0.047852941176470584), 'fp64_active': np.float64(0.0)}
+Final PID list: [1520708, 1520712, 1520716, 1520720]
+Running batch size 6
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 6 --path data/tmp --test_time 30
+start test resnet50(6_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(6_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 34224 Throughput 5704
+{'sm_active': np.float64(0.32832352941176474), 'sm_occupancy': np.float64(0.14194117647058824), 'tensor_active': np.float64(0.06058823529411765), 'fp64_active': np.float64(0.0)}
+Final PID list: [1521128, 1521132, 1521136, 1521140]
+Running batch size 7
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 7 --path data/tmp --test_time 30
+start test resnet50(7_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(7_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 40670 Throughput 5810
+{'sm_active': np.float64(0.3561470588235295), 'sm_occupancy': np.float64(0.1486470588235294), 'tensor_active': np.float64(0.06714705882352942), 'fp64_active': np.float64(0.0)}
+Final PID list: [1521558, 1521562, 1521566, 1521570]
+Running batch size 1
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 1 --path data/tmp --test_time 30
+start test resnet50(1_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(1_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 5868 Throughput 5868
+{'sm_active': np.float64(0.11576470588235294), 'sm_occupancy': np.float64(0.03044117647058824), 'tensor_active': np.float64(0.010794117647058824), 'fp64_active': np.float64(0.0)}
+Final PID list: [1521987, 1521991, 1521995, 1521999]
+Running batch size 2
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 2 --path data/tmp --test_time 30
+start test resnet50(2_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(2_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11900 Throughput 5950
+{'sm_active': np.float64(0.1561470588235294), 'sm_occupancy': np.float64(0.0458235294117647), 'tensor_active': np.float64(0.020029411764705882), 'fp64_active': np.float64(0.0)}
+Final PID list: [1522420, 1522424, 1522428, 1522432]
+Running batch size 3
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 3 --path data/tmp --test_time 30
+start test resnet50(3_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(3_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 17853 Throughput 5951
+{'sm_active': np.float64(0.21441176470588236), 'sm_occupancy': np.float64(0.07352941176470588), 'tensor_active': np.float64(0.031970588235294126), 'fp64_active': np.float64(0.0)}
+Final PID list: [1522848, 1522852, 1522856, 1522860]
+Running batch size 4
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 4 --path data/tmp --test_time 30
+start test resnet50(4_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(4_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 24036 Throughput 6009
+{'sm_active': np.float64(0.24355882352941177), 'sm_occupancy': np.float64(0.08555882352941176), 'tensor_active': np.float64(0.04223529411764706), 'fp64_active': np.float64(0.0)}
+Final PID list: [1523288, 1523292, 1523296, 1523300]
+Running batch size 5
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 5 --path data/tmp --test_time 30
+start test resnet50(5_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(5_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 28675 Throughput 5735
+{'sm_active': np.float64(0.2931764705882353), 'sm_occupancy': np.float64(0.125), 'tensor_active': np.float64(0.04832352941176471), 'fp64_active': np.float64(0.0)}
+Final PID list: [1523717, 1523721, 1523725, 1523729]
+Running batch size 6
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 6 --path data/tmp --test_time 30
+start test resnet50(6_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(6_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 34908 Throughput 5818
+{'sm_active': np.float64(0.3477352941176471), 'sm_occupancy': np.float64(0.1485294117647059), 'tensor_active': np.float64(0.06029411764705883), 'fp64_active': np.float64(0.0)}
+Final PID list: [1524134, 1524138, 1524142, 1524146]
+Running batch size 7
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 7 --path data/tmp --test_time 30
+start test resnet50(7_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(7_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 39872 Throughput 5696
+{'sm_active': np.float64(0.36826470588235294), 'sm_occupancy': np.float64(0.14767647058823533), 'tensor_active': np.float64(0.06620588235294117), 'fp64_active': np.float64(0.0)}
+Final PID list: [1524549, 1524553, 1524557, 1524561]
+Running batch size 1
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 1 --path data/tmp --test_time 30
+start test resnet50(1_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(1_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 5665 Throughput 5665
+{'sm_active': np.float64(0.12108823529411765), 'sm_occupancy': np.float64(0.029235294117647057), 'tensor_active': np.float64(0.010147058823529412), 'fp64_active': np.float64(0.0)}
+Final PID list: [1524961, 1524965, 1524969, 1524973]
+Running batch size 2
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 2 --path data/tmp --test_time 30
+start test resnet50(2_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(2_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11796 Throughput 5898
+{'sm_active': np.float64(0.16864705882352943), 'sm_occupancy': np.float64(0.047735294117647056), 'tensor_active': np.float64(0.020382352941176473), 'fp64_active': np.float64(0.0)}
+Final PID list: [1525372, 1525376, 1525380, 1525384]
+Running batch size 3
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 3 --path data/tmp --test_time 30
+start test resnet50(3_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(3_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 17520 Throughput 5840
+{'sm_active': np.float64(0.2191470588235294), 'sm_occupancy': np.float64(0.07341176470588236), 'tensor_active': np.float64(0.030705882352941177), 'fp64_active': np.float64(0.0)}
+Final PID list: [1525782, 1525786, 1525790, 1525794]
+Running batch size 4
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 4 --path data/tmp --test_time 30
+start test resnet50(4_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(4_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 22944 Throughput 5736
+{'sm_active': np.float64(0.25638235294117645), 'sm_occupancy': np.float64(0.08505882352941177), 'tensor_active': np.float64(0.0393235294117647), 'fp64_active': np.float64(0.0)}
+Final PID list: [1526194, 1526198, 1526202, 1526206]
+Running batch size 5
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 5 --path data/tmp --test_time 30
+start test resnet50(5_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(5_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 28545 Throughput 5709
+{'sm_active': np.float64(0.30852941176470583), 'sm_occupancy': np.float64(0.1278235294117647), 'tensor_active': np.float64(0.04885294117647059), 'fp64_active': np.float64(0.0)}
+Final PID list: [1526606, 1526610, 1526614, 1526618]
+Running batch size 6
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 6 --path data/tmp --test_time 30
+start test resnet50(6_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(6_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 34134 Throughput 5689
+{'sm_active': np.float64(0.35494117647058826), 'sm_occupancy': np.float64(0.15141176470588236), 'tensor_active': np.float64(0.05823529411764706), 'fp64_active': np.float64(0.0)}
+Final PID list: [1527018, 1527022, 1527026, 1527030]
+Running batch size 7
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 7 --path data/tmp --test_time 30
+start test resnet50(7_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(7_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 41188 Throughput 5884
+{'sm_active': np.float64(0.3935882352941177), 'sm_occupancy': np.float64(0.1565), 'tensor_active': np.float64(0.07111764705882354), 'fp64_active': np.float64(0.0)}
+Final PID list: [1527429, 1527433, 1527437, 1527441]
+Running batch size 1
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 1 --path data/tmp --test_time 30
+start test resnet50(1_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(1_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 5790 Throughput 5790
+{'sm_active': np.float64(0.13252941176470587), 'sm_occupancy': np.float64(0.0321764705882353), 'tensor_active': np.float64(0.010147058823529412), 'fp64_active': np.float64(0.0)}
+Final PID list: [1527839, 1527843, 1527847, 1527851]
+Running batch size 2
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 2 --path data/tmp --test_time 30
+start test resnet50(2_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(2_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11924 Throughput 5962
+{'sm_active': np.float64(0.1817058823529412), 'sm_occupancy': np.float64(0.04808823529411765), 'tensor_active': np.float64(0.020794117647058824), 'fp64_active': np.float64(0.0)}
+Final PID list: [1528248, 1528252, 1528256, 1528260]
+Running batch size 3
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 3 --path data/tmp --test_time 30
+start test resnet50(3_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(3_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 17808 Throughput 5936
+{'sm_active': np.float64(0.23108823529411765), 'sm_occupancy': np.float64(0.07682352941176471), 'tensor_active': np.float64(0.031088235294117646), 'fp64_active': np.float64(0.0)}
+Final PID list: [1528658, 1528662, 1528666, 1528670]
+Running batch size 4
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 4 --path data/tmp --test_time 30
+start test resnet50(4_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(4_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 23684 Throughput 5921
+{'sm_active': np.float64(0.2656176470588235), 'sm_occupancy': np.float64(0.08747058823529412), 'tensor_active': np.float64(0.04194117647058823), 'fp64_active': np.float64(0.0)}
+Final PID list: [1529076, 1529080, 1529084, 1529088]
+Running batch size 5
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 5 --path data/tmp --test_time 30
+start test resnet50(5_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(5_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 28595 Throughput 5719
+{'sm_active': np.float64(0.32114705882352945), 'sm_occupancy': np.float64(0.13041176470588237), 'tensor_active': np.float64(0.049058823529411766), 'fp64_active': np.float64(0.0)}
+Final PID list: [1529486, 1529490, 1529494, 1529498]
+Running batch size 6
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 6 --path data/tmp --test_time 30
+start test resnet50(6_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(6_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 32478 Throughput 5413
+{'sm_active': np.float64(0.3496470588235294), 'sm_occupancy': np.float64(0.14658823529411766), 'tensor_active': np.float64(0.053441176470588235), 'fp64_active': np.float64(0.0)}
+Final PID list: [1529900, 1529904, 1529908, 1529912]
+Running batch size 7
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 7 --path data/tmp --test_time 30
+start test resnet50(7_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(7_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 40271 Throughput 5753
+{'sm_active': np.float64(0.39797058823529413), 'sm_occupancy': np.float64(0.15655882352941175), 'tensor_active': np.float64(0.065), 'fp64_active': np.float64(0.0)}
+Final PID list: [1530310, 1530314, 1530318, 1530322]
+Running batch size 1
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 1 --path data/tmp --test_time 30
+start test resnet50(1)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(1)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 5772 Throughput 5772
+{'sm_active': np.float64(0.13852941176470587), 'sm_occupancy': np.float64(0.030411764705882353), 'tensor_active': np.float64(0.010147058823529412), 'fp64_active': np.float64(0.0)}
+Final PID list: [1530720, 1530724, 1530728, 1530732]
+Running batch size 2
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 2 --path data/tmp --test_time 30
+start test resnet50(2)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(2)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11840 Throughput 5920
+{'sm_active': np.float64(0.17994117647058822), 'sm_occupancy': np.float64(0.04632352941176471), 'tensor_active': np.float64(0.02011764705882353), 'fp64_active': np.float64(0.0)}
+Final PID list: [1531130, 1531134, 1531138, 1531142]
+Running batch size 3
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 3 --path data/tmp --test_time 30
+start test resnet50(3)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(3)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 17193 Throughput 5731
+{'sm_active': np.float64(0.2306470588235294), 'sm_occupancy': np.float64(0.0716764705882353), 'tensor_active': np.float64(0.029941176470588235), 'fp64_active': np.float64(0.0)}
+Final PID list: [1531539, 1531543, 1531547, 1531551]
+Running batch size 4
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 4 --path data/tmp --test_time 30
+start test resnet50(4)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(4)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 23460 Throughput 5865
+{'sm_active': np.float64(0.2777647058823529), 'sm_occupancy': np.float64(0.08955882352941176), 'tensor_active': np.float64(0.041352941176470585), 'fp64_active': np.float64(0.0)}
+Final PID list: [1531949, 1531953, 1531957, 1531961]
+Running batch size 5
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 5 --path data/tmp --test_time 30
+start test resnet50(5)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(5)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 29075 Throughput 5815
+{'sm_active': np.float64(0.3435588235294118), 'sm_occupancy': np.float64(0.1352352941176471), 'tensor_active': np.float64(0.050176470588235295), 'fp64_active': np.float64(0.0)}
+Final PID list: [1532361, 1532365, 1532369, 1532373]
+Running batch size 6
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 6 --path data/tmp --test_time 30
+start test resnet50(6)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(6)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 34716 Throughput 5786
+{'sm_active': np.float64(0.3945), 'sm_occupancy': np.float64(0.15964705882352942), 'tensor_active': np.float64(0.05920588235294117), 'fp64_active': np.float64(0.0)}
+Final PID list: [1532770, 1532774, 1532778, 1532782]
+Running batch size 7
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 7 --path data/tmp --test_time 30
+start test resnet50(7)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(7)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 40551 Throughput 5793
+{'sm_active': np.float64(0.42308823529411765), 'sm_occupancy': np.float64(0.16555882352941176), 'tensor_active': np.float64(0.06770588235294117), 'fp64_active': np.float64(0.0)}
+Final PID list: [1533181, 1533185, 1533189, 1533193]
+Running batch size 9
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 9 --path data/tmp --test_time 15
+start test resnet50(9_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(9_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 5355 Throughput 595
+{'sm_active': np.float64(0.07426315789473685), 'sm_occupancy': np.float64(0.038), 'tensor_active': np.float64(0.014947368421052633), 'fp64_active': np.float64(0.0)}
+Final PID list: [1534020, 1534024, 1534028, 1534032]
+Running batch size 10
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 10 --path data/tmp --test_time 15
+start test resnet50(10_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(10_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 5540 Throughput 554
+{'sm_active': np.float64(0.07405263157894737), 'sm_occupancy': np.float64(0.03468421052631578), 'tensor_active': np.float64(0.017263157894736845), 'fp64_active': np.float64(0.0)}
+Final PID list: [1534430, 1534434, 1534438, 1534442]
+Running batch size 11
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 11 --path data/tmp --test_time 15
+start test resnet50(11_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(11_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 5830 Throughput 530
+{'sm_active': np.float64(0.07457894736842105), 'sm_occupancy': np.float64(0.03747368421052631), 'tensor_active': np.float64(0.017736842105263162), 'fp64_active': np.float64(0.0)}
+Final PID list: [1534840, 1534844, 1534848, 1534852]
+Running batch size 12
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 12 --path data/tmp --test_time 15
+start test resnet50(12_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(12_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 6024 Throughput 502
+{'sm_active': np.float64(0.075), 'sm_occupancy': np.float64(0.033210526315789475), 'tensor_active': np.float64(0.01868421052631579), 'fp64_active': np.float64(0.0)}
+Final PID list: [1535250, 1535254, 1535258, 1535262]
+Running batch size 13
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 13 --path data/tmp --test_time 15
+start test resnet50(13_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(13_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 6032 Throughput 464
+{'sm_active': np.float64(0.07542105263157894), 'sm_occupancy': np.float64(0.036631578947368425), 'tensor_active': np.float64(0.018842105263157896), 'fp64_active': np.float64(0.0)}
+Final PID list: [1535660, 1535664, 1535668, 1535672]
+Running batch size 14
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 14 --path data/tmp --test_time 15
+start test resnet50(14_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(14_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 6034 Throughput 431
+{'sm_active': np.float64(0.07563157894736842), 'sm_occupancy': np.float64(0.036421052631578944), 'tensor_active': np.float64(0.020052631578947367), 'fp64_active': np.float64(0.0)}
+Final PID list: [1536070, 1536074, 1536078, 1536082]
+Running batch size 15
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 15 --path data/tmp --test_time 15
+start test resnet50(15_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(15_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 6075 Throughput 405
+{'sm_active': np.float64(0.07452631578947368), 'sm_occupancy': np.float64(0.03768421052631579), 'tensor_active': np.float64(0.01868421052631579), 'fp64_active': np.float64(0.0)}
+Final PID list: [1536483, 1536487, 1536491, 1536495]
+Running batch size 16
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 16 --path data/tmp --test_time 15
+start test resnet50(16_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(16_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 6496 Throughput 406
+{'sm_active': np.float64(0.07578947368421052), 'sm_occupancy': np.float64(0.03352631578947368), 'tensor_active': np.float64(0.019684210526315794), 'fp64_active': np.float64(0.0)}
+Final PID list: [1536906, 1536910, 1536914, 1536918]
+Running batch size 17
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 17 --path data/tmp --test_time 15
+start test resnet50(17_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(17_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 6205 Throughput 365
+{'sm_active': np.float64(0.0756842105263158), 'sm_occupancy': np.float64(0.04), 'tensor_active': np.float64(0.018052631578947365), 'fp64_active': np.float64(0.0)}
+Final PID list: [1537333, 1537337, 1537341, 1537345]
+Running batch size 18
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 18 --path data/tmp --test_time 15
+start test resnet50(18_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(18_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 6192 Throughput 344
+{'sm_active': np.float64(0.07573684210526314), 'sm_occupancy': np.float64(0.03884210526315789), 'tensor_active': np.float64(0.017368421052631578), 'fp64_active': np.float64(0.0)}
+Final PID list: [1537752, 1537756, 1537760, 1537764]
+Running batch size 19
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 19 --path data/tmp --test_time 15
+start test resnet50(19_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(19_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 6327 Throughput 333
+{'sm_active': np.float64(0.07663157894736843), 'sm_occupancy': np.float64(0.03968421052631579), 'tensor_active': np.float64(0.01810526315789474), 'fp64_active': np.float64(0.0)}
+Final PID list: [1538162, 1538166, 1538170, 1538174]
+Running batch size 20
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 20 --path data/tmp --test_time 15
+start test resnet50(20_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(20_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 6520 Throughput 326
+{'sm_active': np.float64(0.07526315789473684), 'sm_occupancy': np.float64(0.03894736842105264), 'tensor_active': np.float64(0.019736842105263157), 'fp64_active': np.float64(0.0)}
+Final PID list: [1538571, 1538575, 1538579, 1538583]
+Running batch size 21
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 21 --path data/tmp --test_time 15
+start test resnet50(21_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(21_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 6468 Throughput 308
+{'sm_active': np.float64(0.07568421052631578), 'sm_occupancy': np.float64(0.04115789473684211), 'tensor_active': np.float64(0.01810526315789474), 'fp64_active': np.float64(0.0)}
+Final PID list: [1538982, 1538986, 1538990, 1538994]
+Running batch size 22
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 22 --path data/tmp --test_time 15
+start test resnet50(22_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(22_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 6534 Throughput 297
+{'sm_active': np.float64(0.07615789473684209), 'sm_occupancy': np.float64(0.041), 'tensor_active': np.float64(0.01805263157894737), 'fp64_active': np.float64(0.0)}
+Final PID list: [1539392, 1539396, 1539400, 1539404]
+Running batch size 23
+python test_llm.py --model resnet50 --profile_group 0 --mps 10 --device 1 --batch_size 23 --path data/tmp --test_time 15
+start test resnet50(23_m10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(23_m10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 6532 Throughput 284
+{'sm_active': np.float64(0.07578947368421052), 'sm_occupancy': np.float64(0.040842105263157895), 'tensor_active': np.float64(0.018157894736842106), 'fp64_active': np.float64(0.0)}
+Final PID list: [1539800, 1539804, 1539808, 1539812]
+Running batch size 9
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 9 --path data/tmp --test_time 15
+start test resnet50(9_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(9_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 10089 Throughput 1121
+{'sm_active': np.float64(0.14373684210526316), 'sm_occupancy': np.float64(0.07042105263157894), 'tensor_active': np.float64(0.03042105263157895), 'fp64_active': np.float64(0.0)}
+Final PID list: [1540211, 1540215, 1540219, 1540223]
+Running batch size 10
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 10 --path data/tmp --test_time 15
+start test resnet50(10_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(10_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 10310 Throughput 1031
+{'sm_active': np.float64(0.14242105263157895), 'sm_occupancy': np.float64(0.06905263157894737), 'tensor_active': np.float64(0.031210526315789477), 'fp64_active': np.float64(0.0)}
+Final PID list: [1540621, 1540625, 1540629, 1540633]
+Running batch size 11
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 11 --path data/tmp --test_time 15
+start test resnet50(11_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(11_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 10945 Throughput 995
+{'sm_active': np.float64(0.14426315789473684), 'sm_occupancy': np.float64(0.07010526315789475), 'tensor_active': np.float64(0.03363157894736842), 'fp64_active': np.float64(0.0)}
+Final PID list: [1541032, 1541036, 1541040, 1541044]
+Running batch size 12
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 12 --path data/tmp --test_time 15
+start test resnet50(12_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(12_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11460 Throughput 955
+{'sm_active': np.float64(0.14542105263157895), 'sm_occupancy': np.float64(0.06863157894736842), 'tensor_active': np.float64(0.035631578947368424), 'fp64_active': np.float64(0.0)}
+Final PID list: [1541442, 1541446, 1541450, 1541454]
+Running batch size 13
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 13 --path data/tmp --test_time 15
+start test resnet50(13_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(13_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11505 Throughput 885
+{'sm_active': np.float64(0.14842105263157893), 'sm_occupancy': np.float64(0.07252631578947367), 'tensor_active': np.float64(0.032315789473684214), 'fp64_active': np.float64(0.0)}
+Final PID list: [1541854, 1541858, 1541862, 1541866]
+Running batch size 14
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 14 --path data/tmp --test_time 15
+start test resnet50(14_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(14_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11368 Throughput 812
+{'sm_active': np.float64(0.14505263157894735), 'sm_occupancy': np.float64(0.07073684210526315), 'tensor_active': np.float64(0.03226315789473685), 'fp64_active': np.float64(0.0)}
+Final PID list: [1542263, 1542267, 1542271, 1542275]
+Running batch size 15
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 15 --path data/tmp --test_time 15
+start test resnet50(15_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(15_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11640 Throughput 776
+{'sm_active': np.float64(0.14752631578947367), 'sm_occupancy': np.float64(0.0708421052631579), 'tensor_active': np.float64(0.03278947368421053), 'fp64_active': np.float64(0.0)}
+Final PID list: [1542674, 1542678, 1542682, 1542686]
+Running batch size 16
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 16 --path data/tmp --test_time 15
+start test resnet50(16_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(16_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 12384 Throughput 774
+{'sm_active': np.float64(0.14726315789473682), 'sm_occupancy': np.float64(0.071), 'tensor_active': np.float64(0.03705263157894737), 'fp64_active': np.float64(0.0)}
+Final PID list: [1543082, 1543086, 1543090, 1543094]
+Running batch size 17
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 17 --path data/tmp --test_time 15
+start test resnet50(17_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(17_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11730 Throughput 690
+{'sm_active': np.float64(0.14657894736842103), 'sm_occupancy': np.float64(0.07894736842105263), 'tensor_active': np.float64(0.03389473684210527), 'fp64_active': np.float64(0.0)}
+Final PID list: [1543493, 1543497, 1543501, 1543505]
+Running batch size 18
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 18 --path data/tmp --test_time 15
+start test resnet50(18_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(18_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 11844 Throughput 658
+{'sm_active': np.float64(0.14657894736842103), 'sm_occupancy': np.float64(0.07436842105263158), 'tensor_active': np.float64(0.03452631578947369), 'fp64_active': np.float64(0.0)}
+Final PID list: [1543902, 1543906, 1543910, 1543914]
+Running batch size 19
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 19 --path data/tmp --test_time 15
+start test resnet50(19_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(19_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 12122 Throughput 638
+{'sm_active': np.float64(0.14936842105263157), 'sm_occupancy': np.float64(0.07552631578947369), 'tensor_active': np.float64(0.034578947368421056), 'fp64_active': np.float64(0.0)}
+Final PID list: [1544312, 1544316, 1544320, 1544324]
+Running batch size 20
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 20 --path data/tmp --test_time 15
+start test resnet50(20_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(20_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 12340 Throughput 617
+{'sm_active': np.float64(0.14642105263157892), 'sm_occupancy': np.float64(0.07394736842105264), 'tensor_active': np.float64(0.03815789473684211), 'fp64_active': np.float64(0.0)}
+Final PID list: [1544723, 1544727, 1544731, 1544735]
+Running batch size 21
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 21 --path data/tmp --test_time 15
+start test resnet50(21_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(21_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 12306 Throughput 586
+{'sm_active': np.float64(0.1474736842105263), 'sm_occupancy': np.float64(0.07836842105263159), 'tensor_active': np.float64(0.036052631578947364), 'fp64_active': np.float64(0.0)}
+Final PID list: [1545132, 1545136, 1545140, 1545144]
+Running batch size 22
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 22 --path data/tmp --test_time 15
+start test resnet50(22_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(22_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 12452 Throughput 566
+{'sm_active': np.float64(0.14626315789473682), 'sm_occupancy': np.float64(0.07815789473684209), 'tensor_active': np.float64(0.041), 'fp64_active': np.float64(0.0)}
+Final PID list: [1545543, 1545547, 1545551, 1545555]
+Running batch size 23
+python test_llm.py --model resnet50 --profile_group 0 --mps 20 --device 1 --batch_size 23 --path data/tmp --test_time 15
+start test resnet50(23_m20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(23_m20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 12466 Throughput 542
+{'sm_active': np.float64(0.14726315789473685), 'sm_occupancy': np.float64(0.07552631578947369), 'tensor_active': np.float64(0.038157894736842106), 'fp64_active': np.float64(0.0)}
+Final PID list: [1546058, 1546062, 1546066, 1546070]
+Running batch size 9
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 9 --path data/tmp --test_time 15
+start test resnet50(9_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(9_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 14994 Throughput 1666
+{'sm_active': np.float64(0.222), 'sm_occupancy': np.float64(0.10442105263157894), 'tensor_active': np.float64(0.04168421052631579), 'fp64_active': np.float64(0.0)}
+Final PID list: [1546467, 1546471, 1546475, 1546479]
+Running batch size 10
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 10 --path data/tmp --test_time 15
+start test resnet50(10_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(10_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 15910 Throughput 1591
+{'sm_active': np.float64(0.22600000000000003), 'sm_occupancy': np.float64(0.10994736842105265), 'tensor_active': np.float64(0.04936842105263158), 'fp64_active': np.float64(0.0)}
+Final PID list: [1546876, 1546880, 1546884, 1546888]
+Running batch size 11
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 11 --path data/tmp --test_time 15
+start test resnet50(11_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(11_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 15884 Throughput 1444
+{'sm_active': np.float64(0.21721052631578952), 'sm_occupancy': np.float64(0.10257894736842106), 'tensor_active': np.float64(0.04810526315789474), 'fp64_active': np.float64(0.0)}
+Final PID list: [1547285, 1547289, 1547293, 1547297]
+Running batch size 12
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 12 --path data/tmp --test_time 15
+start test resnet50(12_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(12_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 16908 Throughput 1409
+{'sm_active': np.float64(0.2213684210526316), 'sm_occupancy': np.float64(0.10242105263157894), 'tensor_active': np.float64(0.05594736842105263), 'fp64_active': np.float64(0.0)}
+Final PID list: [1547697, 1547701, 1547705, 1547709]
+Running batch size 13
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 13 --path data/tmp --test_time 15
+start test resnet50(13_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(13_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 16861 Throughput 1297
+{'sm_active': np.float64(0.22599999999999998), 'sm_occupancy': np.float64(0.11863157894736842), 'tensor_active': np.float64(0.04905263157894737), 'fp64_active': np.float64(0.0)}
+Final PID list: [1548106, 1548110, 1548114, 1548118]
+Running batch size 14
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 14 --path data/tmp --test_time 15
+start test resnet50(14_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(14_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 17248 Throughput 1232
+{'sm_active': np.float64(0.2295789473684211), 'sm_occupancy': np.float64(0.1125263157894737), 'tensor_active': np.float64(0.04878947368421053), 'fp64_active': np.float64(0.0)}
+Final PID list: [1548515, 1548519, 1548523, 1548527]
+Running batch size 15
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 15 --path data/tmp --test_time 15
+start test resnet50(15_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(15_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 17640 Throughput 1176
+{'sm_active': np.float64(0.2298421052631579), 'sm_occupancy': np.float64(0.11431578947368422), 'tensor_active': np.float64(0.05678947368421052), 'fp64_active': np.float64(0.0)}
+Final PID list: [1548936, 1548940, 1548944, 1548948]
+Running batch size 16
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 16 --path data/tmp --test_time 15
+start test resnet50(16_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(16_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 18288 Throughput 1143
+{'sm_active': np.float64(0.22715789473684214), 'sm_occupancy': np.float64(0.10342105263157896), 'tensor_active': np.float64(0.055052631578947374), 'fp64_active': np.float64(0.0)}
+Final PID list: [1549345, 1549349, 1549353, 1549357]
+Running batch size 17
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 17 --path data/tmp --test_time 15
+start test resnet50(17_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(17_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 17578 Throughput 1034
+{'sm_active': np.float64(0.22826315789473686), 'sm_occupancy': np.float64(0.12263157894736842), 'tensor_active': np.float64(0.051789473684210524), 'fp64_active': np.float64(0.0)}
+Final PID list: [1549755, 1549759, 1549763, 1549767]
+Running batch size 18
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 18 --path data/tmp --test_time 15
+start test resnet50(18_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(18_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 17874 Throughput 993
+{'sm_active': np.float64(0.2292631578947369), 'sm_occupancy': np.float64(0.11863157894736845), 'tensor_active': np.float64(0.053894736842105266), 'fp64_active': np.float64(0.0)}
+Final PID list: [1550166, 1550170, 1550174, 1550178]
+Running batch size 19
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 19 --path data/tmp --test_time 15
+start test resnet50(19_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(19_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 18164 Throughput 956
+{'sm_active': np.float64(0.22515789473684214), 'sm_occupancy': np.float64(0.1112105263157895), 'tensor_active': np.float64(0.05152631578947369), 'fp64_active': np.float64(0.0)}
+Final PID list: [1550575, 1550579, 1550583, 1550587]
+Running batch size 20
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 20 --path data/tmp --test_time 15
+start test resnet50(20_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(20_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 18980 Throughput 949
+{'sm_active': np.float64(0.2333157894736842), 'sm_occupancy': np.float64(0.12436842105263157), 'tensor_active': np.float64(0.06268421052631579), 'fp64_active': np.float64(0.0)}
+Final PID list: [1550985, 1550989, 1550993, 1550997]
+Running batch size 21
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 21 --path data/tmp --test_time 15
+start test resnet50(21_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(21_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 18060 Throughput 860
+{'sm_active': np.float64(0.2263157894736842), 'sm_occupancy': np.float64(0.122), 'tensor_active': np.float64(0.053000000000000005), 'fp64_active': np.float64(0.0)}
+Final PID list: [1551397, 1551401, 1551405, 1551409]
+Running batch size 22
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 22 --path data/tmp --test_time 15
+start test resnet50(22_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(22_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 18458 Throughput 839
+{'sm_active': np.float64(0.22900000000000004), 'sm_occupancy': np.float64(0.12373684210526316), 'tensor_active': np.float64(0.051263157894736844), 'fp64_active': np.float64(0.0)}
+Final PID list: [1551806, 1551810, 1551814, 1551818]
+Running batch size 23
+python test_llm.py --model resnet50 --profile_group 0 --mps 30 --device 1 --batch_size 23 --path data/tmp --test_time 15
+start test resnet50(23_m30)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(23_m30)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 18676 Throughput 812
+{'sm_active': np.float64(0.22968421052631582), 'sm_occupancy': np.float64(0.1267894736842105), 'tensor_active': np.float64(0.05826315789473684), 'fp64_active': np.float64(0.0)}
+Final PID list: [1552215, 1552219, 1552223, 1552227]
+Running batch size 9
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 9 --path data/tmp --test_time 15
+start test resnet50(9_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(9_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 18171 Throughput 2019
+{'sm_active': np.float64(0.27905263157894733), 'sm_occupancy': np.float64(0.13868421052631577), 'tensor_active': np.float64(0.05357894736842105), 'fp64_active': np.float64(0.0)}
+Final PID list: [1552625, 1552629, 1552633, 1552637]
+Running batch size 10
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 10 --path data/tmp --test_time 15
+start test resnet50(10_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(10_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 19030 Throughput 1903
+{'sm_active': np.float64(0.2825789473684211), 'sm_occupancy': np.float64(0.13878947368421055), 'tensor_active': np.float64(0.05789473684210527), 'fp64_active': np.float64(0.0)}
+Final PID list: [1553034, 1553038, 1553042, 1553046]
+Running batch size 11
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 11 --path data/tmp --test_time 15
+start test resnet50(11_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(11_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 19635 Throughput 1785
+{'sm_active': np.float64(0.27778947368421053), 'sm_occupancy': np.float64(0.13542105263157894), 'tensor_active': np.float64(0.0616842105263158), 'fp64_active': np.float64(0.0)}
+Final PID list: [1553443, 1553447, 1553451, 1553455]
+Running batch size 12
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 12 --path data/tmp --test_time 15
+start test resnet50(12_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(12_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 20892 Throughput 1741
+{'sm_active': np.float64(0.2877368421052632), 'sm_occupancy': np.float64(0.14157894736842105), 'tensor_active': np.float64(0.06331578947368421), 'fp64_active': np.float64(0.0)}
+Final PID list: [1553852, 1553856, 1553860, 1553864]
+Running batch size 13
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 13 --path data/tmp --test_time 15
+start test resnet50(13_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(13_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 21216 Throughput 1632
+{'sm_active': np.float64(0.29557894736842105), 'sm_occupancy': np.float64(0.15421052631578946), 'tensor_active': np.float64(0.06373684210526316), 'fp64_active': np.float64(0.0)}
+Final PID list: [1554264, 1554268, 1554272, 1554276]
+Running batch size 14
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 14 --path data/tmp --test_time 15
+start test resnet50(14_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(14_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 20314 Throughput 1451
+{'sm_active': np.float64(0.2810526315789474), 'sm_occupancy': np.float64(0.14584210526315788), 'tensor_active': np.float64(0.06205263157894737), 'fp64_active': np.float64(0.0)}
+Final PID list: [1554675, 1554679, 1554683, 1554687]
+Running batch size 15
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 15 --path data/tmp --test_time 15
+start test resnet50(15_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(15_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 20910 Throughput 1394
+{'sm_active': np.float64(0.2848421052631579), 'sm_occupancy': np.float64(0.14826315789473685), 'tensor_active': np.float64(0.06210526315789475), 'fp64_active': np.float64(0.0)}
+Final PID list: [1555087, 1555091, 1555095, 1555099]
+Running batch size 16
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 16 --path data/tmp --test_time 15
+start test resnet50(16_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(16_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 22288 Throughput 1393
+{'sm_active': np.float64(0.28621052631578947), 'sm_occupancy': np.float64(0.135), 'tensor_active': np.float64(0.07384210526315789), 'fp64_active': np.float64(0.0)}
+Final PID list: [1555495, 1555499, 1555503, 1555507]
+Running batch size 17
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 17 --path data/tmp --test_time 15
+start test resnet50(17_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(17_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 21777 Throughput 1281
+{'sm_active': np.float64(0.29500000000000004), 'sm_occupancy': np.float64(0.16168421052631582), 'tensor_active': np.float64(0.06478947368421054), 'fp64_active': np.float64(0.0)}
+Final PID list: [1555905, 1555909, 1555913, 1555917]
+Running batch size 18
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 18 --path data/tmp --test_time 15
+start test resnet50(18_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(18_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 21996 Throughput 1222
+{'sm_active': np.float64(0.29589473684210527), 'sm_occupancy': np.float64(0.14778947368421053), 'tensor_active': np.float64(0.07173684210526315), 'fp64_active': np.float64(0.0)}
+Final PID list: [1556344, 1556348, 1556352, 1556356]
+Running batch size 19
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 19 --path data/tmp --test_time 15
+start test resnet50(19_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(19_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 22287 Throughput 1173
+{'sm_active': np.float64(0.2992631578947368), 'sm_occupancy': np.float64(0.15473684210526314), 'tensor_active': np.float64(0.06610526315789475), 'fp64_active': np.float64(0.0)}
+Final PID list: [1556786, 1556790, 1556794, 1556798]
+Running batch size 20
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 20 --path data/tmp --test_time 15
+start test resnet50(20_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(20_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 23100 Throughput 1155
+{'sm_active': np.float64(0.2981578947368421), 'sm_occupancy': np.float64(0.1563157894736842), 'tensor_active': np.float64(0.07184210526315789), 'fp64_active': np.float64(0.0)}
+Final PID list: [1557203, 1557207, 1557211, 1557215]
+Running batch size 21
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 21 --path data/tmp --test_time 15
+start test resnet50(21_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(21_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 22491 Throughput 1071
+{'sm_active': np.float64(0.29468421052631577), 'sm_occupancy': np.float64(0.16205263157894736), 'tensor_active': np.float64(0.06742105263157895), 'fp64_active': np.float64(0.0)}
+Final PID list: [1557624, 1557628, 1557632, 1557636]
+Running batch size 22
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 22 --path data/tmp --test_time 15
+start test resnet50(22_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(22_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 22814 Throughput 1037
+{'sm_active': np.float64(0.29742105263157886), 'sm_occupancy': np.float64(0.16742105263157894), 'tensor_active': np.float64(0.06373684210526315), 'fp64_active': np.float64(0.0)}
+Final PID list: [1558040, 1558044, 1558048, 1558052]
+Running batch size 23
+python test_llm.py --model resnet50 --profile_group 0 --mps 40 --device 1 --batch_size 23 --path data/tmp --test_time 15
+start test resnet50(23_m40)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(23_m40)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 23230 Throughput 1010
+{'sm_active': np.float64(0.2997894736842105), 'sm_occupancy': np.float64(0.1617894736842105), 'tensor_active': np.float64(0.07636842105263159), 'fp64_active': np.float64(0.0)}
+Final PID list: [1558457, 1558461, 1558465, 1558469]
+Running batch size 9
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 9 --path data/tmp --test_time 15
+start test resnet50(9_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(9_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 20772 Throughput 2308
+{'sm_active': np.float64(0.33042105263157895), 'sm_occupancy': np.float64(0.15942105263157896), 'tensor_active': np.float64(0.06257894736842105), 'fp64_active': np.float64(0.0)}
+Final PID list: [1558874, 1558878, 1558882, 1558886]
+Running batch size 10
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 10 --path data/tmp --test_time 15
+start test resnet50(10_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(10_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 21910 Throughput 2191
+{'sm_active': np.float64(0.3426842105263158), 'sm_occupancy': np.float64(0.1725263157894737), 'tensor_active': np.float64(0.06357894736842107), 'fp64_active': np.float64(0.0)}
+Final PID list: [1559291, 1559295, 1559299, 1559303]
+Running batch size 11
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 11 --path data/tmp --test_time 15
+start test resnet50(11_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(11_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 23166 Throughput 2106
+{'sm_active': np.float64(0.34768421052631576), 'sm_occupancy': np.float64(0.17826315789473687), 'tensor_active': np.float64(0.06647368421052632), 'fp64_active': np.float64(0.0)}
+Final PID list: [1559714, 1559718, 1559722, 1559726]
+Running batch size 12
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 12 --path data/tmp --test_time 15
+start test resnet50(12_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(12_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 24432 Throughput 2036
+{'sm_active': np.float64(0.34784210526315784), 'sm_occupancy': np.float64(0.16326315789473683), 'tensor_active': np.float64(0.07347368421052632), 'fp64_active': np.float64(0.0)}
+Final PID list: [1560128, 1560132, 1560136, 1560140]
+Running batch size 13
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 13 --path data/tmp --test_time 15
+start test resnet50(13_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(13_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 24596 Throughput 1892
+{'sm_active': np.float64(0.3364736842105263), 'sm_occupancy': np.float64(0.174), 'tensor_active': np.float64(0.0693157894736842), 'fp64_active': np.float64(0.0)}
+Final PID list: [1560545, 1560549, 1560553, 1560557]
+Running batch size 14
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 14 --path data/tmp --test_time 15
+start test resnet50(14_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(14_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 24794 Throughput 1771
+{'sm_active': np.float64(0.35831578947368414), 'sm_occupancy': np.float64(0.18573684210526317), 'tensor_active': np.float64(0.07726315789473684), 'fp64_active': np.float64(0.0)}
+Final PID list: [1560961, 1560965, 1560969, 1560973]
+Running batch size 15
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 15 --path data/tmp --test_time 15
+start test resnet50(15_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(15_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 25620 Throughput 1708
+{'sm_active': np.float64(0.36915789473684213), 'sm_occupancy': np.float64(0.19621052631578947), 'tensor_active': np.float64(0.07436842105263158), 'fp64_active': np.float64(0.0)}
+Final PID list: [1561375, 1561379, 1561383, 1561387]
+Running batch size 16
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 16 --path data/tmp --test_time 15
+start test resnet50(16_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(16_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 27296 Throughput 1706
+{'sm_active': np.float64(0.37015789473684213), 'sm_occupancy': np.float64(0.17705263157894735), 'tensor_active': np.float64(0.09126315789473685), 'fp64_active': np.float64(0.0)}
+Final PID list: [1561800, 1561804, 1561808, 1561812]
+Running batch size 17
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 17 --path data/tmp --test_time 15
+start test resnet50(17_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(17_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 26095 Throughput 1535
+{'sm_active': np.float64(0.3687368421052632), 'sm_occupancy': np.float64(0.20205263157894737), 'tensor_active': np.float64(0.08063157894736843), 'fp64_active': np.float64(0.0)}
+Final PID list: [1562215, 1562219, 1562223, 1562227]
+Running batch size 18
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 18 --path data/tmp --test_time 15
+start test resnet50(18_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(18_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 25380 Throughput 1410
+{'sm_active': np.float64(0.3568421052631579), 'sm_occupancy': np.float64(0.18226315789473688), 'tensor_active': np.float64(0.08005263157894738), 'fp64_active': np.float64(0.0)}
+Final PID list: [1562635, 1562639, 1562643, 1562647]
+Running batch size 19
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 19 --path data/tmp --test_time 15
+start test resnet50(19_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(19_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 25859 Throughput 1361
+{'sm_active': np.float64(0.36673684210526314), 'sm_occupancy': np.float64(0.19742105263157894), 'tensor_active': np.float64(0.07489473684210526), 'fp64_active': np.float64(0.0)}
+Final PID list: [1563049, 1563053, 1563057, 1563061]
+Running batch size 20
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 20 --path data/tmp --test_time 15
+start test resnet50(20_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(20_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 27000 Throughput 1350
+{'sm_active': np.float64(0.3659473684210526), 'sm_occupancy': np.float64(0.19500000000000003), 'tensor_active': np.float64(0.08515789473684211), 'fp64_active': np.float64(0.0)}
+Final PID list: [1563465, 1563469, 1563473, 1563477]
+Running batch size 21
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 21 --path data/tmp --test_time 15
+start test resnet50(21_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(21_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 26712 Throughput 1272
+{'sm_active': np.float64(0.36657894736842106), 'sm_occupancy': np.float64(0.19873684210526316), 'tensor_active': np.float64(0.08468421052631579), 'fp64_active': np.float64(0.0)}
+Final PID list: [1563882, 1563886, 1563890, 1563894]
+Running batch size 22
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 22 --path data/tmp --test_time 15
+start test resnet50(22_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(22_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 27280 Throughput 1240
+{'sm_active': np.float64(0.37394736842105264), 'sm_occupancy': np.float64(0.2035263157894737), 'tensor_active': np.float64(0.08194736842105264), 'fp64_active': np.float64(0.0)}
+Final PID list: [1564298, 1564302, 1564306, 1564310]
+Running batch size 23
+python test_llm.py --model resnet50 --profile_group 0 --mps 50 --device 1 --batch_size 23 --path data/tmp --test_time 15
+start test resnet50(23_m50)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(23_m50)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 27485 Throughput 1195
+{'sm_active': np.float64(0.37331578947368427), 'sm_occupancy': np.float64(0.1991052631578947), 'tensor_active': np.float64(0.09010526315789473), 'fp64_active': np.float64(0.0)}
+Final PID list: [1564719, 1564723, 1564727, 1564731]
+Running batch size 9
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 9 --path data/tmp --test_time 15
+start test resnet50(9_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(9_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 24120 Throughput 2680
+{'sm_active': np.float64(0.40342105263157896), 'sm_occupancy': np.float64(0.1976315789473684), 'tensor_active': np.float64(0.0673157894736842), 'fp64_active': np.float64(0.0)}
+Final PID list: [1565144, 1565148, 1565152, 1565156]
+Running batch size 10
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 10 --path data/tmp --test_time 15
+start test resnet50(10_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(10_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 25590 Throughput 2559
+{'sm_active': np.float64(0.41836842105263156), 'sm_occupancy': np.float64(0.21010526315789474), 'tensor_active': np.float64(0.07352631578947369), 'fp64_active': np.float64(0.0)}
+Final PID list: [1565554, 1565558, 1565562, 1565566]
+Running batch size 11
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 11 --path data/tmp --test_time 15
+start test resnet50(11_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(11_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 25036 Throughput 2276
+{'sm_active': np.float64(0.3883157894736843), 'sm_occupancy': np.float64(0.19189473684210528), 'tensor_active': np.float64(0.076), 'fp64_active': np.float64(0.0)}
+Final PID list: [1565964, 1565968, 1565972, 1565976]
+Running batch size 12
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 12 --path data/tmp --test_time 15
+start test resnet50(12_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(12_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 26748 Throughput 2229
+{'sm_active': np.float64(0.4049473684210526), 'sm_occupancy': np.float64(0.19736842105263158), 'tensor_active': np.float64(0.08373684210526317), 'fp64_active': np.float64(0.0)}
+Final PID list: [1566375, 1566379, 1566383, 1566387]
+Running batch size 13
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 13 --path data/tmp --test_time 15
+start test resnet50(13_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(13_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 26494 Throughput 2038
+{'sm_active': np.float64(0.4086315789473684), 'sm_occupancy': np.float64(0.21536842105263157), 'tensor_active': np.float64(0.07815789473684209), 'fp64_active': np.float64(0.0)}
+Final PID list: [1566784, 1566788, 1566792, 1566796]
+Running batch size 14
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 14 --path data/tmp --test_time 15
+start test resnet50(14_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(14_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 27356 Throughput 1954
+{'sm_active': np.float64(0.4151052631578947), 'sm_occupancy': np.float64(0.21473684210526317), 'tensor_active': np.float64(0.0836842105263158), 'fp64_active': np.float64(0.0)}
+Final PID list: [1567193, 1567197, 1567201, 1567205]
+Running batch size 15
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 15 --path data/tmp --test_time 15
+start test resnet50(15_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(15_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 28245 Throughput 1883
+{'sm_active': np.float64(0.4165789473684211), 'sm_occupancy': np.float64(0.21100000000000002), 'tensor_active': np.float64(0.07942105263157895), 'fp64_active': np.float64(0.0)}
+Final PID list: [1567602, 1567606, 1567610, 1567614]
+Running batch size 16
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 16 --path data/tmp --test_time 15
+start test resnet50(16_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(16_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 29968 Throughput 1873
+{'sm_active': np.float64(0.4266315789473684), 'sm_occupancy': np.float64(0.21052631578947367), 'tensor_active': np.float64(0.09568421052631579), 'fp64_active': np.float64(0.0)}
+Final PID list: [1568013, 1568017, 1568021, 1568025]
+Running batch size 17
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 17 --path data/tmp --test_time 15
+start test resnet50(17_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(17_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 28679 Throughput 1687
+{'sm_active': np.float64(0.42621052631578943), 'sm_occupancy': np.float64(0.23426315789473687), 'tensor_active': np.float64(0.08836842105263158), 'fp64_active': np.float64(0.0)}
+Final PID list: [1568423, 1568427, 1568431, 1568435]
+Running batch size 18
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 18 --path data/tmp --test_time 15
+start test resnet50(18_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(18_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 29430 Throughput 1635
+{'sm_active': np.float64(0.43405263157894736), 'sm_occupancy': np.float64(0.22557894736842107), 'tensor_active': np.float64(0.09284210526315789), 'fp64_active': np.float64(0.0)}
+Final PID list: [1568832, 1568836, 1568840, 1568844]
+Running batch size 19
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 19 --path data/tmp --test_time 15
+start test resnet50(19_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(19_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 30058 Throughput 1582
+{'sm_active': np.float64(0.44326315789473686), 'sm_occupancy': np.float64(0.2385263157894737), 'tensor_active': np.float64(0.08736842105263158), 'fp64_active': np.float64(0.0)}
+Final PID list: [1569243, 1569247, 1569251, 1569255]
+Running batch size 20
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 20 --path data/tmp --test_time 15
+start test resnet50(20_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(20_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 31500 Throughput 1575
+{'sm_active': np.float64(0.44884210526315793), 'sm_occupancy': np.float64(0.2419473684210526), 'tensor_active': np.float64(0.09878947368421052), 'fp64_active': np.float64(0.0)}
+Final PID list: [1569660, 1569664, 1569668, 1569672]
+Running batch size 21
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 21 --path data/tmp --test_time 15
+start test resnet50(21_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(21_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 28875 Throughput 1375
+{'sm_active': np.float64(0.4211578947368421), 'sm_occupancy': np.float64(0.23484210526315794), 'tensor_active': np.float64(0.08463157894736842), 'fp64_active': np.float64(0.0)}
+Final PID list: [1570069, 1570073, 1570077, 1570081]
+Running batch size 22
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 22 --path data/tmp --test_time 15
+start test resnet50(22_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(22_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 29392 Throughput 1336
+{'sm_active': np.float64(0.42515789473684207), 'sm_occupancy': np.float64(0.2382105263157895), 'tensor_active': np.float64(0.08657894736842105), 'fp64_active': np.float64(0.0)}
+Final PID list: [1570478, 1570482, 1570486, 1570490]
+Running batch size 23
+python test_llm.py --model resnet50 --profile_group 0 --mps 60 --device 1 --batch_size 23 --path data/tmp --test_time 15
+start test resnet50(23_m60)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(23_m60)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 29877 Throughput 1299
+{'sm_active': np.float64(0.41226315789473683), 'sm_occupancy': np.float64(0.2252631578947368), 'tensor_active': np.float64(0.08921052631578948), 'fp64_active': np.float64(0.0)}
+Final PID list: [1570887, 1570891, 1570895, 1570899]
+Running batch size 9
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 9 --path data/tmp --test_time 15
+start test resnet50(9_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(9_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 24822 Throughput 2758
+{'sm_active': np.float64(0.4380526315789474), 'sm_occupancy': np.float64(0.20994736842105263), 'tensor_active': np.float64(0.07173684210526315), 'fp64_active': np.float64(0.0)}
+Final PID list: [1571298, 1571302, 1571306, 1571310]
+Running batch size 10
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 10 --path data/tmp --test_time 15
+start test resnet50(10_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(10_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 26810 Throughput 2681
+{'sm_active': np.float64(0.4607368421052632), 'sm_occupancy': np.float64(0.22778947368421054), 'tensor_active': np.float64(0.07789473684210528), 'fp64_active': np.float64(0.0)}
+Final PID list: [1571706, 1571710, 1571714, 1571718]
+Running batch size 11
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 11 --path data/tmp --test_time 15
+start test resnet50(11_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(11_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 28336 Throughput 2576
+{'sm_active': np.float64(0.4670000000000001), 'sm_occupancy': np.float64(0.23373684210526316), 'tensor_active': np.float64(0.0853157894736842), 'fp64_active': np.float64(0.0)}
+Final PID list: [1572117, 1572121, 1572125, 1572129]
+Running batch size 12
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 12 --path data/tmp --test_time 15
+start test resnet50(12_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(12_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 29400 Throughput 2450
+{'sm_active': np.float64(0.4666842105263158), 'sm_occupancy': np.float64(0.22747368421052633), 'tensor_active': np.float64(0.09178947368421053), 'fp64_active': np.float64(0.0)}
+Final PID list: [1572527, 1572531, 1572535, 1572539]
+Running batch size 13
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 13 --path data/tmp --test_time 15
+start test resnet50(13_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(13_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 27989 Throughput 2153
+{'sm_active': np.float64(0.45315789473684215), 'sm_occupancy': np.float64(0.23684210526315788), 'tensor_active': np.float64(0.083), 'fp64_active': np.float64(0.0)}
+Final PID list: [1572936, 1572940, 1572944, 1572948]
+Running batch size 14
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 14 --path data/tmp --test_time 15
+start test resnet50(14_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(14_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 28672 Throughput 2048
+{'sm_active': np.float64(0.45342105263157895), 'sm_occupancy': np.float64(0.22752631578947366), 'tensor_active': np.float64(0.08489473684210526), 'fp64_active': np.float64(0.0)}
+Final PID list: [1573345, 1573349, 1573353, 1573357]
+Running batch size 15
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 15 --path data/tmp --test_time 15
+start test resnet50(15_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(15_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 29745 Throughput 1983
+{'sm_active': np.float64(0.4714736842105263), 'sm_occupancy': np.float64(0.2489473684210526), 'tensor_active': np.float64(0.0856842105263158), 'fp64_active': np.float64(0.0)}
+Final PID list: [1573756, 1573760, 1573764, 1573768]
+Running batch size 16
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 16 --path data/tmp --test_time 15
+start test resnet50(16_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(16_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 31904 Throughput 1994
+{'sm_active': np.float64(0.47289473684210526), 'sm_occupancy': np.float64(0.22763157894736843), 'tensor_active': np.float64(0.10473684210526316), 'fp64_active': np.float64(0.0)}
+Final PID list: [1574211, 1574215, 1574219, 1574223]
+Running batch size 17
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 17 --path data/tmp --test_time 15
+start test resnet50(17_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(17_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 30940 Throughput 1820
+{'sm_active': np.float64(0.4839473684210526), 'sm_occupancy': np.float64(0.2712631578947368), 'tensor_active': np.float64(0.09705263157894738), 'fp64_active': np.float64(0.0)}
+Final PID list: [1574625, 1574629, 1574633, 1574637]
+Running batch size 18
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 18 --path data/tmp --test_time 15
+start test resnet50(18_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(18_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 31446 Throughput 1747
+{'sm_active': np.float64(0.4917368421052631), 'sm_occupancy': np.float64(0.254), 'tensor_active': np.float64(0.09226315789473685), 'fp64_active': np.float64(0.0)}
+Final PID list: [1575050, 1575054, 1575058, 1575062]
+Running batch size 19
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 19 --path data/tmp --test_time 15
+start test resnet50(19_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(19_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 31749 Throughput 1671
+{'sm_active': np.float64(0.48831578947368415), 'sm_occupancy': np.float64(0.2552105263157895), 'tensor_active': np.float64(0.10021052631578949), 'fp64_active': np.float64(0.0)}
+Final PID list: [1575460, 1575464, 1575468, 1575472]
+Running batch size 20
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 20 --path data/tmp --test_time 15
+start test resnet50(20_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(20_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 33500 Throughput 1675
+{'sm_active': np.float64(0.4953157894736842), 'sm_occupancy': np.float64(0.27652631578947373), 'tensor_active': np.float64(0.11747368421052633), 'fp64_active': np.float64(0.0)}
+Final PID list: [1575872, 1575876, 1575880, 1575884]
+Running batch size 21
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 21 --path data/tmp --test_time 15
+start test resnet50(21_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(21_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 33327 Throughput 1587
+{'sm_active': np.float64(0.4915263157894737), 'sm_occupancy': np.float64(0.2694736842105263), 'tensor_active': np.float64(0.09410526315789473), 'fp64_active': np.float64(0.0)}
+Final PID list: [1576283, 1576287, 1576291, 1576295]
+Running batch size 22
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 22 --path data/tmp --test_time 15
+start test resnet50(22_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(22_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 33902 Throughput 1541
+{'sm_active': np.float64(0.5134736842105263), 'sm_occupancy': np.float64(0.2895263157894737), 'tensor_active': np.float64(0.09773684210526316), 'fp64_active': np.float64(0.0)}
+Final PID list: [1576693, 1576697, 1576701, 1576705]
+Running batch size 23
+python test_llm.py --model resnet50 --profile_group 0 --mps 70 --device 1 --batch_size 23 --path data/tmp --test_time 15
+start test resnet50(23_m70)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(23_m70)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 34316 Throughput 1492
+{'sm_active': np.float64(0.5152105263157893), 'sm_occupancy': np.float64(0.28), 'tensor_active': np.float64(0.10747368421052633), 'fp64_active': np.float64(0.0)}
+Final PID list: [1577106, 1577110, 1577114, 1577118]
+Running batch size 9
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 9 --path data/tmp --test_time 15
+start test resnet50(9_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(9_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 24597 Throughput 2733
+{'sm_active': np.float64(0.4497894736842105), 'sm_occupancy': np.float64(0.20905263157894738), 'tensor_active': np.float64(0.07294736842105262), 'fp64_active': np.float64(0.0)}
+Final PID list: [1577517, 1577521, 1577525, 1577529]
+Running batch size 10
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 10 --path data/tmp --test_time 15
+start test resnet50(10_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(10_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 27820 Throughput 2782
+{'sm_active': np.float64(0.4912105263157895), 'sm_occupancy': np.float64(0.2341052631578947), 'tensor_active': np.float64(0.08442105263157894), 'fp64_active': np.float64(0.0)}
+Final PID list: [1577928, 1577932, 1577936, 1577940]
+Running batch size 11
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 11 --path data/tmp --test_time 15
+start test resnet50(11_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(11_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 29766 Throughput 2706
+{'sm_active': np.float64(0.5151578947368421), 'sm_occupancy': np.float64(0.25226315789473686), 'tensor_active': np.float64(0.09157894736842107), 'fp64_active': np.float64(0.0)}
+Final PID list: [1578338, 1578342, 1578346, 1578350]
+Running batch size 12
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 12 --path data/tmp --test_time 15
+start test resnet50(12_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(12_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 31428 Throughput 2619
+{'sm_active': np.float64(0.5351052631578948), 'sm_occupancy': np.float64(0.26042105263157894), 'tensor_active': np.float64(0.09652631578947368), 'fp64_active': np.float64(0.0)}
+Final PID list: [1578746, 1578750, 1578754, 1578758]
+Running batch size 13
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 13 --path data/tmp --test_time 15
+start test resnet50(13_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(13_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 32565 Throughput 2505
+{'sm_active': np.float64(0.5511578947368421), 'sm_occupancy': np.float64(0.28042105263157896), 'tensor_active': np.float64(0.1013684210526316), 'fp64_active': np.float64(0.0)}
+Final PID list: [1579156, 1579160, 1579164, 1579168]
+Running batch size 14
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 14 --path data/tmp --test_time 15
+start test resnet50(14_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(14_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 31724 Throughput 2266
+{'sm_active': np.float64(0.526842105263158), 'sm_occupancy': np.float64(0.2666842105263158), 'tensor_active': np.float64(0.09973684210526317), 'fp64_active': np.float64(0.0)}
+Final PID list: [1579567, 1579571, 1579575, 1579579]
+Running batch size 15
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 15 --path data/tmp --test_time 15
+start test resnet50(15_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(15_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 31275 Throughput 2085
+{'sm_active': np.float64(0.512), 'sm_occupancy': np.float64(0.2595789473684211), 'tensor_active': np.float64(0.0903684210526316), 'fp64_active': np.float64(0.0)}
+Final PID list: [1579977, 1579981, 1579985, 1579989]
+Running batch size 16
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 16 --path data/tmp --test_time 15
+start test resnet50(16_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(16_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 34112 Throughput 2132
+{'sm_active': np.float64(0.5412631578947369), 'sm_occupancy': np.float64(0.26526315789473687), 'tensor_active': np.float64(0.11089473684210527), 'fp64_active': np.float64(0.0)}
+Final PID list: [1580385, 1580389, 1580393, 1580397]
+Running batch size 17
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 17 --path data/tmp --test_time 15
+start test resnet50(17_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(17_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 32385 Throughput 1905
+{'sm_active': np.float64(0.5423157894736842), 'sm_occupancy': np.float64(0.30284210526315786), 'tensor_active': np.float64(0.09510526315789475), 'fp64_active': np.float64(0.0)}
+Final PID list: [1580795, 1580799, 1580803, 1580807]
+Running batch size 18
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 18 --path data/tmp --test_time 15
+start test resnet50(18_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(18_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 33228 Throughput 1846
+{'sm_active': np.float64(0.5568947368421053), 'sm_occupancy': np.float64(0.28021052631578947), 'tensor_active': np.float64(0.09368421052631579), 'fp64_active': np.float64(0.0)}
+Final PID list: [1581206, 1581210, 1581214, 1581218]
+Running batch size 19
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 19 --path data/tmp --test_time 15
+start test resnet50(19_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(19_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 33877 Throughput 1783
+{'sm_active': np.float64(0.5605789473684212), 'sm_occupancy': np.float64(0.30200000000000005), 'tensor_active': np.float64(0.10173684210526315), 'fp64_active': np.float64(0.0)}
+Final PID list: [1581614, 1581618, 1581622, 1581626]
+Running batch size 20
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 20 --path data/tmp --test_time 15
+start test resnet50(20_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(20_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 35760 Throughput 1788
+{'sm_active': np.float64(0.5707894736842105), 'sm_occupancy': np.float64(0.30405263157894735), 'tensor_active': np.float64(0.11189473684210526), 'fp64_active': np.float64(0.0)}
+Final PID list: [1582024, 1582028, 1582032, 1582036]
+Running batch size 21
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 21 --path data/tmp --test_time 15
+start test resnet50(21_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(21_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 35553 Throughput 1693
+{'sm_active': np.float64(0.5761052631578948), 'sm_occupancy': np.float64(0.3191578947368421), 'tensor_active': np.float64(0.10905263157894737), 'fp64_active': np.float64(0.0)}
+Final PID list: [1582434, 1582438, 1582442, 1582446]
+Running batch size 22
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 22 --path data/tmp --test_time 15
+start test resnet50(22_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(22_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 35530 Throughput 1615
+{'sm_active': np.float64(0.5713157894736842), 'sm_occupancy': np.float64(0.31305263157894736), 'tensor_active': np.float64(0.11015789473684211), 'fp64_active': np.float64(0.0)}
+Final PID list: [1582856, 1582860, 1582864, 1582868]
+Running batch size 23
+python test_llm.py --model resnet50 --profile_group 0 --mps 80 --device 1 --batch_size 23 --path data/tmp --test_time 15
+start test resnet50(23_m80)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(23_m80)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 35903 Throughput 1561
+{'sm_active': np.float64(0.5742631578947369), 'sm_occupancy': np.float64(0.31773684210526315), 'tensor_active': np.float64(0.10473684210526316), 'fp64_active': np.float64(0.0)}
+Final PID list: [1583429, 1583433, 1583437, 1583441]
+Running batch size 9
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 9 --path data/tmp --test_time 15
+start test resnet50(9_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(9_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 25767 Throughput 2863
+{'sm_active': np.float64(0.48442105263157886), 'sm_occupancy': np.float64(0.223), 'tensor_active': np.float64(0.07589473684210528), 'fp64_active': np.float64(0.0)}
+Final PID list: [1583956, 1583960, 1583964, 1583968]
+Running batch size 10
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 10 --path data/tmp --test_time 15
+start test resnet50(10_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(10_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 27830 Throughput 2783
+{'sm_active': np.float64(0.5280526315789474), 'sm_occupancy': np.float64(0.24857894736842104), 'tensor_active': np.float64(0.07836842105263159), 'fp64_active': np.float64(0.0)}
+Final PID list: [1584375, 1584379, 1584383, 1584387]
+Running batch size 11
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 11 --path data/tmp --test_time 15
+start test resnet50(11_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(11_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 31306 Throughput 2846
+{'sm_active': np.float64(0.559421052631579), 'sm_occupancy': np.float64(0.26826315789473687), 'tensor_active': np.float64(0.09863157894736842), 'fp64_active': np.float64(0.0)}
+Final PID list: [1584794, 1584798, 1584802, 1584806]
+Running batch size 12
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 12 --path data/tmp --test_time 15
+start test resnet50(12_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(12_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 33528 Throughput 2794
+{'sm_active': np.float64(0.5775263157894737), 'sm_occupancy': np.float64(0.2796842105263158), 'tensor_active': np.float64(0.10136842105263158), 'fp64_active': np.float64(0.0)}
+Final PID list: [1585245, 1585249, 1585253, 1585257]
+Running batch size 13
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 13 --path data/tmp --test_time 15
+start test resnet50(13_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(13_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 33449 Throughput 2573
+{'sm_active': np.float64(0.5977368421052632), 'sm_occupancy': np.float64(0.31078947368421056), 'tensor_active': np.float64(0.09873684210526315), 'fp64_active': np.float64(0.0)}
+Final PID list: [1585656, 1585660, 1585664, 1585668]
+Running batch size 14
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 14 --path data/tmp --test_time 15
+start test resnet50(14_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(14_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 34706 Throughput 2479
+{'sm_active': np.float64(0.611421052631579), 'sm_occupancy': np.float64(0.31594736842105264), 'tensor_active': np.float64(0.10636842105263157), 'fp64_active': np.float64(0.0)}
+Final PID list: [1586066, 1586070, 1586074, 1586078]
+Running batch size 15
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 15 --path data/tmp --test_time 15
+start test resnet50(15_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(15_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 35640 Throughput 2376
+{'sm_active': np.float64(0.6304210526315789), 'sm_occupancy': np.float64(0.3307368421052632), 'tensor_active': np.float64(0.10405263157894735), 'fp64_active': np.float64(0.0)}
+Final PID list: [1586478, 1586482, 1586486, 1586490]
+Running batch size 16
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 16 --path data/tmp --test_time 15
+start test resnet50(16_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(16_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 35280 Throughput 2205
+{'sm_active': np.float64(0.5929473684210526), 'sm_occupancy': np.float64(0.2971578947368421), 'tensor_active': np.float64(0.11063157894736844), 'fp64_active': np.float64(0.0)}
+Final PID list: [1586888, 1586892, 1586896, 1586900]
+Running batch size 17
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 17 --path data/tmp --test_time 15
+start test resnet50(17_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(17_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 33558 Throughput 1974
+{'sm_active': np.float64(0.5841052631578946), 'sm_occupancy': np.float64(0.3181052631578947), 'tensor_active': np.float64(0.10363157894736842), 'fp64_active': np.float64(0.0)}
+Final PID list: [1587298, 1587302, 1587306, 1587310]
+Running batch size 18
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 18 --path data/tmp --test_time 15
+start test resnet50(18_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(18_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 34632 Throughput 1924
+{'sm_active': np.float64(0.5858947368421052), 'sm_occupancy': np.float64(0.3035789473684211), 'tensor_active': np.float64(0.09968421052631579), 'fp64_active': np.float64(0.0)}
+Final PID list: [1587706, 1587710, 1587714, 1587718]
+Running batch size 19
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 19 --path data/tmp --test_time 15
+start test resnet50(19_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(19_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 35131 Throughput 1849
+{'sm_active': np.float64(0.6078421052631579), 'sm_occupancy': np.float64(0.3267894736842106), 'tensor_active': np.float64(0.10547368421052632), 'fp64_active': np.float64(0.0)}
+Final PID list: [1588119, 1588123, 1588127, 1588131]
+Running batch size 20
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 20 --path data/tmp --test_time 15
+start test resnet50(20_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(20_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 36740 Throughput 1837
+{'sm_active': np.float64(0.6205263157894736), 'sm_occupancy': np.float64(0.34063157894736845), 'tensor_active': np.float64(0.1105263157894737), 'fp64_active': np.float64(0.0)}
+Final PID list: [1588529, 1588533, 1588537, 1588541]
+Running batch size 21
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 21 --path data/tmp --test_time 15
+start test resnet50(21_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(21_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 36624 Throughput 1744
+{'sm_active': np.float64(0.6232105263157895), 'sm_occupancy': np.float64(0.3434210526315789), 'tensor_active': np.float64(0.11405263157894736), 'fp64_active': np.float64(0.0)}
+Final PID list: [1588945, 1588949, 1588953, 1588957]
+Running batch size 22
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 22 --path data/tmp --test_time 15
+start test resnet50(22_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(22_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 37048 Throughput 1684
+{'sm_active': np.float64(0.6315263157894737), 'sm_occupancy': np.float64(0.35226315789473683), 'tensor_active': np.float64(0.11152631578947367), 'fp64_active': np.float64(0.0)}
+Final PID list: [1589353, 1589357, 1589361, 1589365]
+Running batch size 23
+python test_llm.py --model resnet50 --profile_group 0 --mps 90 --device 1 --batch_size 23 --path data/tmp --test_time 15
+start test resnet50(23_m90)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(23_m90)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 37628 Throughput 1636
+{'sm_active': np.float64(0.6346315789473684), 'sm_occupancy': np.float64(0.3528421052631579), 'tensor_active': np.float64(0.11610526315789475), 'fp64_active': np.float64(0.0)}
+Final PID list: [1589764, 1589768, 1589772, 1589776]
+Running batch size 9
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 9 --path data/tmp --test_time 15
+start test resnet50(9)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(9)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 25704 Throughput 2856
+{'sm_active': np.float64(0.5112631578947369), 'sm_occupancy': np.float64(0.22910526315789473), 'tensor_active': np.float64(0.07710526315789473), 'fp64_active': np.float64(0.0)}
+Final PID list: [1590213, 1590217, 1590221, 1590225]
+Running batch size 10
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 10 --path data/tmp --test_time 15
+start test resnet50(10)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(10)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 28390 Throughput 2839
+{'sm_active': np.float64(0.5464736842105262), 'sm_occupancy': np.float64(0.255421052631579), 'tensor_active': np.float64(0.08326315789473684), 'fp64_active': np.float64(0.0)}
+Final PID list: [1590622, 1590626, 1590630, 1590634]
+Running batch size 11
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 11 --path data/tmp --test_time 15
+start test resnet50(11)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(11)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 31097 Throughput 2827
+{'sm_active': np.float64(0.5788947368421052), 'sm_occupancy': np.float64(0.27652631578947373), 'tensor_active': np.float64(0.09494736842105264), 'fp64_active': np.float64(0.0)}
+Final PID list: [1591032, 1591036, 1591040, 1591044]
+Running batch size 12
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 12 --path data/tmp --test_time 15
+start test resnet50(12)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(12)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 32148 Throughput 2679
+{'sm_active': np.float64(0.5866315789473684), 'sm_occupancy': np.float64(0.27263157894736845), 'tensor_active': np.float64(0.10078947368421053), 'fp64_active': np.float64(0.0)}
+Final PID list: [1591441, 1591445, 1591449, 1591453]
+Running batch size 13
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 13 --path data/tmp --test_time 15
+start test resnet50(13)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(13)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 34905 Throughput 2685
+{'sm_active': np.float64(0.6517368421052631), 'sm_occupancy': np.float64(0.3314736842105263), 'tensor_active': np.float64(0.10768421052631579), 'fp64_active': np.float64(0.0)}
+Final PID list: [1591853, 1591857, 1591861, 1591865]
+Running batch size 14
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 14 --path data/tmp --test_time 15
+start test resnet50(14)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(14)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 35630 Throughput 2545
+{'sm_active': np.float64(0.6722631578947368), 'sm_occupancy': np.float64(0.33242105263157895), 'tensor_active': np.float64(0.10168421052631578), 'fp64_active': np.float64(0.0)}
+Final PID list: [1592263, 1592267, 1592271, 1592275]
+Running batch size 15
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 15 --path data/tmp --test_time 15
+start test resnet50(15)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(15)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 36555 Throughput 2437
+{'sm_active': np.float64(0.6891052631578948), 'sm_occupancy': np.float64(0.3583684210526316), 'tensor_active': np.float64(0.10905263157894737), 'fp64_active': np.float64(0.0)}
+Final PID list: [1592676, 1592680, 1592684, 1592688]
+Running batch size 16
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 16 --path data/tmp --test_time 15
+start test resnet50(16)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(16)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 38640 Throughput 2415
+{'sm_active': np.float64(0.6856315789473683), 'sm_occupancy': np.float64(0.333421052631579), 'tensor_active': np.float64(0.1306315789473684), 'fp64_active': np.float64(0.0)}
+Final PID list: [1593137, 1593141, 1593145, 1593149]
+Running batch size 17
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 17 --path data/tmp --test_time 15
+start test resnet50(17)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(17)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 36805 Throughput 2165
+{'sm_active': np.float64(0.6892631578947368), 'sm_occupancy': np.float64(0.36600000000000005), 'tensor_active': np.float64(0.10600000000000001), 'fp64_active': np.float64(0.0)}
+Final PID list: [1593558, 1593562, 1593566, 1593570]
+Running batch size 18
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 18 --path data/tmp --test_time 15
+start test resnet50(18)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(18)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 35514 Throughput 1973
+{'sm_active': np.float64(0.656842105263158), 'sm_occupancy': np.float64(0.3443157894736842), 'tensor_active': np.float64(0.10926315789473684), 'fp64_active': np.float64(0.0)}
+Final PID list: [1593978, 1593982, 1593986, 1593990]
+Running batch size 19
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 19 --path data/tmp --test_time 15
+start test resnet50(19)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(19)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 36290 Throughput 1910
+{'sm_active': np.float64(0.6600526315789473), 'sm_occupancy': np.float64(0.3425263157894737), 'tensor_active': np.float64(0.116), 'fp64_active': np.float64(0.0)}
+Final PID list: [1594396, 1594400, 1594404, 1594408]
+Running batch size 20
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 20 --path data/tmp --test_time 15
+start test resnet50(20)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(20)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 37940 Throughput 1897
+{'sm_active': np.float64(0.6816842105263159), 'sm_occupancy': np.float64(0.370421052631579), 'tensor_active': np.float64(0.11499999999999998), 'fp64_active': np.float64(0.0)}
+Final PID list: [1594811, 1594815, 1594819, 1594823]
+Running batch size 21
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 21 --path data/tmp --test_time 15
+start test resnet50(21)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(21)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 37506 Throughput 1786
+{'sm_active': np.float64(0.6745789473684211), 'sm_occupancy': np.float64(0.36278947368421055), 'tensor_active': np.float64(0.12289473684210526), 'fp64_active': np.float64(0.0)}
+Final PID list: [1595237, 1595241, 1595245, 1595249]
+Running batch size 22
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 22 --path data/tmp --test_time 15
+start test resnet50(22)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(22)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 38082 Throughput 1731
+{'sm_active': np.float64(0.6924736842105264), 'sm_occupancy': np.float64(0.38905263157894737), 'tensor_active': np.float64(0.11110526315789472), 'fp64_active': np.float64(0.0)}
+Final PID list: [1595653, 1595657, 1595661, 1595665]
+Running batch size 23
+python test_llm.py --model resnet50 --profile_group 0 --mps 100 --device 1 --batch_size 23 --path data/tmp --test_time 15
+start test resnet50(23)
+round one end
+/home/k43015/MPSTest/profiling/../data/tmp/resnet50(23)-final_summary.log
+==== Profile: resnet50
+* Absolute throughput: 38525 Throughput 1675
+{'sm_active': np.float64(0.6905263157894737), 'sm_occupancy': np.float64(0.37994736842105264), 'tensor_active': np.float64(0.1216842105263158), 'fp64_active': np.float64(0.0)}
+Final PID list: [1596070, 1596074, 1596078, 1596082]
+INFO:     Shutting down
+ERROR 12-08 22:43:29 [core_client.py:564] Engine core proc EngineCore_DP0 died unexpectedly, shutting down client.
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+`torch_dtype` is deprecated! Use `dtype` instead!
+[W1210 18:57:36.213758314 ProcessGroupNCCL.cpp:981] Warning: TORCH_NCCL_AVOID_RECORD_STREAMS is the default now, this environment variable is thus deprecated. (function operator())
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[Gloo] Rank 0 is connected to 0 peer ranks. Expected number of connected peer ranks is : 0
+[1;36m(EngineCore_DP0 pid=35809)[0;0m Loading safetensors checkpoint shards:   0% Completed | 0/2 [00:00<?, ?it/s]
+[1;36m(EngineCore_DP0 pid=35809)[0;0m Loading safetensors checkpoint shards:  50% Completed | 1/2 [00:30<00:30, 30.34s/it]
+[1;36m(EngineCore_DP0 pid=35809)[0;0m Loading safetensors checkpoint shards: 100% Completed | 2/2 [01:56<00:00, 63.23s/it]
+[1;36m(EngineCore_DP0 pid=35809)[0;0m Loading safetensors checkpoint shards: 100% Completed | 2/2 [01:56<00:00, 58.30s/it]
+[1;36m(EngineCore_DP0 pid=35809)[0;0m 
+[1;36m(EngineCore_DP0 pid=35809)[0;0m Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   0%|          | 0/35 [00:00<?, ?it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   9%|▊         | 3/35 [00:00<00:01, 27.24it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  17%|█▋        | 6/35 [00:00<00:01, 22.35it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  26%|██▌       | 9/35 [00:00<00:01, 23.73it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  34%|███▍      | 12/35 [00:00<00:00, 25.53it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  43%|████▎     | 15/35 [00:00<00:00, 26.29it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  51%|█████▏    | 18/35 [00:00<00:00, 27.35it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  63%|██████▎   | 22/35 [00:00<00:00, 28.56it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  71%|███████▏  | 25/35 [00:00<00:00, 27.04it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  83%|████████▎ | 29/35 [00:01<00:00, 29.11it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  94%|█████████▍| 33/35 [00:01<00:00, 30.57it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 35/35 [00:01<00:00, 23.06it/s]
+INFO:     Started server process [35494]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-Loading safetensors checkpoint shards:   0% Completed | 0/2 [00:00<?, ?it/s]
-Loading safetensors checkpoint shards:  50% Completed | 1/2 [00:00<00:00,  2.41it/s]
-Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:57<00:00, 33.62s/it]
-Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:57<00:00, 28.64s/it]
-
-Capturing CUDA graph shapes:   0%|          | 0/35 [00:00<?, ?it/s]Capturing CUDA graph shapes:   3%|▎         | 1/35 [00:00<00:19,  1.78it/s]Capturing CUDA graph shapes:   6%|▌         | 2/35 [00:00<00:14,  2.23it/s]Capturing CUDA graph shapes:   9%|▊         | 3/35 [00:01<00:13,  2.44it/s]Capturing CUDA graph shapes:  11%|█▏        | 4/35 [00:01<00:12,  2.57it/s]Capturing CUDA graph shapes:  14%|█▍        | 5/35 [00:02<00:11,  2.63it/s]Capturing CUDA graph shapes:  17%|█▋        | 6/35 [00:02<00:11,  2.48it/s]Capturing CUDA graph shapes:  20%|██        | 7/35 [00:02<00:10,  2.57it/s]Capturing CUDA graph shapes:  23%|██▎       | 8/35 [00:03<00:10,  2.63it/s]Capturing CUDA graph shapes:  26%|██▌       | 9/35 [00:03<00:09,  2.60it/s]Capturing CUDA graph shapes:  29%|██▊       | 10/35 [00:03<00:09,  2.66it/s]Capturing CUDA graph shapes:  31%|███▏      | 11/35 [00:04<00:08,  2.69it/s]Capturing CUDA graph shapes:  34%|███▍      | 12/35 [00:04<00:08,  2.68it/s]Capturing CUDA graph shapes:  37%|███▋      | 13/35 [00:05<00:08,  2.71it/s]Capturing CUDA graph shapes:  40%|████      | 14/35 [00:05<00:07,  2.73it/s]Capturing CUDA graph shapes:  43%|████▎     | 15/35 [00:05<00:07,  2.75it/s]Capturing CUDA graph shapes:  46%|████▌     | 16/35 [00:06<00:06,  2.77it/s]Capturing CUDA graph shapes:  49%|████▊     | 17/35 [00:06<00:06,  2.78it/s]Capturing CUDA graph shapes:  51%|█████▏    | 18/35 [00:06<00:06,  2.82it/s]Capturing CUDA graph shapes:  54%|█████▍    | 19/35 [00:07<00:05,  2.78it/s]Capturing CUDA graph shapes:  57%|█████▋    | 20/35 [00:07<00:05,  2.81it/s]Capturing CUDA graph shapes:  60%|██████    | 21/35 [00:07<00:04,  2.84it/s]Capturing CUDA graph shapes:  63%|██████▎   | 22/35 [00:08<00:04,  2.82it/s]Capturing CUDA graph shapes:  66%|██████▌   | 23/35 [00:08<00:04,  2.85it/s]Capturing CUDA graph shapes:  69%|██████▊   | 24/35 [00:08<00:03,  2.87it/s]Capturing CUDA graph shapes:  71%|███████▏  | 25/35 [00:09<00:03,  2.86it/s]Capturing CUDA graph shapes:  74%|███████▍  | 26/35 [00:09<00:03,  2.89it/s]Capturing CUDA graph shapes:  77%|███████▋  | 27/35 [00:09<00:02,  2.82it/s]Capturing CUDA graph shapes:  80%|████████  | 28/35 [00:10<00:02,  2.86it/s]Capturing CUDA graph shapes:  83%|████████▎ | 29/35 [00:10<00:02,  2.89it/s]Capturing CUDA graph shapes:  86%|████████▌ | 30/35 [00:10<00:01,  2.92it/s]Capturing CUDA graph shapes:  89%|████████▊ | 31/35 [00:11<00:01,  2.85it/s]Capturing CUDA graph shapes:  91%|█████████▏| 32/35 [00:11<00:01,  2.90it/s]Capturing CUDA graph shapes:  94%|█████████▍| 33/35 [00:12<00:00,  2.90it/s]Capturing CUDA graph shapes:  97%|█████████▋| 34/35 [00:12<00:00,  2.92it/s]Capturing CUDA graph shapes: 100%|██████████| 35/35 [00:12<00:00,  2.88it/s]Capturing CUDA graph shapes: 100%|██████████| 35/35 [00:12<00:00,  2.75it/s]
-INFO:     Started server process [294510]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-Loading safetensors checkpoint shards:   0% Completed | 0/2 [00:00<?, ?it/s]
-Loading safetensors checkpoint shards:  50% Completed | 1/2 [00:30<00:30, 30.79s/it]
-Loading safetensors checkpoint shards:   0% Completed | 0/2 [00:00<?, ?it/s]
-Loading safetensors checkpoint shards:  50% Completed | 1/2 [00:00<00:00,  3.79it/s]
-Loading safetensors checkpoint shards: 100% Completed | 2/2 [01:14<00:00, 43.88s/it]
-Loading safetensors checkpoint shards: 100% Completed | 2/2 [01:14<00:00, 37.34s/it]
-
-Capturing CUDA graph shapes:   0%|          | 0/35 [00:00<?, ?it/s]Capturing CUDA graph shapes:   3%|▎         | 1/35 [00:00<00:18,  1.80it/s]Capturing CUDA graph shapes:   6%|▌         | 2/35 [00:00<00:14,  2.28it/s]Capturing CUDA graph shapes:   9%|▊         | 3/35 [00:01<00:12,  2.50it/s]Capturing CUDA graph shapes:  11%|█▏        | 4/35 [00:01<00:12,  2.58it/s]Capturing CUDA graph shapes:  14%|█▍        | 5/35 [00:01<00:11,  2.66it/s]Capturing CUDA graph shapes:  17%|█▋        | 6/35 [00:02<00:11,  2.54it/s]Capturing CUDA graph shapes:  20%|██        | 7/35 [00:02<00:10,  2.64it/s]Capturing CUDA graph shapes:  23%|██▎       | 8/35 [00:03<00:09,  2.71it/s]Capturing CUDA graph shapes:  26%|██▌       | 9/35 [00:03<00:09,  2.76it/s]Capturing CUDA graph shapes:  29%|██▊       | 10/35 [00:03<00:09,  2.74it/s]Capturing CUDA graph shapes:  31%|███▏      | 11/35 [00:04<00:08,  2.73it/s]Capturing CUDA graph shapes:  34%|███▍      | 12/35 [00:04<00:08,  2.77it/s]Capturing CUDA graph shapes:  37%|███▋      | 13/35 [00:04<00:07,  2.76it/s]Capturing CUDA graph shapes:  40%|████      | 14/35 [00:05<00:07,  2.76it/s]Capturing CUDA graph shapes:  43%|████▎     | 15/35 [00:05<00:07,  2.76it/s]Capturing CUDA graph shapes:  46%|████▌     | 16/35 [00:05<00:06,  2.79it/s]Capturing CUDA graph shapes:  49%|████▊     | 17/35 [00:06<00:06,  2.84it/s]Capturing CUDA graph shapes:  51%|█████▏    | 18/35 [00:06<00:06,  2.83it/s]Capturing CUDA graph shapes:  54%|█████▍    | 19/35 [00:07<00:05,  2.87it/s]Capturing CUDA graph shapes:  57%|█████▋    | 20/35 [00:07<00:05,  2.87it/s]Capturing CUDA graph shapes:  60%|██████    | 21/35 [00:07<00:04,  2.91it/s]Capturing CUDA graph shapes:  63%|██████▎   | 22/35 [00:08<00:04,  2.93it/s]Capturing CUDA graph shapes:  66%|██████▌   | 23/35 [00:08<00:04,  2.89it/s]Capturing CUDA graph shapes:  69%|██████▊   | 24/35 [00:08<00:03,  2.92it/s]Capturing CUDA graph shapes:  71%|███████▏  | 25/35 [00:09<00:03,  2.79it/s]Capturing CUDA graph shapes:  74%|███████▍  | 26/35 [00:09<00:03,  2.86it/s]Capturing CUDA graph shapes:  77%|███████▋  | 27/35 [00:09<00:02,  2.90it/s]Capturing CUDA graph shapes:  80%|████████  | 28/35 [00:10<00:02,  2.93it/s]Capturing CUDA graph shapes:  83%|████████▎ | 29/35 [00:10<00:02,  2.92it/s]Capturing CUDA graph shapes:  86%|████████▌ | 30/35 [00:10<00:01,  2.98it/s]Capturing CUDA graph shapes:  89%|████████▊ | 31/35 [00:11<00:01,  3.01it/s]Capturing CUDA graph shapes:  91%|█████████▏| 32/35 [00:11<00:00,  3.03it/s]Capturing CUDA graph shapes:  94%|█████████▍| 33/35 [00:11<00:00,  3.05it/s]Capturing CUDA graph shapes:  97%|█████████▋| 34/35 [00:12<00:00,  3.07it/s]Capturing CUDA graph shapes: 100%|██████████| 35/35 [00:12<00:00,  3.09it/s]Capturing CUDA graph shapes: 100%|██████████| 35/35 [00:12<00:00,  2.82it/s]
-INFO:     Started server process [79711]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-Traceback (most recent call last):
-  File "/home/k43015/MPSTest/test_llm.py", line 3, in <module>
-    from profiling.profiler import ProfileServer  
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/k43015/MPSTest/profiling/profiler.py", line 1, in <module>
-    from profiling.utils import *
-  File "/home/k43015/MPSTest/profiling/utils.py", line 2, in <module>
-    from profiling.models import *
-  File "/home/k43015/MPSTest/profiling/models/__init__.py", line 1, in <module>
-    from .bert_worker import BertWorker
-  File "/home/k43015/MPSTest/profiling/models/bert_worker.py", line 2, in <module>
-    from profiling.models.model_worker import ModelWorker
-  File "/home/k43015/MPSTest/profiling/models/model_worker.py", line 9, in <module>
-    from profiling.scheduling.utils import schedulers
-  File "/home/k43015/MPSTest/profiling/scheduling/utils.py", line 3, in <module>
-    from profiling.scheduling.predictive_scheduler import PredictiveScheduler
-  File "/home/k43015/MPSTest/profiling/scheduling/predictive_scheduler.py", line 282
-    NP1 = self.monitored_data.NP2
-          ^^^^^^^^^^^^^^^^^^^^^^^
-SyntaxError: invalid syntax. Perhaps you forgot a comma?
-./temp2.sh: line 4: 411181 Killed                  python test_llm.py --model llm --scheduler predictive --trace LLM[14] --device 1 --path data/test_trace >> out.out 2>&1
-./temp2.sh: line 5: 413510 Killed                  python test_llm.py --model llm --scheduler predictive --trace LLM[15] --device 1 --path data/test_trace >> out.out 2>&1
+start test llm[BurstGPT2,100,300,800000,14]-predictive
+round one end
+/home/k43015/MPSTest/profiling/../data/llm[BurstGPT2,100,300,800000,14]-predictive-final_summary.log
+==== Profile: llm
+* Passed: True Total Completed 647981 Met 648815 Total Submitted 648966 Percentage 0.9997673221709612 SLO_info (1, 0, 0.2, 0.2)
+start preparing dataset
+dataset preparation finished
+total trace count: 764280
+Trace length 44746.857142857145 Average 17.080082240412732
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_prefill.pth
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_decode.pth
+scheduler profiling
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_prefill.pth
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_decode.pth
+started profiling
+cannot unpack non-iterable NoneType object
+max request tokens:  2999 ; min request tokens 8
+max response tokens:  2047 ; min response tokens 1
+start test llm[BurstGPT2,100,300,800000,14]-predictive
+round one end
+/home/k43015/MPSTest/profiling/../data/llm[BurstGPT2,100,300,800000,14]-predictive-final_summary.log
+==== Profile: llm
+* Passed: True Total Completed 647981 Met 648799 Total Submitted 648966 Percentage 0.9997426675665597 SLO_info (1, 0, 0.2, 0.2)
+start preparing dataset
+dataset preparation finished
+total trace count: 764280
+Trace length 44746.857142857145 Average 17.080082240412732
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_prefill.pth
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_decode.pth
+scheduler profiling
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_prefill.pth
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_decode.pth
+started profiling
+cannot unpack non-iterable NoneType object
+max request tokens:  2999 ; min request tokens 8
+max response tokens:  2047 ; min response tokens 1
+start test llm[BurstGPT2,100,300,800000,14]-predictive
+round one end
+/home/k43015/MPSTest/profiling/../data/llm[BurstGPT2,100,300,800000,14]-predictive-final_summary.log
+==== Profile: llm
+* Passed: True Total Completed 647981 Met 648760 Total Submitted 648966 Percentage 0.9996825719683312 SLO_info (1, 0, 0.2, 0.2)
+start preparing dataset
+dataset preparation finished
+total trace count: 764280
+Trace length 44746.857142857145 Average 17.080082240412732
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_prefill.pth
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_decode.pth
+scheduler profiling
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_prefill.pth
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_decode.pth
+started profiling
+max request tokens:  2999 ; min request tokens 8
+max response tokens:  2047 ; min response tokens 1
+start test llm[BurstGPT1,100,301,400000,8]-predictive
+round one end
+/home/k43015/MPSTest/profiling/../data/llm[BurstGPT1,100,301,400000,8]-predictive-final_summary.log
+==== Profile: llm
+* Passed: True Total Completed 93776 Met 95252 Total Submitted 95252 Percentage 1.0 SLO_info (1, 0, 0.2, 0.2)
+start preparing dataset
+dataset preparation finished
+total trace count: 397697
+Trace length 101823.875 Average 3.905734288741221
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_prefill.pth
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_decode.pth
+scheduler profiling
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_prefill.pth
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_decode.pth
+started profiling
+max request tokens:  2999 ; min request tokens 8
+max response tokens:  1676 ; min response tokens 1
+start test llm[Azure1,100,0,400000,0.35]-predictive
+round one end
+/home/k43015/MPSTest/profiling/../data/llm[Azure1,100,0,400000,0.35]-predictive-final_summary.log
+==== Profile: llm
+* Passed: True Total Completed 31771 Met 31946 Total Submitted 31946 Percentage 1.0 SLO_info (1, 0, 0.2, 0.2)
+start preparing dataset
+dataset preparation finished
+total trace count: 400000
+Trace length 46092.12757142857 Average 8.678271563405778
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_prefill.pth
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_decode.pth
+scheduler profiling
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_prefill.pth
+Loading from: /home/k43015/MPSTest/profiling/scheduling/predict/model_MLP_decode.pth
+started profiling
+max request tokens:  2999 ; min request tokens 6
+max response tokens:  1200 ; min response tokens 1
