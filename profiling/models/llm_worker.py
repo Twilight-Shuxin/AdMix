@@ -131,7 +131,7 @@ class LLMWorker(ModelWorker):
         return tag
     
     def warmup(self):
-        warmup_config = TestConfig(1, None, 1, 0, self.total_module, None, [5,5])
+        warmup_config = TestConfig(None, 1, 0, self.total_module, None, [5,5])
         warmup_config.fit(self)
         self.random_test_period(warmup_config, 5)
     
@@ -422,7 +422,7 @@ class LLMWorker(ModelWorker):
     
     def profile(self):
         self.start_time_pointer = time.perf_counter()
-        test_config = TestConfig(1, None, 1, 0, self.total_module, None, None)
+        test_config = TestConfig(None, 1, 0, self.total_module, None, None)
         test_list = [[2000, 100], [5, 2000], [2000,2000]]
         for _ in range(1):
             for input_seqlen, output_seqlen in test_list:
@@ -430,7 +430,7 @@ class LLMWorker(ModelWorker):
                 input = self.get_input(test_config)
                 bt_rect = self.loop.run_until_complete(self.simple_inference(input, output_seqlen))   
                 print(input_seqlen, output_seqlen, bt_rect)
-        test_config = TestConfig(1, None, 1, 0, self.total_module, None, None)
+        test_config = TestConfig(None, 1, 0, self.total_module, None, None)
         test_config.tag = "llm_PROFILE"
 
     # async def intensity_monitor_udp(self):
@@ -487,7 +487,7 @@ class LLMWorker(ModelWorker):
     # rec: true or false
     async def trace_test_period(self, test_config, time_len, rec = False):
         self.monitor_init(test_config)
-        if(test_config.global_cnt > 1 and test_config.scheduler != None): # Serving mode
+        if(self.test_config.global_cnt > 1 and test_config.scheduler != None): # Serving mode
             asyncio.create_task(self.intensity_server_unix())
             scheduler_type = type(get_scheduler(test_config.scheduler))
             if(scheduler_type.monitor != None):
@@ -502,8 +502,8 @@ class LLMWorker(ModelWorker):
         min_out_tokens = 10000000
         task_list = []
 
-        if(test_config.scheduler != None and test_config.global_cnt > 1):
-            self.single_barrier.wait()
+        if(test_config.scheduler != None and self.test_config.global_cnt > 1):
+            self.double_barrier.wait()
         self.start_time_pointer = time.perf_counter()
         time_counter = time_len
         while(True):
@@ -540,7 +540,7 @@ class LLMWorker(ModelWorker):
 
         # print("processed:", cnt, "in", time.perf_counter() - test_start_time, "(s) uncompleted:", uncompleted)
     
-    def common_start(self):
+    def submodule_setup(self):
         self.total_module = -1
     
     def random_test(self, test_config):

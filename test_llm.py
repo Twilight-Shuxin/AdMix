@@ -1,47 +1,20 @@
-from profiling.options import parse_profile_options
-import torch.multiprocessing as mp  
+from profiling.options import parse_profile_options 
 from profiling.profiler import ProfileServer  
+from profiling.constants import RuntimeMode
 from trace.trace_utils import BurstGPTTrace
-from plotting.trace_plot import *
-import time
-from profiling.constants import *
-import sys
-
-# if __name__=="__main__":
-#     mp.set_start_method('spawn')
-#     profile_config = parse_profile_options()
-#     dummy = Dummy(profile_config)
-#     dummy.run()
-    
-# if __name__=="__main__":
-#     trace = BurstGPTTrace("BurstGPT_1.csv")
-    # time_len = 40
-    # test_start_time = time.time()
-    # time_limit = test_start_time + time_len
-    # timestamps = []
-    # while(True):
-    #     req_time, sample_in_length, sample_out_length = trace.next()
-    #     if ((req_time + test_start_time) > time_limit):
-    #         break
-    #     # timestamps.append((req_time, req_time + 5))
-    #     timestamps.append(req_time)
-    # trace_plot(timestamps, './data/trace2.png')
+import torch.multiprocessing as mp 
         
 if __name__=="__main__":
     mp.set_start_method('spawn')
     profile_config = parse_profile_options()
     profile_server = ProfileServer(profile_config)
     profile_server.setup()
-    result = True
-    all_submitted = 0
-    passed = 0
-    # profile_server.test()
     if(profile_server.mode == RuntimeMode.PROFILE):
         print("profile")
         profile_server.profile()
     else:
-        profile_server.serve()
+        profile_server.test()
         result, passed, all_submitted = profile_server.collect_data()
-    with open('result.log', 'w') as f:
-        f.write(str(result) + ' ' + str(passed) + ' ' + str(all_submitted))
+        with open('result.log', 'w') as f:
+            f.write(str(result) + ' ' + str(passed) + ' ' + str(all_submitted))
     profile_server.shutdown()

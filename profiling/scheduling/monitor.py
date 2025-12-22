@@ -2,7 +2,6 @@ import os
 import asyncio
 import socket
 import subprocess
-import struct
 
 LLM_SERVER_PORT = 15311
 LLM_SOCKET_PATH = "/tmp/unix_socket_async"
@@ -27,6 +26,9 @@ class UDPProtocol(asyncio.DatagramProtocol):
 #     client_socket.close()
 #     return data
 
+"""
+    Read observation data from llm server using scheduling data format.
+"""
 def get_llm_intensity_unix(scheduling_data_format):
     client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     try:

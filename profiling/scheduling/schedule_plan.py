@@ -13,17 +13,15 @@ class BasicSchedulePlan(SchedulePlan):
     def __init__(self, batch_size):
         self.batch_size = batch_size
 
-    # entering basic recorder: in statistics recording mode
-    def recorder(self, model_worker):
-        model_worker.absolute_throughput += self.batch_size
-        model_worker.absolute_throughput_time_bins[int((time.perf_counter() - model_worker.start_time_pointer) / PLOTTING_BIN_SIZE)] += self.batch_size
-        model_worker.throughput += 1
-
-    def execute(self, model_worker, rec):
-        # Currently schedule plan is simple batch size
+    def execute(self, model_worker):
         if(self.batch_size == 0):
             return
-        if(rec):
-            self.recorder(model_worker)
-        input = model_worker.get_input(InputConfig(self.batch_size))
-        model_worker.inference(input, 0, model_worker.total_module, True, rec)
+        input = model_worker.get_input(InputConfig(batch_size = self.batch_size))
+        req_start_time = time.perf_counter()
+        model_worker.inference(input)
+        req_process_time = time.perf_counter() - req_start_time
+        if(model_worker.test_config.record_statistics):
+            model_worker.profile_data.logs.append((model_worker.test_config.batch_size, req_process_time * 1000))
+            model_worker.profile_data.absolute_throughput += model_worker.test_config.batch_size
+            model_worker.profile_data.absolute_throughput_time_bins[int((time.perf_counter() - model_worker.runtime_data.start_time_pointer) / PLOTTING_BIN_SIZE)] += model_worker.test_config.batch_size
+            model_worker.profile_data.throughput += 1

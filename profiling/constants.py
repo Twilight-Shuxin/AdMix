@@ -165,43 +165,42 @@ class InputConfig():
 
 """
     A class used to pack all configs related to a running work for the worker to perform.
-
 """
 class TestConfig():
-    def __init__(self, global_cnt, tag, batch_size, start, end, dcgm_group, seq_len = None, **kwargs):
-        self.global_cnt = global_cnt
-        self.tag = tag
-        self.batch_size = batch_size
-        self.start = start
-        self.end = end
-        self.dcgm_group = dcgm_group
-        self.seq_len = seq_len
-        self.nosync = False
-        self.trace_path = None
+    def __init__(self, **kwargs):
+        self.batch_size = kwargs["batch_size"] if "batch_size" in kwargs else 1
+        self.start = kwargs["start"] if "start" in kwargs else None
+        self.end = kwargs["end"] if "end" in kwargs else None
+        self.global_tag = kwargs["global_tag"] if "global_tag" in kwargs else None
+        self.dcgm_group = kwargs["dcgm_group"] if "dcgm_group" in kwargs else -1
+        self.seq_len = kwargs["seq_len"] if "seq_len" in kwargs else None
+        self.nosync = kwargs["nosync"] if "nosync" in kwargs else False
+        self.trace_path = kwargs["trace_path"] if "trace_path" in kwargs else None
         self.test_time = kwargs["test_time"] if "test_time" in kwargs else None
-        self.recording_action = kwargs["recording_action"] if "recording_action" in kwargs else None
+        self.set_recording_action(kwargs["recording_action"] if "recording_action" in kwargs else RecordingAction.NO_RECORD)
         self.scheduler = kwargs["scheduler"] if "scheduler" in kwargs else None
+        self.global_cnt = kwargs["global_cnt"] if "global_cnt" in kwargs else 1
+        self.inter_flag = kwargs["inter_flag"] if "inter_flag" in kwargs else False
+        self.test_time = kwargs["test_time"] if "test_time" in kwargs else 100
     
-    def get_inter_tag(self, model_worker):
-        if(self.start == None):
-            self.start = 0
-        if(self.end == None):
-            self.end = model_worker.total_module
-        self.inter_flag = (self.start != 0) or (self.end != model_worker.total_module)
+    def set_recording_action(self, recording_action):
+        self.recording_action = recording_action
+        self.record_statistics = (self.recording_action in RECORDING_ACTION_MAP["statistics"])
+        self.record_dcgm = (self.recording_action in RECORDING_ACTION_MAP["dcgm"])
 
-    def get_tag(self, model_worker):
-        self_tag = model_worker.get_tag(self)
-        self.tag = "-".join([model_worker.model_name, self.tag]) if (self.tag != None and self.global_cnt > 1) \
-            else self_tag
-    
-    def fit(self, model_worker):
-        self.get_inter_tag(model_worker)
-        if(model_worker.model_name != "bert" and self.inter_flag):
-            model_worker.submodel = torch.nn.Sequential(*model_worker.submodules[self.start:self.end])
-        self.get_tag(model_worker)
-        if(self.trace_path != None):
-            model_worker.get_trace(self.trace_path)
+"""
+    A class used to hold runtime data generated in a test run performed by a model worker.
+"""
+class RuntimeData():
+    def __init__(self):
+        return
 
+"""
+    A class used to hold profile data generated in a test run performed by a model worker.
+"""
+class ProfileData():
+    def __init__(self):
+        return
 
 """
     Monitors the running dcgm processes dcgm_procs, and report the process ids through conn.

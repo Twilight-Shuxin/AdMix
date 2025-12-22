@@ -27,5 +27,6 @@ class Scheduler():
     profiling_executor = None
     monitor = None
 
-    def serve(self, model_worker, test_time, rec):
-        pass
+    def serve(self, model_worker):
+        self.model_worker = model_worker
+        self._serve()

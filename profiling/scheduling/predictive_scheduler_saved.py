@@ -354,8 +354,8 @@ class PredictiveV2Scheduler(Scheduler):
         os.makedirs(output_dir, exist_ok=True)
 
         # define file paths
-        prefill_path = os.path.join(output_dir,"-".join(["prefill", self.llm_tag]) + ".txt")
-        decode_path = os.path.join(output_dir, "-".join(["decode", self.llm_tag]) + ".txt")
+        prefill_path = os.path.join(output_dir,"-".join(["prefill", self.model_worker.test_config.llm_tag]) + ".txt")
+        decode_path = os.path.join(output_dir, "-".join(["decode", self.model_worker.test_config.llm_tag]) + ".txt")
 
         # write prefill data
         with open(prefill_path, "w") as f:
@@ -373,7 +373,7 @@ class PredictiveV2Scheduler(Scheduler):
         self.model_worker = model_worker
         self.scheduler_init()
         self.rec = rec
-        model_worker.single_barrier.wait()
+        model_worker.double_barrier.wait()
         self.start_time_pointer = time.perf_counter()
         model_worker.start_time_pointer = time.perf_counter()
         while(True):
