@@ -20,7 +20,8 @@ class ProfileConfig:
         self.profile_path = dirname+"/../" + args.profile_path
 
         self.trace_path = get_comma_list(args.trace, ArgsType.STRING, self.model_cnt)
-        self.seq_len = get_comma_list_or_single(args.seqlen, ArgsType.INT)
+        # Only a list [input_seq_len, output_seq_len] can be specified for llm worker.
+        self.seq_len = get_comma_list(args.seq_len, ArgsType.INT)
         self.test_time = args.test_time
         self.global_tag = args.tag
 
@@ -73,7 +74,7 @@ def parse_profile_options():
         "--trace", type = str, default = ''
     )
     parser.add_argument(
-        "--seqlen", type = str, default = ""
+        "--seq_len", type = str, default = ""
     )
     parser.add_argument(
         "--tag", type = str, default = None

@@ -24,6 +24,8 @@ def get_input_config_from_test_config(test_config):
 
 # device is limited to CUDA_VISIBLE_DEVICE set before worker creation, thus all worker only see 'cuda'
 class ModelWorker(Process):
+    DEFAULT_TEST_TIME = 100
+
     def __init__(self, model_name, device_id, mps, pipe, barrier, log_path, profile_path):
         self.model_name = model_name
         self.mps = mps
@@ -129,6 +131,8 @@ class ModelWorker(Process):
 
     def setup_testenv(self, test_config):
         self.test_config = test_config
+        if(self.test_config.test_time is None):
+            self.test_config.test_time = ModelWorker.DEFAULT_TEST_TIME
         self.setup_inter()
         self.get_trace()
         self.input_config = get_input_config_from_test_config(self.test_config)

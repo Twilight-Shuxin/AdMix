@@ -55,13 +55,14 @@ class ProfileServer():
                 start = self.starts[id],
                 end = self.ends[id],
                 dcgm_group = self.dcgm_group,
-                seq_len = self.seq_len,
                 test_time = self.test_time,
                 recording_action = recording_action,
                 scheduler = self.scheduler,
                 trace_path = self.trace_path[id],
                 inter_flag = (self.starts[id] != 0) or (self.ends[id] != self.model_total_modules[model_name])
             )
+            if(model_name == "llm"):
+                test_config.seq_len = self.seq_len
             self.test_configs[model_name] = test_config
     
     # Get the total_modules of all model workers and save to self.model_total_modules;

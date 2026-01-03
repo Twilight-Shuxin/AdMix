@@ -68,7 +68,7 @@ class AIMDScheduler(Scheduler):
         uncompleted_tokens = intensity_data.uncompleted_tokens
 
         while (self.profile_pointer + 1 < len(self.profile) and
-             (current_timestamp - self.profile[self.profile_pointer][0] > AIMDScheduler.half_scheduling_interval)):
+             (current_timestamp - self.profile[self.profile_pointer][0] > self.half_scheduling_interval)):
             self.profile_pointer += 1
 
         if (uncompleted_tokens > 10 and self.profile[self.profile_pointer][1] * 1.1 < uncompleted_tokens):
@@ -105,9 +105,7 @@ class AIMDScheduler(Scheduler):
         self.model_worker.runtime_data.time_limit = self.model_worker.runtime_data.start_time_pointer + self.model_worker.test_config.test_time
         
         time.sleep(0.1)
-        while(True):
-            if(time.perf_counter() > self.model_worker.runtime_data.time_limit):
-                break
-            schedule_plan = self.schedule(get_llm_intensity_unix(AIMDScheduler.data_format))
+        while(time.perf_counter() < self.model_worker.runtime_data.time_limit):
+            schedule_plan = self.schedule(get_llm_intensity_unix(self.data_format))
             schedule_plan.execute(self.model_worker)
         

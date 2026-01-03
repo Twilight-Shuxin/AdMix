@@ -162,6 +162,7 @@ class InputConfig():
         self.nosync = kwargs["nosync"] if "nosync" in kwargs else None
         self.inter_flag = kwargs["inter_flag"] if "inter_flag" in kwargs else None
         self.start = kwargs["start"] if "start" in kwargs else None
+        self.seqlen = kwargs["seq_len"] if "seq_len" in kwargs else None
 
 """
     A class used to pack all configs related to a running work for the worker to perform.
@@ -176,12 +177,11 @@ class TestConfig():
         self.seq_len = kwargs["seq_len"] if "seq_len" in kwargs else None
         self.nosync = kwargs["nosync"] if "nosync" in kwargs else False
         self.trace_path = kwargs["trace_path"] if "trace_path" in kwargs else None
-        self.test_time = kwargs["test_time"] if "test_time" in kwargs else None
         self.set_recording_action(kwargs["recording_action"] if "recording_action" in kwargs else RecordingAction.NO_RECORD)
         self.scheduler = kwargs["scheduler"] if "scheduler" in kwargs else None
         self.global_cnt = kwargs["global_cnt"] if "global_cnt" in kwargs else 1
         self.inter_flag = kwargs["inter_flag"] if "inter_flag" in kwargs else False
-        self.test_time = kwargs["test_time"] if "test_time" in kwargs else 100
+        self.test_time = kwargs["test_time"] if "test_time" in kwargs else None
     
     def set_recording_action(self, recording_action):
         self.recording_action = recording_action
@@ -200,6 +200,14 @@ class RuntimeData():
 """
 class ProfileData():
     def __init__(self):
+        return
+
+"""
+    A class used to hold profiled data specifically collected for a scheduler that is generated in a test run performed by a model worker.
+"""
+class SchedulerData():
+    def __init__(self, scheduler_type):
+        self.scheduler_type = scheduler_type
         return
 
 """
@@ -275,90 +283,62 @@ def get_dcgm_analysis_excluding_zeros(profile_filepath):
     filtered = [v for v in values if v != 0]
     return np.mean(filtered) if filtered else None
 
-class Heap:
-    def __init__(self):
-        self.heap = []
-    def clear(self):
-        self.heap = []
-    def push(self, item):
-        heapq.heappush(self.heap, item)
-    def pop(self):
-        return heapq.heappop(self.heap)
-    def peek(self):
-        return self.heap[0]
-    def __len__(self):
-        return len(self.heap)
-
-class MaxHeapWithTimestamp:
-    def __init__(self):
-        self.heap = Heap()
-        self.min_timestamp = None
-
-    def push(self, item):
-        self.heap.push((-item[0], item[1]))
-    
-    def clear(self):
-        self.heap.clear()
-        self.min_timestamp = None
-    
-    def set_mintimestamp(self, min_timestamp):
-        self.min_timestamp = min_timestamp + EPS
-    
-    def lazy_filter(self):
-        if(self.min_timestamp != None):
-            while (len(self.heap) > 0 and self.heap.peek()[1] < self.min_timestamp):
-                self.heap.pop()
-
-    def pop(self):
-        self.lazy_filter()
-        item = self.heap.pop()
-        return [-item[0], item[1]]
-
-    def peek(self):
-        self.lazy_filter()
-        if(len(self.heap) > 0):
-            item = self.heap.peek()
-        else:
-            item = [0, None]
-        return [-item[0], item[1]]
-
-    def __len__(self):
-        return len(self.heap)
-
-class AvgDequeWithTimestamp():
-    def __init__(self):
-        self.cnt = 0
-        self.total = 0
-        self.deque = deque()
-    
-    def clear(self):
-        self.deque.clear()
-    
-    def append(self, item):
-        self.cnt += 1
-        self.total += item[0]
-        self.deque.append(item)
-    
-    def avg(self):
-        return self.total / self.cnt
-    
-    def evict(self):
-        item = self.deque.popleft()
-        self.cnt -= 1
-        self.total -= item[0]
-        return item
-
-    def __len__(self):
-        return len(self.deque)
-
 def timebin_ranges(time_bin_len, time_len):
     return np.arange(0, time_len + 5, time_bin_len)
 
-class DeletableHeap:
+
+"""
+    A max heap with inputs as **(key, value)** pairs (key for sorting and value to be retrieved).
+    When value is float allow specification to format the value to several digits by specifiying float_fmt.
+    Supports retrieving the sum of all keys in heap.
+"""
+class MaxHeap:
+    def __init__(self, float_fmt=".5f"):
+        self.heap = []               # stores (-key, key, str_val, float_val)
+        self.float_fmt = float_fmt
+        self.total = 0
+    
+    def __len__(self):
+        return len(self.heap)
+    
+    def get_total(self):
+        return self.total
+
+    def _normalize(self, t):
+        key = t[0]
+        val = t[1]
+        str_val = format(val, self.float_fmt)
+        return key, str_val
+
+    def push(self, t):
+        key, str_val = self._normalize(t)
+        self.total += key
+        heapq.heappush(self.heap, (-key, str_val))
+
+    def top(self):
+        key, str_val = self.heap[0]
+        key = -minus_key
+        return (key, float(str_val))
+
+    def pop(self):
+        minus_key, str_val = heapq.heappop(self.heap)
+        key = -minus_key
+        self.total -= key
+        return (key, float(str_val))
+
+
+"""
+    A max heap which is deletable, and the inputs are **(key, value)** pairs (key for sorting and value to be retrieved).
+    When value is float allow specification to format the value to several digits by specifiying float_fmt.
+"""
+class DeletableMaxHeap:
     def __init__(self, float_fmt=".5f"):
         self.heap = []               # stores (-key, key, str_val, float_val)
         self.counter = Counter()
         self.float_fmt = float_fmt
+    
+    def __len__(self):
+        return len(self.heap)
 
     def _normalize(self, t):
         key = t[0]

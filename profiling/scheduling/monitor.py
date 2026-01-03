@@ -14,18 +14,6 @@ class UDPProtocol(asyncio.DatagramProtocol):
     def datagram_received(self, data, addr):
         self.transport.sendto(str(self.queue_record[0]).encode(), addr)
 
-# def get_llm_intensity_udp(scheduling_data_format):
-#     try:
-#         result = subprocess.run(["lsof", "-i:" + str(LLM_SERVER_PORT)], capture_output=True, text=True, check=True)
-#     except subprocess.CalledProcessError:
-#         return scheduling_data_format.default_data()
-#     server_address = ('localhost', LLM_SERVER_PORT)
-#     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-#     client_socket.sendto("hi".encode(), server_address)
-#     data = scheduling_data_format.read_data(client_socket)
-#     client_socket.close()
-#     return data
-
 """
     Read observation data from llm server using scheduling data format.
 """

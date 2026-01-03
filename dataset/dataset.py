@@ -5,5 +5,5 @@ import random
 
 
 class Dataset(object):
-    def get_query(self, test_config):
+    def get_query(self, input_config):
         pass
