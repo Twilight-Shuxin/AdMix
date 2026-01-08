@@ -50,6 +50,9 @@ class ShareGPTDataset(Dataset):
             prefill_idx[idx_ii] = original_id
         return prefill_idx
 
+    """
+        Get a prompt using input_config, the returned data is (prompt, prompt_len).
+    """
     def get_query(self, input_config):
         sampled_prompt_len = input_config.seq_len
         prompt_len = self.data[self.prefill_idx[sampled_prompt_len]][1]

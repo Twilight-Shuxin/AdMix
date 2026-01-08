@@ -1,6 +1,6 @@
 from torch.multiprocessing import Process
 from multiprocessing import Process as StdProcess, Pipe
-from profiling.constants import profile_group_dict, profile_dict, list_to_string, InputConfig, dcgm_monitor, stop_dcgm
+from profiling.constants import profile_group_dict, profile_dict, list_to_string, InputConfig, dcgm_monitor, stop_dcgm, get_dcgm_data
 import torch
 import time
 import numpy as np
@@ -125,8 +125,7 @@ class ModelWorker(Process):
         self.profile_data = ProfileData()
         if(self.test_config.record_statistics):
             self.profile_data.logs = []
-            self.profile_data.absolute_throughput_time_bins = [0 for x in np.arange(0, self.test_config.time_len + PLOTTING_BIN_SIZE * 5, PLOTTING_BIN_SIZE)]
-            self.profile_data.absolute_throughput = 0
+            self.profile_data.absolute_throughput = RecordCounter(record_bins = True, time_limit = self.test_config.test_time)
             self.profile_data.throughput = 0
 
     def setup_testenv(self, test_config):
@@ -216,14 +215,14 @@ class ModelWorker(Process):
     def write_logs(self):
         self.write_analytics("summary.log", x[1] for x in self.profile_data.logs)
         self.write_list_to_csv("all.csv", ['Batch Size', 'Latency (ms)'], self.profile_data.logs)
-        self.write_all("flow.log", bin_records_append_timestamps(self.profile_data.absolute_throughput_time_bins, PLOTTING_BIN_SIZE))
+        self.write_all("flow.log", self.profile_data.absolute_throughput.append_timestamps())
   
 
     """
         Return performance metrics collected in the last test run.
     """
     def check_performace(self):
-        return self.absolute_throughput, self.throughput
+        return self.absolute_throughput.counter, self.throughput
     
     def warmup(self):
         for batch_size in self.supported_batchsize:
@@ -258,8 +257,7 @@ class ModelWorker(Process):
 
             if(self.test_config.record_statistics):
                 self.profile_data.logs.append((self.test_config.batch_size, req_process_time * 1000))
-                self.profile_data.absolute_throughput += self.test_config.batch_size
-                self.profile_data.absolute_throughput_time_bins[int((time.perf_counter() - self.runtime_data.start_time_pointer) / PLOTTING_BIN_SIZE)] += self.test_config.batch_size
+                self.profile_data.absolute_throughput.add(time.perf_counter() - self.runtime_data.start_time_pointer, self.test_config.batch_size)
                 self.profile_data.throughput += 1
         # End test
 

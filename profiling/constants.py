@@ -203,6 +203,67 @@ class ProfileData():
         return
 
 """
+    Profile data records in format of time bins within a period of time 'time_limit'.
+    Each time bin records' initial content is set to 'init'.
+    'bin_size' is set to PLOTTING_BIN_SIZE by default.
+"""
+class TimeBinRecord():
+    def __init__(self, init, time_limit, bin_size = PLOTTING_BIN_SIZE):
+        self.bin_size = bin_size
+        self.records = [init for _ in timebin_ranges(bin_size, time_limit)]
+    
+    def index(self, time_stamp):
+        return int(time_stamp / self.bin_size)
+
+    def get(self, time_stamp):
+        return self.records[self.index(time_stamp)]
+
+    ### Start of commonly used functions for bin records where each record is a list.
+    """
+        Append 'data' to the corresponding bin record.
+    """
+    def append_to_bin(self, time_stamp, data):
+        self.records[self.index(time_stamp)].append(data)
+    
+    """
+        Collapse collected bin records into count, average & max list.
+    """
+    def collapse(self):
+        count_list = [len(x) for x in self.records]
+        avg_list = [np.average(x) if x else 0 for x in self.records]
+        max_list = [np.max(x) if x else 0 for x in self.records]
+        return count_list, avg_list, max_list
+    
+    def add(self, time_stamp, data):
+        self.records[self.index(time_stamp)] += data
+
+    def append_timestamps(self, data = None):
+        if(not data):
+            data = self.records
+        return bin_records_append_timestamps(data, self.bin_size)
+
+class RecordCounter():
+    def __init__(record_bins = False, time_limit = None, bin_size = None):
+        self.counter = 0
+        self.record_bins = None
+        if(record_bins):
+            self.record_bins = TimeBinRecord(init = [], time_limit = time_limit, bin_size = bin_size)
+
+    def _operate(self, num, timestamp = None):
+        self.counter += num
+        if(self.record_bins):
+            self.record_bins.append_to_bin(timestamp, self.counter)
+
+    def add(self, timestamp = None):
+        self._operate(1, timestamp)
+    
+    def rm(self, timestamp = None):
+        self._operate(-1, timestamp)
+    
+    def append_timestamps(self):
+        return self.record_bins.append_timestamps()
+
+"""
     A class used to hold profiled data specifically collected for a scheduler that is generated in a test run performed by a model worker.
 """
 class SchedulerData():

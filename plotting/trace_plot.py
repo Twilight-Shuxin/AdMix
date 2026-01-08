@@ -46,44 +46,12 @@ def trace_plot_aggregated_intensity(aggregated_intensity, plot_file):
     plt.tight_layout()
     plt.savefig(plot_file)
 
-def bin_data(data, bin_size=PLOTTING_BIN_SIZE):
-    """
-    Groups data into bins of `bin_size` seconds and computes the average.
-    
-    :param data: List of (timestamp, value) pairs.
-    :param bin_size: Size of each bin in seconds.
-    :return: Binned (timestamp, value) pairs.
-    """
-    timestamps, values = zip(*data)
-    min_time, max_time = min(timestamps), max(timestamps)
-    bins = np.arange(min_time, max_time + bin_size, bin_size)
-    
-    binned_values = []
-    pointer = 0
-    for i in range(len(bins) - 1):
-        bin_start, bin_end = bins[i], bins[i + 1]
-        sum = 0
-        cnt = 0
-        while(pointer < len(data) and (bin_start <= data[pointer][0] < bin_end)):
-            sum += data[pointer][1]
-            cnt += 1
-            pointer += 1
-        if cnt > 0:
-            avg_value = sum / cnt
-            binned_values.append((bin_start, avg_value))
-
-    return binned_values
-
 def trace_plot_two_intensity_with_analysis_data(intensity_data_one, label1, intensity_data_two, label2, analysis_data, analysis_label, analysis_tag, plot_file):
     fig, ax1 = plt.subplots(figsize=(10, 5))
 
-    # Bin intensity data
-    binned_one = bin_data(intensity_data_one)
-    binned_two = bin_data(intensity_data_two)
-
     # Extract timestamps and values
-    timestamps_one, values_one = zip(*binned_one)
-    timestamps_two, values_two = zip(*binned_two)
+    timestamps_one, values_one = zip(*intensity_data_one)
+    timestamps_two, values_two = zip(*intensity_data_two)
 
     # Plot smoothed intensity data on left y-axis
     ax1.plot(timestamps_one, values_one, label=label1, color="#4B0082", linestyle="-")
@@ -109,13 +77,9 @@ def trace_plot_two_intensity_with_analysis_data(intensity_data_one, label1, inte
 def trace_plot_two_intensity_with_analysis_data_bar_plot(intensity_data_one, label1, intensity_data_two, label2, analysis_data, analysis_label, analysis_tag, plot_file):
     fig, ax1 = plt.subplots(figsize=(10, 5))
 
-    # Bin intensity data
-    binned_one = bin_data(intensity_data_one)
-    binned_two = bin_data(intensity_data_two)
-
     # Extract timestamps and values
-    timestamps_one, values_one = zip(*binned_one)
-    timestamps_two, values_two = zip(*binned_two)
+    timestamps_one, values_one = zip(*intensity_data_one)
+    timestamps_two, values_two = zip(*intensity_data_two)
 
     # Plot smoothed intensity data on left y-axis
     ax1.plot(timestamps_one, values_one, label=label1, color="#4B0082", linestyle="-")

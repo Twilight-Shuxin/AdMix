@@ -22,25 +22,6 @@ from profiling.scheduling.utils import get_scheduler
 def get_input_config_from_test_config(test_config):
     return InputConfig(seq_len=self.test_config.seq_len[0])
 
-class RecordCounter():
-    def __init__(record_bins = False):
-        self.counter = 0
-        if(record_bins):
-            self.record_bins = []
-        else:
-            self.record_bins = None
-
-    def _operate(self, num, timestamp = None):
-        self.counter += num
-        if(self.record_bins is not None):
-            self.record_bins.append((timestamp, self.counter))
-
-    def add(self, timestamp = None):
-        self._operate(1, timestamp)
-    
-    def rm(self, timestamp = None):
-        self._operate(-1, timestamp)
-
 class LLMWorker(ModelWorker):
     def __init__(self, device_id, mps, pipe, barrier, log_path, profile_path):
         super().__init__("llm", device_id, mps, pipe, barrier, log_path, profile_path)
@@ -50,24 +31,22 @@ class LLMWorker(ModelWorker):
             "temperature": 0,
             "stream": True
         }
-        self.SPEED_CONST = 0.2
-        self.initial_time = 0.2
-        self.server_proc = None
-        self.time_bins = None
         self.first_token_slo = 1
         self.idle_time_slo = 0
+
+        self.SPEED_CONST = 0.2
+        self.initial_time = self.SPEED_CONST
+
+        self.server_proc = None
         self.intensity_server = None
         self.intensity_profiler = None
         self.scheduler_monitor = None
-        self.device = device_id
     
     def statistics_recording_init(self):
-        self.time_bins = [[[],[]] for x in timebin_ranges(PLOTTING_BIN_SIZE, self.test_config.test_time)]
-        self.time_bins_failed_record = [0 for x in timebin_ranges(PLOTTING_BIN_SIZE, self.test_config.test_time)]
-        self.logs = []
-        # total_submitted & waiting_first
-        self.queue_total_submitted_record = []
-        self.queue_total_waiting_first_record = []
+        self.profile_data.first_token_time = TimeBinRecord(init = [], time_limit = self.test_config.test_time)
+        self.profile_data.between_token_time =  TimeBinRecord(init = [], time_limit = self.test_config.test_time)
+        self.profile_data.failed = TimeBinRecord(init = 0, time_limit = self.test_config.test_time)
+        self.profile_data.logs = []
     
     def init_start(self):
         # self.start_server()
@@ -155,71 +134,55 @@ class LLMWorker(ModelWorker):
         warmup_config.fit(self)
         self.random_test_period(warmup_config, 5)
     
+    """
+        Write basic logs:
+            profile_data.logs: [(timestamp, prompt_tkn, output_tkn, ttft, latency, idle time, success)]
+    """
     def write_basic_logs(self):
-        self.write_analytics("ftsummary.log", [x[3] for x in self.logs])
-        self.write_analytics("btsummary.log", [(x[4]/ x[2]) for x in self.logs if(x[4] > 0)])
-        self.logs = sorted(self.logs, key = lambda x: x[0])
+        self.profile_data.logs = sorted(self.profile_data.logs, key = lambda x: x[0])
+        self.write_analytics("ftsummary.log", [x[3] for x in self.profile_data.logs])
+        self.write_analytics("btsummary.log", [(x[4] / x[2]) for x in self.profile_data.logs])
         self.write_list_to_csv("all.csv", 
             ['Request timestamp (s)', 'Input token cnt', 'Output token cnt', 'TFT (s)', 'Latency (s)', 'Idle time (s)', 'Success'], 
-            self.logs)
+            self.profile_data.logs)
     
-    def write_log(self):
+    def write_logs(self):
         self.write_basic_logs()
-        average_ftt_list = []
-        average_btt_list = []
-        throughput_list = []
-        tt_logs = []
-        pointer_first = 0
-        pointer_all = 0
-        first_intensity = 0
-        all_intensity = 0
-        for id, bin in enumerate(self.time_bins): 
-            bin_start = id * PLOTTING_BIN_SIZE
-            while(pointer_first < len(self.queue_total_waiting_first_record) 
-                and self.queue_total_waiting_first_record[pointer_first][0] < bin_start + 0.02):
-                first_intensity = self.queue_total_waiting_first_record[pointer_first][1]
-                pointer_first += 1
-            while(pointer_all < len(self.queue_total_submitted_record) 
-                and self.queue_total_submitted_record[pointer_all][0] < bin_start + 0.02):
-                all_intensity = self.queue_total_submitted_record[pointer_all][1]
-                pointer_all += 1
-            average_ftt = np.average(bin[0]) if len(bin[0]) > 0 else 0
-            max_ftt = np.max(bin[0]) if len(bin[0]) > 0 else 0
-            average_btt = np.average(bin[1]) if len(bin[1]) > 0 else 0
-            max_btt = np.max(bin[1]) if len(bin[1]) > 0 else 0
-            average_ftt_list.append(average_ftt)
-            average_btt_list.append(average_btt)
-            throughput_list.append(len(bin[1]) + len(bin[0]))
-            tt_logs.append([bin_start, first_intensity, all_intensity - first_intensity, len(bin[0]), len(bin[1]), average_ftt, max_ftt, average_btt, max_btt])
-        self.write_list_to_csv(test_config, "ttsummary.csv", 
-            ['Bin Timestamp (s)', 'Prefill intensity', 'Decode intensity', 'FT throughput', 'BT throughput', 'Average TFT (s)', 'Max TFT (s)', 'Average TBT (s)', 'Max TBT(s)'], 
+        count_list_ftt, avg_list_ftt, max_list_ftt = self.profile_data.time_bins.first_token_time.collapse()
+        count_list_btt, avg_list_btt, max_list_btt = self.profile_data.time_bins.between_token_time.collapse()
+        tt_logs = [
+            [id * self.profile_data.time_bins.first_token_time.bin_size, *values]
+            for id, values in enumerate(zip(
+                count_list_ftt, count_list_btt, avg_list_ftt,
+                max_list_ftt, avg_list_btt, max_list_btt
+            ))
+        ]
+        self.write_list_to_csv("ttsummary.csv", 
+            ['Bin Timestamp (s)', 'FT throughput', 'BT throughput', 'Average TFT (s)', 'Max TFT (s)', 'Average TBT (s)', 'Max TBT(s)'], 
             tt_logs)
         
-        average_ftt_list = bin_records_append_timestamps(average_ftt_list, PLOTTING_BIN_SIZE)
-        average_btt_list = bin_records_append_timestamps(average_btt_list, PLOTTING_BIN_SIZE)
-        throughput_list = bin_records_append_timestamps(throughput_list, PLOTTING_BIN_SIZE)
-        failed_record_list = bin_records_append_timestamps(self.time_bins_failed_record, PLOTTING_BIN_SIZE)
-
-        aggregated_intensity = bin_data(self.queue_total_submitted_record)
+        avg_list_ftt = self.profile_data.time_bins.first_token_time.append_timestamps(avg_list_ftt)
+        avg_list_btt = self.profile_data.time_bins.between_token_time.append_timestamps(avg_list_btt)
+        failed_record_list = self.profile_data.time_bins.failed.append_timestamps()
+        submitted_intensity = self.profile_data.submitted_record_counter.append_timestamps()
+        waiting_first_intensity = self.profile_data.waiting_first_record_counter.append_timestamps()
 
         if(self.test_config.trace_path):
-            self.write_all(test_config, "aggregated_intensity_all.log", aggregated_intensity)
-            self.write_all(test_config, "failed_records.log", failed_record_list)
-            trace_plot_two_intensity_with_analysis_data(self.queue_total_submitted_record, "All", self.queue_total_waiting_first_record, "First",
-                average_btt_list, "Average BTT", ('Latency', '(s)'), self.get_file_path(test_config, 'intensity_bt_latency.png'))
-            trace_plot_two_intensity_with_analysis_data(self.queue_total_submitted_record, "All", self.queue_total_waiting_first_record, "First",
-                average_ftt_list, "Average FTT", ('Latency', '(s)'), self.get_file_path(test_config, 'intensity_ft_latency.png'))
-            trace_plot_two_intensity_with_analysis_data_bar_plot(self.queue_total_submitted_record, "All", self.queue_total_waiting_first_record, "First",
-                failed_record_list, "Failed", ('Case Count', ''), self.get_file_path(test_config, 'aggregated_failed.png'))
-            trace_plot_aggregated_intensity(aggregated_intensity, self.get_file_path(test_config, 'aggregated.png'))
-            trace_plot_aggregated_intensity_with_analysis_data(bin_data(self.queue_total_waiting_first_record), average_btt_list,
-                ('Latency', '(s)'), self.get_file_path(test_config, 'prefill_bt_latency.png'))
-            trace_plot_aggregated_intensity_with_analysis_data(aggregated_intensity, average_btt_list,
-                ('Latency', '(s)'), self.get_file_path(test_config, 'aggregated_bt_latency.png'))
-            trace_plot_aggregated_intensity_with_analysis_data(aggregated_intensity, average_ftt_list,
-                ('Latency', '(s)'), self.get_file_path(test_config, 'aggregated_ft_latency.png'))
-            trace_plot_aggregated_intensity_with_analysis_data(aggregated_intensity, throughput_list,
-                ('Throughput', ''), self.get_file_path(test_config, 'aggregated_throughput.png'))
+            self.write_all("submitted_intensity.log", submitted_intensity)
+            self.write_all("failed_records.log", failed_record_list)
+            trace_plot_two_intensity_with_analysis_data(submitted_intensity, "Submitted", waiting_first_intensity, "Waiting First",
+                avg_list_btt, "Average BTT", ('Latency', '(s)'), self.get_file_path('intensity_bt_latency.png'))
+            trace_plot_two_intensity_with_analysis_data(submitted_intensity, "Submitted", waiting_first_intensity, "Waiting First",
+                avg_list_ftt, "Average FTT", ('Latency', '(s)'), self.get_file_path('intensity_ft_latency.png'))
+            trace_plot_two_intensity_with_analysis_data_bar_plot(submitted_intensity, "Submitted", waiting_first_intensity, "Waiting First",
+                failed_record_list, "Failed", ('Case Count', ''), self.get_file_path('submitted_failed.png'))
+            trace_plot_aggregated_intensity(submitted_intensity, self.get_file_path('submitted.png'))
+            trace_plot_aggregated_intensity_with_analysis_data(waiting_first_intensity, avg_list_btt,
+                ('Latency', '(s)'), self.get_file_path('prefill_bt_latency.png'))
+            trace_plot_aggregated_intensity_with_analysis_data(submitted_intensity, avg_list_btt,
+                ('Latency', '(s)'), self.get_file_path('submitted_bt_latency.png'))
+            trace_plot_aggregated_intensity_with_analysis_data(submitted_intensity, avg_list_ftt,
+                ('Latency', '(s)'), self.get_file_path('submitted_ft_latency.png'))
     
     def check_performace(self, test_config):
         return self.total_submitted * 0.01 >= self.failed, self.completed, self.total_submitted - self.failed, self.total_submitted, (self.first_token_slo, self.idle_time_slo, self.SPEED_CONST, self.initial_time)
@@ -229,7 +192,7 @@ class LLMWorker(ModelWorker):
         def add_failed(timestamp):
             self.runtime_data.failed += 1
             if(self.test_config.record_statistics):
-                self.time_bins_failed_record[int(timestamp / PLOTTING_BIN_SIZE)] += 1
+                self.profile_data.failed.add(timestamp, 1)
             return False
 
         if(request_timestamp == None):
@@ -267,7 +230,6 @@ class LLMWorker(ModelWorker):
         try:
             async for chunk in receiver:
                 current_timestamp = time.perf_counter() - self.runtime_data.start_time_pointer
-                current_plotting_bin_timestamp = int(current_timestamp / PLOTTING_BIN_SIZE)
                 if(current_timestamp > self.test_config.test_time):
                     raise asyncio.CancelledError
                 
@@ -279,7 +241,7 @@ class LLMWorker(ModelWorker):
                 if not first_chunk_time:
                     first_chunk_time = between_token_time
                     if(self.test_config.record_statistics): 
-                        self.time_bins[current_plotting_bin_timestamp][0].append(first_chunk_time)
+                        self.profile_data.first_token_time.append_to_bin(current_timestamp, first_chunk_time)
                     self.runtime_data.waiting_first_record_counter.rm(current_timestamp)
                     
                     if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
@@ -290,7 +252,7 @@ class LLMWorker(ModelWorker):
                 else:
                     waiting_time += between_token_time
                     if(self.test_config.record_statistics):
-                        self.time_bins[current_plotting_bin_timestamp][1].append(between_token_time)
+                        self.profile_data.between_token_time.append_to_bin(current_timestamp, between_token_time)
                     
                     if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
                         if(last_refreshed_counter != self.scheduler_data.refreshed_counter):
@@ -377,7 +339,7 @@ class LLMWorker(ModelWorker):
                 latency = -1
             result = self.check_single_query_performance(request_timestamp, first_chunk_time, user_idle_time_info_record)
             if(self.test_config.record_statistics):
-                self.runtime_data.logs.append([request_timestamp, prompt_len, max_tokens, first_chunk_time, latency, user_idle_time, result])
+                self.profile_data.logs.append([request_timestamp, prompt_len, max_tokens, first_chunk_time, latency, user_idle_time, result])
         except asyncio.CancelledError:
             raise
       
@@ -444,8 +406,10 @@ class LLMWorker(ModelWorker):
         self.profile_data.completed = 0
         self.profile_data.failed = 0
         self.profile_data.total_submitted = 0
-        self.profile_data.submitted_record_counter = RecordCounter(self.test_config.record_statistics)
-        self.profile_data.waiting_first_record_counter = RecordCounter(self.test_config.record_statistics)
+        self.profile_data.submitted_record_counter = RecordCounter(record_bins = self.test_config.record_statistics, 
+                time_limit = self.test_config.test_time)
+        self.profile_data.waiting_first_record_counter = RecordCounter(record_bins = self.test_config.record_statistics, 
+                time_limit = self.test_config.test_time)
         
         self.queue_total_submitted_record = []
         self.queue_total_waiting_first_record = []
@@ -480,10 +444,10 @@ class LLMWorker(ModelWorker):
         self.runtime_data.time_limit = self.runtime_data.start_time_pointer + self.test_config.test_time
 
         while(time.perf_counter() < self.runtime_data.time_limit):
-            if(self.test_config.trace_path != None):
+            if(self.test_config.trace_path):
                 req_time, sample_in_length, sample_out_length = self.trace.next()
 
-                if(req_time < self.test_config.time_len):
+                if(req_time < self.test_config.test_time):
                     sleep_time = req_time + self.runtime_data.start_time_pointer - time.perf_counter()
                     if(sleep_time > 0):
                         await asyncio.sleep(sleep_time)
@@ -518,6 +482,6 @@ class LLMWorker(ModelWorker):
             stop_dcgm(dcgm_monitor_conn)
 
         if(self.test_config.record_statistics):
-            self.write_log(test_config)
+            self.write_logs()
     
 
