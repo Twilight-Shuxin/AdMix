@@ -1,14 +1,9 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys
-import os
+import ones
 
-def average_chunks(data, chunk_size):
-    """Return a list where each item is the average of every `chunk_size` items."""
-    return [
-        (data[i][0], sum(y for _, y in data[i:i + chunk_size]) / len(data[i:i + chunk_size]))
-        for i in range(0, len(data), chunk_size)
-    ]
+from plotting.utils import average_chunks
 
 def plot_throughput(records, file_path):
     chunk_size = 60
