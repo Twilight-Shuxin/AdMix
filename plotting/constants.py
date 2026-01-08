@@ -7,11 +7,12 @@ else:
     PLOTTING_BIN_SIZE = 0.5
 
 """
+    Input: List of data
     Return a list where each item is the average of every `chunk_size` items.
 """
 def average_chunks(data, chunk_size):
     return [
-        sum(data[i:i + chunk_size]) / len(data[i:i + chunk_size])
+        sum(data[i : i + chunk_size]) / len(data[i : i + chunk_size])
         for i in range(0, len(data), chunk_size)
     ]
 

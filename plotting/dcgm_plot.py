@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import sys
 
-from plotting.utils import average_chunks
+from plotting.constants import average_chunks
 
 def plot_dcgm(records, data_path_prefix, tag):
     if len(records) > 20:
@@ -12,8 +12,7 @@ def plot_dcgm(records, data_path_prefix, tag):
 
     plt.figure(figsize=(10, 5))
 
-    chunk_size = 30
-    records = average_chunks(records, chunk_size)
+    records = average_chunks(records, chunk_size = 30)
     df = pd.DataFrame({tag: records})
 
     tag_config = {
@@ -48,7 +47,6 @@ def plot_dcgm(records, data_path_prefix, tag):
 
     output_path = f"{data_path_prefix}{tag}.pdf"
     plt.savefig(output_path)
-    plt.close()
 
 def plot_dcgm_from_file(data_prefix, tag):
     records = get_dcgm_data(data_prefix + tag + '.log')
