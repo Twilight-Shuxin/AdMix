@@ -23,6 +23,3 @@ class UNet3DWorker(ModelWorker):
             batch_size: torch.rand(batch_size, 3, 16, 128, 128).cuda(self.device)
             for batch_size in self.supported_batchsize
         }
-    
-    def common_start(self):
-        self.total_module = -1

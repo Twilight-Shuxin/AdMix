@@ -15,5 +15,3 @@ class Deeplabv3Worker(ModelWorker):
             batch_size: torch.tensor(np.random.normal(0, 1, (batch_size, 3, 350, 350)), dtype=torch.float32).to(self.device)
             for batch_size in self.supported_batchsize
         }
-    def common_start(self):
-        self.total_module = -1

@@ -1,7 +1,5 @@
 from torch import nn
-from torchsummary import summary
 import torch
-import time
 
 class Conv3DBlock(nn.Module):
     """
@@ -36,9 +34,6 @@ class Conv3DBlock(nn.Module):
         else:
             out = res
         return out, res
-
-
-
 
 class UpConv3DBlock(nn.Module):
     """
