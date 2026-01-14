@@ -313,7 +313,7 @@ class RecordCounter():
     If dcgm processes are not detected (died), start a new one in replace. 
     Upon receiving message from conn, report the final pids of the processes through conn and stop the monitoring process. 
 """
-def dcgm_monitor(dcgm_procs, conn):
+def dcgm_dmon_monitor(dcgm_procs, conn):
     while(True):
         if conn.poll():
             msg = conn.recv()
@@ -326,7 +326,7 @@ def dcgm_monitor(dcgm_procs, conn):
                 os.kill(pid, 0)  # Doesn't actually kill; just checks permission/existence
             except ProcessLookupError:
                 os.system(cmd + " append")
-                with open('tmp.txt', 'r') as pid_file:
+                with open('tmp.log', 'r') as pid_file:
                     pid = int(pid_file.read())
                 dcgm_procs[id] = (pid, cmd)
             except PermissionError:

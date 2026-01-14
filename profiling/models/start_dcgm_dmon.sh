@@ -8,4 +8,4 @@ else
   nohup dcgmi dmon -g "$1" -e "$2" > "$3" &
 fi
 
-echo $! > tmp.txt
+echo $! > dcgm_pid.log
