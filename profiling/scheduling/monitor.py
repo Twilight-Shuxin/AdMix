@@ -3,16 +3,7 @@ import asyncio
 import socket
 import subprocess
 
-LLM_SERVER_PORT = 15311
 LLM_SOCKET_PATH = "/tmp/unix_socket_async"
-
-class UDPProtocol(asyncio.DatagramProtocol):
-    def __init__(self, queue_record):
-        self.queue_record = queue_record
-    def connection_made(self, transport):
-        self.transport = transport
-    def datagram_received(self, data, addr):
-        self.transport.sendto(str(self.queue_record[0]).encode(), addr)
 
 """
     Read observation data from llm server using scheduling data format.

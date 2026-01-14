@@ -7,14 +7,17 @@ class ConstantSchedulingDataFormat(SchedulingDataFormat):
     class ObservationData(BaseModel):
         foo: int = 0
 
-    def default_data():
+    @classmethod
+    def default_data(cls):
         return ConstantSchedulingDataFormat.ObservationData()
     
-    def pack_data(llm_worker):
+    @classmethod
+    def pack_data(cls, llm_worker):
         data = ConstantSchedulingDataFormat.ObservationData(foo = 0)
         return pack_data_bytes(data)
 
-    def read_data(client_socket):
+    @classmethod
+    def read_data(cls, client_socket):
         length = get_data_length(client_socket)
         return unpack_data_bytes(ConstantSchedulingDataFormat.ObservationData, client_socket, length)
 

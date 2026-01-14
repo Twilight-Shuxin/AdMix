@@ -42,7 +42,7 @@ def read_LLM_trace_config():
             trace_id = data["trace_id"],
             chunk_size = data["chunk_size"],
             start_id = data["start_id"],
-            max_prompt_cnt = data["max_promt_cnt"],
+            max_prompt_cnt = data["max_prompt_cnt"],
             scale = data["scale"]
         )
     if("time" in data):

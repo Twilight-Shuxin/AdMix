@@ -6,7 +6,7 @@ from dataset.dataset import Dataset
 class ShareGPTDataset(Dataset):
     def __init__(self, dataset_filename):
         self.dataset_filepath = os.path.dirname(os.path.realpath(__file__)) + "/" + dataset_filename
-        self.max_prompt_len = 3000
+        self.max_prompt_len = 3001 # actual max prompt len is max_prompt_len - 1
         self.max_gen_len = 2048
 
         print("Start preparing dataset")

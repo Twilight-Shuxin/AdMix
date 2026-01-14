@@ -16,12 +16,12 @@ class BasicSchedulePlan(SchedulePlan):
     def execute(self, model_worker):
         if(self.batch_size == 0):
             return
-        input = model_worker.get_input(InputConfig(batch_size = self.batch_size))
+        modul_input = model_worker.get_input(InputConfig(batch_size = self.batch_size))
         req_start_time = time.perf_counter()
-        model_worker.inference(input)
+        model_worker.inference(modul_input)
         req_process_time = time.perf_counter() - req_start_time
+        model_worker.runtime_data.absolute_throughput += self.batch_size
         if(model_worker.test_config.record_statistics):
             model_worker.profile_data.logs.append((model_worker.test_config.batch_size, req_process_time * 1000))
-            model_worker.profile_data.absolute_throughput.add(
+            model_worker.profile_data.absolute_throughput_records.add(
                 time.perf_counter() - model_worker.runtime_data.start_time_pointer, self.batch_size)
-            model_worker.profile_data.throughput += 1

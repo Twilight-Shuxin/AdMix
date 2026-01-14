@@ -1,31 +1,20 @@
-from torch.multiprocessing import Process
-from multiprocessing import Process as StdProcess, Pipe
-from profiling.constants import profile_group_dict, profile_dict, list_to_string, InputConfig, dcgm_monitor, stop_dcgm, get_dcgm_data
 import torch
+from torch.multiprocessing import Process
 import time
+import inspect
 import numpy as np
-from trace.trace_utils import Trace
+from multiprocessing import Process as StdProcess, Pipe
 import os
-from profiling.scheduling.monitor import *
-from profiling.scheduling.utils import get_scheduler
-from plotting.constants import PLOTTING_BIN_SIZE
-from plotting.plot_dcgm import plot_dcgm
 import csv
-import json
+import json 
+from profiling.constants import *
+from trace.trace_utils import SimpleTimeTrace
+from profiling.scheduling.utils import get_scheduler
+from plotting.dcgm_plot import plot_dcgm
 
-def read_intensity_from_pipe():
-    with open(PIPE_PATH, "r") as fifo:
-        latest_value = fifo.readlines()[-1]  # Get the last updated value
-    return latest_value  
-
-def get_input_config_from_test_config(test_config):
-    return InputConfig(batch_size = test_config.batch_size, nosync = test_config.nosync, start = test_config.start, 
-        inter_flag = test_config.inter_flag) 
 
 # device is limited to CUDA_VISIBLE_DEVICE set before worker creation, thus all worker only see 'cuda'
 class ModelWorker(Process):
-    DEFAULT_TEST_TIME = 100
-
     def __init__(self, model_name, device_id, mps, pipe, barrier, log_path, profile_path):
         self.model_name = model_name
         self.mps = mps
@@ -37,7 +26,6 @@ class ModelWorker(Process):
         self.true_device_id = int(device_id) if device_id.isdigit() else device_id
         self.supported_batchsize = [x for x in range(1,33)]
         self.dirname, filename = os.path.split(os.path.abspath(__file__))
-        self.warmup_time = 10
         self.beta = 2
         super().__init__()
     
@@ -52,8 +40,11 @@ class ModelWorker(Process):
         FIXME: Currently ignored all partial model setup due to memory restrictions.
     """
     def submodules_setup(self):
-        self.submodules = self.model.get_submodules()
-        self.total_module = len(self.submodules)
+        self.submodules = None
+        self.total_module = -1
+        if hasattr(self, "model") and hasattr(self.model, "get_submodules") and callable(self.model.get_submodules):
+            self.submodules = self.model.get_submodules()
+            self.total_module = len(self.submodules)
         # self.partial_model = {}
         # self.partial_input = {}
         # for batch_size in self.supported_batchsize:
@@ -68,6 +59,11 @@ class ModelWorker(Process):
         #         partial_input_current = self.partial_input[batch_size][i]
         #         self.partial_input[batch_size][right] = self._inference(partial_input_current, i, right)
     
+    @classmethod
+    def get_input_config_from_test_config(cls, test_config):
+        return InputConfig(batch_size = test_config.batch_size, nosync = test_config.nosync, start = test_config.start, 
+            inter_flag = test_config.inter_flag) 
+    
     def get_input(self, input_config):
         batch_size = input_config.batch_size
         if(input_config.nosync):
@@ -78,13 +74,15 @@ class ModelWorker(Process):
             return self.random_input[batch_size]
     
     # Setup submodel under current test_configuration: self.submodel = model[start:end]
-    def setup_inter(self):
+    def setup_test_submodel(self):
         if(self.model_name != "bert" and self.test_config.inter_flag):
             self.submodel = torch.nn.Sequential(*self.submodules[self.test_config.start : self.test_config.end])
     
     # Get the trace according to trace path
     def get_trace(self):
-        self.trace = Trace(self.test_config.trace_path)
+        if(not self.test_config.trace_path):
+            return
+        self.test_config.trace = SimpleTimeTrace(self.test_config.trace_path)
     
     """
         Get the tag of oneself in the format of:
@@ -105,7 +103,6 @@ class ModelWorker(Process):
             sub_tag += "m" + str(self.mps)
         if(len(sub_tag) != 0):
             sub_tag = "(" + sub_tag + ")"
-        test_config.get_inter_tag(self)
         if(test_config.inter_flag):
             sub_tag += "[" + str(test_config.start) + "," + str(test_config.end) + "]"
         return tag + sub_tag
@@ -125,28 +122,37 @@ class ModelWorker(Process):
         self.profile_data = ProfileData()
         if(self.test_config.record_statistics):
             self.profile_data.logs = []
-            self.profile_data.absolute_throughput = RecordCounter(record_bins = True, time_limit = self.test_config.test_time)
-            self.profile_data.throughput = 0
+            self.profile_data.absolute_throughput_records = TimeBinRecord(init = 0, time_limit = self.test_config.test_time)
+    
+    def init_runtime_data(self):
+        self.runtime_data = RuntimeData()
+        self.runtime_data.absolute_throughput = 0
+    
+    def init_scheduler_data(self):
+        self.scheduler_data = SchedulerData()
+        self.scheduler_data.scheduler = get_scheduler(self.test_config.scheduler)
 
     def setup_testenv(self, test_config):
         self.test_config = test_config
-        if(self.test_config.test_time is None):
-            self.test_config.test_time = ModelWorker.DEFAULT_TEST_TIME
-        self.setup_inter()
+        
+        self.setup_test_submodel()
         self.get_trace()
-        self.input_config = get_input_config_from_test_config(self.test_config)
-        self.test_config.full_tag = self.get_full_tag()
-        self.runtime_data = RuntimeData()
+        self.input_config = self.get_input_config_from_test_config(self.test_config)
+        self.test_config.full_tag = self.get_full_tag(self.test_config)
+    
+    def init_testenv_data(self, warmup = False):
         self.init_profile_data()
+        self.init_runtime_data()
+        self.init_scheduler_data()
 
     def get_dcgm_file_path(self, profile_statistic):
         return os.path.join(self.log_path, "-".join([self.test_config.full_tag, str(profile_statistic)]) + ".log")
 
     def start_dcgm(self):
-        if(self.test_config.dcgm_group == None):
+        if(self.test_config.dcgm_group == -1):
             return None
         dcgm_procs = []
-        for profile_statistic in profile_group_dict[self.test_config.dcgm_group]:
+        for profile_statistic in profile_group_dict[self.test_config.dcgm_groups]:
             profile_id = profile_dict[profile_statistic]
             log_filepath = self.get_dcgm_file_path(profile_statistic)
             command = "{}/dcgm_monitor.sh {} {} \"{}\"".format(self.dirname, str(self.true_device_id + 2), str(profile_id), 
@@ -173,7 +179,7 @@ class ModelWorker(Process):
             
     # Get the filepath as: self.log_path/full_tag-filename; or self.log_path/subpath/full_tag-filename if subpath specified.
     def get_file_path(self, file_name, subpath = None):
-        if(subpath_name != None):
+        if(subpath):
             return os.path.join(self.log_path, subpath, "-".join([self.test_config.full_tag, file_name]))
         return os.path.join(self.log_path, "-".join([self.test_config.full_tag, file_name]))
     
@@ -213,34 +219,44 @@ class ModelWorker(Process):
             profile_data.absolute_throughput_time_bins: throughput at each time step
     """
     def write_logs(self):
-        self.write_analytics("summary.log", x[1] for x in self.profile_data.logs)
+        self.write_analytics("summary.log", [x[1] for x in self.profile_data.logs])
         self.write_list_to_csv("all.csv", ['Batch Size', 'Latency (ms)'], self.profile_data.logs)
-        self.write_all("flow.log", self.profile_data.absolute_throughput.append_timestamps())
+        self.write_all("flow.log", self.profile_data.absolute_throughput_records.append_timestamps())
   
 
     """
         Return performance metrics collected in the last test run.
     """
     def check_performace(self):
-        return self.absolute_throughput.counter, self.throughput
-    
-    def warmup(self):
-        for batch_size in self.supported_batchsize:
-            self.inference(self.random_input[batch_size], sync=True)
+        return self.runtime_data.absolute_throughput
     
     """
-        Perform test according to self.test_config under no-scheduler mode.
+        Perform inferences for GPU & model warmup.
+    """
+    def warmup(self):
+        warmup_iter = 10
+        model_input = self.get_input(self.input_config)
+        for _ in range(warmup_iter):
+            self.inference(model_input, self.test_config.start, self.test_config.end, sync = True)
+    
+    """
+        Perform test according to self.test_config.
+        If scheduler is set, use scheduler's serve method instead.
         All runtime settings have been completed by the wrapper function 'test' ↓
     """
     def _test(self):
+        if(self.scheduler_data.scheduler):
+            self.scheduler_data.scheduler.serve(self)
+            return
+
         # Start test
         self.runtime_data.start_time_pointer = time.perf_counter()
         self.runtime_data.time_limit = self.runtime_data.start_time_pointer + self.test_config.test_time
-        input = self.get_input(self.input_config)
+        model_input = self.get_input(self.input_config)
         while(time.perf_counter() < self.runtime_data.time_limit):
             if(self.test_config.trace_path):
-                req_time = self.trace.next()
-                sleep_time = req_time + self.start_time_pointer - time.perf_counter()
+                req_time = self.test_config.trace.next()
+                sleep_time = req_time + self.runtime_data.start_time_pointer - time.perf_counter()
                 if(sleep_time > 0):
                     time.sleep(sleep_time)
                 if(time.perf_counter() > self.runtime_data.time_limit):
@@ -249,16 +265,16 @@ class ModelWorker(Process):
             req_start_time = time.perf_counter()
             if(self.test_config.nosync):
                 for i in range(self.test_config.batch_size):
-                    self.inference(input, self.test_config.start, self.test_config.end, sync=False)
+                    self.inference(model_input, self.test_config.start, self.test_config.end, sync=False)
                 torch.cuda.synchronize()
             else:
-                self.inference(input, self.test_config.start, self.test_config.end, sync=True)
+                self.inference(model_input, self.test_config.start, self.test_config.end, sync=True)
             req_process_time = time.perf_counter() - req_start_time
 
+            self.runtime_data.absolute_throughput += self.test_config.batch_size
+            self.profile_data.absolute_throughput_records.add(time.perf_counter() - self.runtime_data.start_time_pointer, self.test_config.batch_size)
             if(self.test_config.record_statistics):
                 self.profile_data.logs.append((self.test_config.batch_size, req_process_time * 1000))
-                self.profile_data.absolute_throughput.add(time.perf_counter() - self.runtime_data.start_time_pointer, self.test_config.batch_size)
-                self.profile_data.throughput += 1
         # End test
 
     """
@@ -266,15 +282,11 @@ class ModelWorker(Process):
         Initializes the runtime settings for test and execute test.
     """
     def test(self):
-        self.runtime_data.scheduler = get_scheduler(self.test_config.scheduler)
-
-        if(self.test_config.record_statistics):
-            self.statistics_recording_init(test_config)
         if(self.test_config.record_dcgm):
-            dcgm_monitor_conn = self.start_dcgm(test_config)
+            dcgm_monitor_conn = self.start_dcgm()
 
-        if(self.runtime_data.scheduler != None):
-            self.runtime_data.scheduler.serve(self)
+        if inspect.iscoroutinefunction(self._test):
+            self.loop.run_until_complete(self._test())
         else:
             self._test()
     
@@ -288,16 +300,19 @@ class ModelWorker(Process):
         Plot certain specified dcgm statistics.
         FIXME: Current collected dcgm statistics are those in self.test_config, check if this is properly set.
     """
-    def collect_dcgm(self):
+    def collect_dcgm(self, dcgm_groups):
         plot_dcgm_statistics = ["sm_active", "dram_active"]
         dcgm_data = {}
-        for dcgm_group in self.test_config.dcgm_group:
+        for dcgm_group in dcgm_groups:
+            if(dcgm_group == -1):
+                continue
             for profile_statistic in profile_group_dict[dcgm_group]:
-                dcgm_data[profile_statistic] = get_dcgm_analysis(self.get_dcgm_file_path(profile_statistic))
+                dcgm_data_path = self.get_dcgm_file_path(profile_statistic)
+                dcgm_data[profile_statistic] = get_dcgm_analysis(dcgm_data_path)
                 if(profile_statistic in plot_dcgm_statistics):
-                    records = get_dcgm_data(data_path)
+                    records = get_dcgm_data(dcgm_data_path)
                     plot_dcgm(records, os.path.join(self.log_path, self.test_config.full_tag + "-"), profile_statistic)
-        return dcgm_data
+        return dcgm_data if dcgm_data else None
     
     """
         Profile model to get the 99 percentile latency of each batch size setting.
@@ -311,11 +326,12 @@ class ModelWorker(Process):
         }
         for batch_size in self.supported_batchsize:
             spent_time = []
-            for id, iter in enumerate(range(warmup_iter + profile_iter)):
+            for _ in range(warmup_iter):
+                self.inference(self.random_input[batch_size], sync = True)
+            for _ in range(profile_iter):
                 start_time = time.perf_counter()
-                self.inference(self.random_input[batch_size], sync=True)
-                if(id >= warmup_iter):
-                    spent_time.append(time.perf_counter() - start_time)
+                self.inference(self.random_input[batch_size], sync = True)
+                spent_time.append(time.perf_counter() - start_time)
             profile_data[batch_size] = np.percentile(spent_time, 99)
         with open(os.path.join(self.profile_path, self.model_name + ".json"), "w") as profile_file:
             json.dump(profile_data, profile_file, indent=4)
@@ -331,15 +347,22 @@ class ModelWorker(Process):
     def run(self) -> None:
         self.init_start()
         self.submodules_setup()
-        self.warmup()
         self.barrier.wait()
         while(True):
             action = self.pipe.recv()
             if(action == "profile"):
+                # FIXEME: Currently profile does not have test environment activated: this may lead 
+                # to troubles if profile mode is used for LLM worker.
                 self.profile()
                 self.double_barrier.wait()
             elif(action == "test"):
                 self.setup_testenv(self.pipe.recv())
+                self.test_config.set_warmup()
+                self.init_testenv_data()
+                self.warmup()
+                self.test_config.set_test()
+                self.init_testenv_data(warmup = False)
+                self.barrier.wait()
                 self.test()
                 self.barrier.wait()
             elif(action == "self_tag"):
@@ -349,8 +372,10 @@ class ModelWorker(Process):
                 test_config = self.pipe.recv()
                 self.pipe.send(self.get_full_tag(test_config))
             elif(action == "collect"):
-                if(self.test_config.dcgm_group != None):
-                    self.pipe.send(self.collect_dcgm())
+                collect_action = self.pipe.recv()
+                if(collect_action == "dcgm"):
+                    dcgm_groups = self.pipe.recv()
+                    self.pipe.send(self.collect_dcgm(dcgm_groups))
                 self.pipe.send(self.check_performace())
             elif(action == "get_total_modules"):
                 self.pipe.send(self.total_module)

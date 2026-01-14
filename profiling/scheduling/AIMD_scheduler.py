@@ -12,25 +12,28 @@ class AIMDSchedulingDataFormat(SchedulingDataFormat):
         current_timestamp: float = 0
         uncompleted_tokens: int = 0
 
-    def default_data():
+    @classmethod
+    def default_data(cls):
         return AIMDSchedulingDataFormat.ObservationData()
     
-    def pack_data(llm_worker):
+    @classmethod
+    def pack_data(cls, llm_worker):
         data =  AIMDSchedulingDataFormat.ObservationData(
-            current_timestamp=llm_worker.uncompleted_tokens_last_record[0], 
-            uncompleted_tokens=llm_worker.uncompleted_tokens_last_record[1])
+            current_timestamp=llm_worker.scheduler_data.uncompleted_tokens_last_record[0], 
+            uncompleted_tokens=llm_worker.scheduler_data.uncompleted_tokens_last_record[1])
         return pack_data_bytes(data)
-
-    def read_data(client_socket):
+    
+    @classmethod
+    def read_data(cls, client_socket):
         length = get_data_length(client_socket)
         return unpack_data_bytes(AIMDSchedulingDataFormat.ObservationData, client_socket, length)
 
 async def AIMD_monitor(llm_worker):
-    llm_worker.uncompleted_tokens_last_record = (0,0)
+    llm_worker.scheduler_data.uncompleted_tokens_last_record = (0,0)
     timestamp = 0
     try:
         while(True):
-            llm_worker.uncompleted_tokens_last_record = (timestamp, llm_worker.uncompleted_tokens)
+            llm_worker.scheduler_data.uncompleted_tokens_last_record = (timestamp, llm_worker.scheduler_data.uncompleted_tokens)
             await asyncio.sleep(0.1)
             timestamp += 0.1
     except asyncio.CancelledError:
@@ -40,13 +43,13 @@ async def AIMD_profiler(llm_worker):
     logs = []
     timestamp = 0
     try:
-        print("Started profiling")
+        print("Started scheduler profiling")
         while(True):
-            logs.append([timestamp, llm_worker.uncompleted_tokens])
+            logs.append([timestamp, llm_worker.scheduler_data.uncompleted_tokens])
             await asyncio.sleep(AIMDScheduler.scheduling_interval)
             timestamp += 0.1
     except asyncio.CancelledError:
-        file_path = os.path.join(llm_worker.profile_path, llm_worker.test_config.tag  + ".log")
+        file_path = os.path.join(llm_worker.profile_path, llm_worker.test_config.full_tag  + ".log")
         with open(file_path, "w") as profile_file:
             print("Writing profiled results to:", file_path)
             for log_record in logs: 
@@ -88,7 +91,7 @@ class AIMDScheduler(Scheduler):
         self.profile = []
         self.profile_pointer = 0
 
-        with open(os.path.join(self.model_worker.profile_path, "-".join(["llm", self.model_worker.test_config.llm_tag]) + ".log"), "r") as profile_file:
+        with open(os.path.join(self.model_worker.profile_path, self.model_worker.test_config.llm_tag + ".log"), "r") as profile_file:
             lines = profile_file.readlines()
             for line in lines:
                 self.profile.append([float(x) for x in line.strip().split(" ")])

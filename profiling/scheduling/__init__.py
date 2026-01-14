@@ -1,4 +1,4 @@
-from .AIMD_scheduler import AIMD_scheduler
-from .predictive_scheduler import PredictiveScheduler
+from .AIMD_scheduler import AIMDScheduler, AIMDSchedulingDataFormat
+from .predictive_scheduler import PredictiveScheduler, PredictiveSchedulingDataFormat
 
 __all__ = ["AIMD_scheduler", "PredictiveScheduler"]

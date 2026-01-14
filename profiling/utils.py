@@ -1,5 +1,4 @@
-import os 
-from profiling.models import *
+from profiling.models import ResnetWorker, VggWorker, InceptionWorker, LLMWorker, UNet3DWorker, GANWorker, Deeplabv3Worker
 
 model_workers = {
     "resnet50": ResnetWorker,

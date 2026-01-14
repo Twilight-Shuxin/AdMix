@@ -10,7 +10,7 @@ class ProfileConfig:
         self.starts = get_comma_list(args.start, ArgsType.INT, self.model_cnt)
         self.ends = get_comma_list(args.end, ArgsType.INT, self.model_cnt)
         self.batch_sizes = get_comma_list(args.batch_size, ArgsType.INT, self.model_cnt)
-        self.profile_groups = get_comma_list(args.profile_group, ArgsType.INT)
+        self.dcgm_groups = get_comma_list(args.dcgm_group, ArgsType.INT)
         self.device = args.device
 
         # Save log data to under MPSTest/args.path (default: MPSTest/data)
@@ -19,9 +19,12 @@ class ProfileConfig:
         self.path = dirname + "/../" +args.path
         self.profile_path = dirname+"/../" + args.profile_path
 
-        self.trace_path = get_comma_list(args.trace, ArgsType.STRING, self.model_cnt)
+        self.trace_path = get_comma_list(args.trace, ArgsType.STRING, self.model_cnt, default = None)
         # Only a list [input_seq_len, output_seq_len] can be specified for llm worker.
-        self.seq_len = get_comma_list(args.seq_len, ArgsType.INT)
+        self.seq_len = get_comma_list_or_single(args.seq_len, ArgsType.INT)
+        # When seq_len is not specified, self.seq_len is []; change it into None.
+        if(not self.seq_len):
+            self.seq_len = None
         self.test_time = args.test_time
         self.global_tag = args.tag
 
@@ -57,9 +60,9 @@ def parse_profile_options():
         default = "",
     )
     parser.add_argument(
-        "--profile_group", 
+        "--dcgm_group", 
         type = str,
-        default = "",
+        default = "-1",
     )
     parser.add_argument(
         "--device", type = str, default = "0"
@@ -71,8 +74,10 @@ def parse_profile_options():
         "--profile_path", type = str, default = "profile_data"
     )
     parser.add_argument(
-        "--trace", type = str, default = ''
+        "--trace", type = str, default = ""
     )
+    # seq_len should be a comma list: prompt_len, output_len. 
+    # This is provided to the LLM worker.
     parser.add_argument(
         "--seq_len", type = str, default = ""
     )

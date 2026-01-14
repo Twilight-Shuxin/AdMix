@@ -1,13 +1,11 @@
 import os
-import torch
+import copy
 from enum import Enum
-from trace.trace_utils import Trace
 import numpy as np
 import heapq
-from collections import deque
 import time
-import heapq
 from collections import Counter
+from plotting.constants import PLOTTING_BIN_SIZE
 
 EPS = 1e-6
 
@@ -47,7 +45,6 @@ def device_init(device_id):
 
 
 def background(cmd, log):
-    logger.info(" ".join(cmd))
     log = gmanager_home + "/" + log
     open(log, 'w').close() 
     return subprocess.Popen(cmd,
@@ -99,20 +96,22 @@ profile_dict = {
 """
     Given a string list 'x1, x2, x3' (ending \n will be stripped);
     Change it into list [x1, x2, x3];
+    Special cases:
+        - If string list is empty, first empty list is generated.
+        - In string, if empty term is given ('x1,'); the empty term is set to None.
     If argstype is int, the list will be a int list;
     If given expend (int), it requires the list to be expanded into [x1, x2, ..., x_{expand}]
-    If default is given, expand list with default; else expand with x1. 
+    If default is given, expand list with default; else expand with x1 (or None if x1 non-existent). 
 """
-def get_comma_list(strlist, argstype, expand = None, default = None):
-    results = strlist.strip("\n").split(",")
+def get_comma_list(strlist, argstype, expand = None, **kwargs):
+    results = strlist.strip("\n").split(",") if strlist else []
     if(argstype == ArgsType.INT):
-        results = [int(result) if result != '' else default for result in results]
+        results = [int(result) if result != '' else None for result in results]
     else:
-        results = [result if result != '' else default for result in results]
+        results = [result if result != '' else None for result in results]
     if(expand is not None):
         if(len(results) != expand):
-            if(default == None):
-                default = results[0]
+            default = kwargs.get("default", results[0] if len(results) else None)
             for i in range(len(results), expand):
                 results.append(default)
     return results
@@ -120,8 +119,8 @@ def get_comma_list(strlist, argstype, expand = None, default = None):
 """
     Same functionality as get_comma_list↑, only with 'x1' return x1 instead of [x1]
 """
-def get_comma_list_or_single(strlist, argstype, expand = None, default = None):
-    comma_list = get_comma_list(strlist, argstype, expand, default)
+def get_comma_list_or_single(strlist, argstype, expand = None, **kwargs):
+    comma_list = get_comma_list(strlist, argstype, expand, **kwargs)
     if(len(comma_list) == 1): 
         return comma_list[0]
     return comma_list
@@ -149,6 +148,8 @@ def list_to_string(data, delimiter = " "):
 
 """
     A class used to pack all configs related to getting a input tensor.
+    It is also responsible for filling in missing data with defaults which are required for successful execution:
+        currently - batchsize, seq_len
     batch size: /
     no sync: True / False, if set to true always get a input tensor of batch size 1 
             (input data will be manually submitted up to batch size times at a time without synchronizing the GPU)
@@ -158,35 +159,59 @@ def list_to_string(data, delimiter = " "):
 """
 class InputConfig():
     def __init__(self, **kwargs):
-        self.batch_size = kwargs["batch_size"] if "batch_size" in kwargs else None
-        self.nosync = kwargs["nosync"] if "nosync" in kwargs else None
-        self.inter_flag = kwargs["inter_flag"] if "inter_flag" in kwargs else None
-        self.start = kwargs["start"] if "start" in kwargs else None
-        self.seqlen = kwargs["seq_len"] if "seq_len" in kwargs else None
+        self.batch_size = kwargs.get("batch_size", None)
+        if(not self.batch_size):
+            self.batch_size = 1
+        self.nosync = kwargs.get("nosync", None)
+        self.inter_flag = kwargs.get("inter_flag", None)
+        self.start = kwargs.get("start", None)
+        self.seq_len = kwargs.get("seq_len", None)
+        if(not self.seq_len):
+            self.seq_len = 1
 
 """
     A class used to pack all configs related to a running work for the worker to perform.
 """
 class TestConfig():
     def __init__(self, **kwargs):
-        self.batch_size = kwargs["batch_size"] if "batch_size" in kwargs else 1
-        self.start = kwargs["start"] if "start" in kwargs else None
-        self.end = kwargs["end"] if "end" in kwargs else None
-        self.global_tag = kwargs["global_tag"] if "global_tag" in kwargs else None
-        self.dcgm_group = kwargs["dcgm_group"] if "dcgm_group" in kwargs else -1
-        self.seq_len = kwargs["seq_len"] if "seq_len" in kwargs else None
-        self.nosync = kwargs["nosync"] if "nosync" in kwargs else False
-        self.trace_path = kwargs["trace_path"] if "trace_path" in kwargs else None
-        self.set_recording_action(kwargs["recording_action"] if "recording_action" in kwargs else RecordingAction.NO_RECORD)
-        self.scheduler = kwargs["scheduler"] if "scheduler" in kwargs else None
-        self.global_cnt = kwargs["global_cnt"] if "global_cnt" in kwargs else 1
-        self.inter_flag = kwargs["inter_flag"] if "inter_flag" in kwargs else False
-        self.test_time = kwargs["test_time"] if "test_time" in kwargs else None
+        self.batch_size = kwargs.get("batch_size", 1)
+        self.start = kwargs.get("start", None)
+        self.end = kwargs.get("end", None)
+        self.global_tag = kwargs.get("global_tag", None)
+        self.dcgm_group = kwargs.get("dcgm_group", -1)
+        self.seq_len = kwargs.get("seq_len", None)
+        self.nosync = kwargs.get("nosync", False)
+        self.trace_path = kwargs.get("trace_path", None)
+        self.set_recording_action(kwargs.get("recording_action", RecordingAction.NO_RECORD))
+        self.recording_action_saved = None
+        self.scheduler = kwargs.get("scheduler", None)
+        self.scheduler_saved = None
+        self.global_cnt = kwargs.get("global_cnt", 1)
+        self.inter_flag = kwargs.get("inter_flag", False)
+
+        self.test_time = kwargs.get("test_time", None)
+        self.test_time_default = self.test_time is None
+        if(self.test_time is None):
+            self.test_time = 100
     
     def set_recording_action(self, recording_action):
         self.recording_action = recording_action
         self.record_statistics = (self.recording_action in RECORDING_ACTION_MAP["statistics"])
         self.record_dcgm = (self.recording_action in RECORDING_ACTION_MAP["dcgm"])
+    
+    def set_warmup(self):
+        self.recording_action_saved = self.recording_action
+        self.scheduler_saved = self.scheduler
+        self.scheduler = None
+        self.set_recording_action(RecordingAction.NO_RECORD)
+    
+    def set_test(self):
+        if(self.recording_action_saved):
+            self.set_recording_action(self.recording_action_saved)
+            self.recording_action_saved = None
+        if(self.scheduler_saved):
+            self.scheduler = self.scheduler_saved
+            self.scheduler_saved = None
 
 """
     A class used to hold runtime data generated in a test run performed by a model worker.
@@ -203,6 +228,13 @@ class ProfileData():
         return
 
 """
+    A class used to hold profiled data specifically collected for a scheduler that is generated in a test run performed by a model worker.
+"""
+class SchedulerData():
+    def __init__(self):
+        return
+
+"""
     Profile data records in format of time bins within a period of time 'time_limit'.
     Each time bin records' initial content is set to 'init'.
     'bin_size' is set to PLOTTING_BIN_SIZE by default.
@@ -210,23 +242,24 @@ class ProfileData():
 class TimeBinRecord():
     def __init__(self, init, time_limit, bin_size = PLOTTING_BIN_SIZE):
         self.bin_size = bin_size
-        self.records = [init for _ in timebin_ranges(bin_size, time_limit)]
+        self.records = [copy.copy(init) for _ in timebin_ranges(bin_size, time_limit)]
     
     def index(self, time_stamp):
-        return int(time_stamp / self.bin_size)
+        idx = int(time_stamp / self.bin_size)
+        if(idx >= len(self.records)):
+            return None
+        return idx
 
     def get(self, time_stamp):
-        return self.records[self.index(time_stamp)]
-
-    ### Start of commonly used functions for bin records where each record is a list.
-    """
-        Append 'data' to the corresponding bin record.
-    """
-    def append_to_bin(self, time_stamp, data):
-        self.records[self.index(time_stamp)].append(data)
+        idx = self.index(time_stamp)
+        if(idx is None):
+            print("Warning: accessing time bin data out of time limit.") 
+            return 0
+        return self.records[idx]
     
     """
         Collapse collected bin records into count, average & max list.
+        Applicable if bin records are lists.
     """
     def collapse(self):
         count_list = [len(x) for x in self.records]
@@ -234,20 +267,32 @@ class TimeBinRecord():
         max_list = [np.max(x) if x else 0 for x in self.records]
         return count_list, avg_list, max_list
     
+    """
+        Append 'data' to the corresponding bin record.
+    """
+    def append_to_bin(self, time_stamp, data):
+        idx = self.index(time_stamp)
+        if(idx is not None):
+            self.records[idx].append(data)
+    
     def add(self, time_stamp, data):
-        self.records[self.index(time_stamp)] += data
+        idx = self.index(time_stamp)
+        if(idx is not None):
+            self.records[idx] += data
 
     def append_timestamps(self, data = None):
         if(not data):
             data = self.records
         return bin_records_append_timestamps(data, self.bin_size)
 
+"""
+    A record counter that can be associated with a record_bin (TimeBinRecord).
+    The counter tracks the current count, and the record_bin records how the count changes over time.
+"""
 class RecordCounter():
-    def __init__(record_bins = False, time_limit = None, bin_size = None):
+    def __init__(self, record_bins = None):
         self.counter = 0
-        self.record_bins = None
-        if(record_bins):
-            self.record_bins = TimeBinRecord(init = [], time_limit = time_limit, bin_size = bin_size)
+        self.record_bins = record_bins
 
     def _operate(self, num, timestamp = None):
         self.counter += num
@@ -260,16 +305,8 @@ class RecordCounter():
     def rm(self, timestamp = None):
         self._operate(-1, timestamp)
     
-    def append_timestamps(self):
-        return self.record_bins.append_timestamps()
-
-"""
-    A class used to hold profiled data specifically collected for a scheduler that is generated in a test run performed by a model worker.
-"""
-class SchedulerData():
-    def __init__(self, scheduler_type):
-        self.scheduler_type = scheduler_type
-        return
+    def set_record_bins(self, record_bins):
+        self.record_bins = record_bins
 
 """
     Monitors the running dcgm processes dcgm_procs, and report the process ids through conn.
@@ -345,7 +382,7 @@ def get_dcgm_analysis_excluding_zeros(profile_filepath):
     return np.mean(filtered) if filtered else None
 
 def timebin_ranges(time_bin_len, time_len):
-    return np.arange(0, time_len + 5, time_bin_len)
+    return np.arange(0, time_len + 0.5, time_bin_len)
 
 
 """
@@ -377,7 +414,7 @@ class MaxHeap:
         heapq.heappush(self.heap, (-key, str_val))
 
     def top(self):
-        key, str_val = self.heap[0]
+        minus_key, str_val = self.heap[0]
         key = -minus_key
         return (key, float(str_val))
 

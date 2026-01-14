@@ -1,13 +1,13 @@
+import torch
 from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, unpack_data_bytes, get_data_length
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
 from profiling.scheduling.predict.MLP_model import MLPPredictModel
 from profiling.scheduling.monitor import get_llm_intensity_unix
-from pydantic import BaseModel
-from profiling.scheduling.constants import *
+from pydantic import BaseModel, Field
+from profiling.scheduling.constants import SCHEDULING_BIN_SIZE, FeatureModel
 from plotting.constants import *
 from profiling.constants import *
-from enum import Enum, IntEnum
-import struct
+from enum import IntEnum
 import time
 import asyncio
 
@@ -35,14 +35,14 @@ def get_point_data(llm_worker):
     TP_maxL = 0
     if(NP):
         LP_avg = llm_worker.scheduler_data.total_prefill_length / NP
-        LP_max, TP_maxL = llm_worker.scheduler_data.prefill_length_heap.top()
-        TP_maxL = timestamp - TP_maxL
+        LP_max, submitted_timestamp = llm_worker.scheduler_data.prefill_length_heap.top()
+        TP_maxL = timestamp - submitted_timestamp
     ND = llm_worker.runtime_data.submitted_record_counter.counter - llm_worker.runtime_data.waiting_first_record_counter.counter
     LD_avg = 0
     if(ND):
         LD_avg = llm_worker.scheduler_data.total_decode_length / ND
-    return PredictiveSchedulingDataFormat.ObservationPointData(
-            prefill_data = PredictiveSchedulingDataFormat.PrefillRequestData(
+    return ObservationPointData(
+            prefill_data = PrefillRequestData(
                     N = NP, 
                     L_avg = LP_avg, 
                     L_max = LP_max, 
@@ -53,15 +53,13 @@ def get_period_data(llm_worker):
     timestamp = time.perf_counter() - llm_worker.runtime_data.start_time_pointer
     
     NP = len(llm_worker.scheduler_data.prefill_length_heap_period)
-    LP = 0
     LP_avg = 0
     LP_max = 0
     TP_maxL = 0
     if(NP):
-        LP = (llm_worker.scheduler_data.prefill_length_period / NP)
-        LP_max, TP_maxL = llm_worker.scheduler_data.prefill_length_heap_period.top()
+        LP_max, submitted_timestamp = llm_worker.scheduler_data.prefill_length_heap_period.top()
         LP_avg = llm_worker.scheduler_data.prefill_length_heap_period.get_total() / NP
-        TP_maxL = timestamp - TP_maxL
+        TP_maxL = timestamp - submitted_timestamp
     
     NF = llm_worker.scheduler_data.finished_count_period
     if(NF):
@@ -82,8 +80,8 @@ def get_period_data(llm_worker):
     if(llm_worker.scheduler_data.refreshed_counter > 10000):
         llm_worker.scheduler_data.refreshed_counter = 0
 
-    return PredictiveSchedulingDataFormat.ObservationPeriodData(
-                prefill_data = PredictiveSchedulingDataFormat.PrefillRequestData(
+    return ObservationPeriodData(
+                prefill_data = PrefillRequestData(
                     N=NP, 
                     L_avg=LP_avg, 
                     L_max=LP_max, 
@@ -94,20 +92,18 @@ def get_period_data(llm_worker):
 def collect_data(llm_worker):
     point_data = get_point_data(llm_worker)
     period_data = get_period_data(llm_worker)
-    return PredictiveSchedulingDataFormat.ObservationData(
-        point_data = point_data, period_data = period_data)
+    return ObservationData(point_data = point_data, period_data = period_data)
 
 async def predictive_profiler(llm_worker):
     logs = []
-    last_point_data = PredictiveSchedulingDataFormat.ObservationPointData()
+    last_point_data = ObservationPointData()
     try:
         print("Started profiling")
         while(True):
             last_timestamp = time.perf_counter() - llm_worker.runtime_data.start_time_pointer
             await asyncio.sleep(0.1)
             observation_data = collect_data(llm_worker)
-            timestamp = time.perf_counter() - llm_worker.runtime_data.start_time_pointer
-            if(timestamp > llm_worker.runtime_data.time_limit):
+            if(time.perf_counter() > llm_worker.runtime_data.time_limit):
                 raise asyncio.CancelledError
             logs.append([round(last_timestamp, 4)] + last_point_data.vector() + observation_data.period_data.vector())
             last_point_data = observation_data.point_data
@@ -122,63 +118,65 @@ async def predictive_profiler(llm_worker):
     except Exception as e:
         print(e)
 
-
-class PredictiveSchedulingDataFormat(SchedulingDataFormat):
-    class PrefillRequestData(FeatureModel):
+class PrefillRequestData(FeatureModel):
         N: int = 0
         L_avg: float = 0
         L_max: int = 0
         T_maxL: float = 0
     
-    class ObservationPointData(FeatureModel):
-        prefill_data: PrefillRequestData = Field(
-            default_factory=PrefillRequestData
-        )
-        ND: int = 0
-        LD_avg: float = 0
-    
-    class ObservationPeriodData(FeatureModel):
-        prefill_data: PrefillRequestData = Field(
-            default_factory=PrefillRequestData
-        )
-        NF: int = 0
-        LF_avg: float = 0
-        TpP: int = 0
-        TpD: int = 0
+class ObservationPointData(FeatureModel):
+    prefill_data: PrefillRequestData = Field(
+        default_factory=PrefillRequestData
+    )
+    ND: int = 0
+    LD_avg: float = 0
 
-    class ObservationData(FeatureModel):
-        point_data: ObservationPointData = Field(
-            default_factory=ObservationPointData
-        )
-        period_data: ObservationPeriodData = Field(
-            default_factory=ObservationPeriodData
-        )
-        def extended_data(self):
-            values = [
-                self.point_data.prefill_data.L_avg,
-                self.point_data.prefill_data.L_max,
-                self.point_data.LD_avg,
-                self.period_data.prefill_data.L_avg,
-                self.period_data.prefill_data.L_max,
-            ]
-            return [v * v for v in values]
-        
-        def pred_feature_data(self):
-            return self.vector()[:-2] + self.extended_data()
-        
-        def get_pred_feature_len(self):
-            return len(self.pred_feature_data())
+class ObservationPeriodData(FeatureModel):
+    prefill_data: PrefillRequestData = Field(
+        default_factory=PrefillRequestData
+    )
+    NF: int = 0
+    LF_avg: float = 0
+    TpP: int = 0
+    TpD: int = 0
 
-    def default_data():
-        return PredictiveSchedulingDataFormat.ObservationData()
+class ObservationData(FeatureModel):
+    point_data: ObservationPointData = Field(
+        default_factory=ObservationPointData
+    )
+    period_data: ObservationPeriodData = Field(
+        default_factory=ObservationPeriodData
+    )
+    def extended_data(self):
+        values = [
+            self.point_data.prefill_data.L_avg,
+            self.point_data.prefill_data.L_max,
+            self.point_data.LD_avg,
+            self.period_data.prefill_data.L_avg,
+            self.period_data.prefill_data.L_max,
+        ]
+        return [v * v for v in values]
     
-    def pack_data(llm_worker):
+    def pred_feature_data(self):
+        return self.vector()[:-2] + self.extended_data()
+    
+    def get_pred_feature_len(self):
+        return len(self.pred_feature_data())
+
+class PredictiveSchedulingDataFormat(SchedulingDataFormat):
+    @classmethod
+    def default_data(cls):
+        return ObservationData()
+    
+    @classmethod
+    def pack_data(cls, llm_worker):
         data = collect_data(llm_worker)
         return pack_data_bytes(data)
 
-    def read_data(client_socket):
+    @classmethod
+    def read_data(cls, client_socket):
         length = get_data_length(client_socket)
-        return unpack_data_bytes(PredictiveSchedulingDataFormat.MonitoredData, client_socket, length)
+        return unpack_data_bytes(ObservationData, client_socket, length)
 
 class PredictiveScheduler(Scheduler):
     data_format = PredictiveSchedulingDataFormat
@@ -202,7 +200,7 @@ class PredictiveScheduler(Scheduler):
         self.last_execution_time = 0
         self.time_interval = 0.1 # 100ms
         
-        input_dim = PredictiveSchedulingDataFormat.ObservationData().get_pred_feature_len()
+        input_dim = ObservationData().get_pred_feature_len()
         device = "cuda"
         self.prefill_predictor = MLPPredictModel("prefill", input_dim, device)
         self.decode_predictor = MLPPredictModel("decode", input_dim, device)
@@ -233,38 +231,37 @@ class PredictiveScheduler(Scheduler):
             if(true_Tp == 0 and pred_Tp != 0):
                 threshold.accumulated += 1
                 if(pred_Tp > 2):
-                    return self.__class__.Action.FLAT
+                    return Action.FLAT
                 else:
-                    return self.__class__.Action.UP 
+                    return Action.UP 
             else:
                 threshold.accumulated = 0
-            return self.__class__.Action.UP
+            return Action.UP
         if(true_Tp < pred_Tp - max(3, pred_Tp * threshold.alert_threshold)):
             threshold.accumulated = 0
-            return self.__class__.Action.DOWN
+            return Action.DOWN
         threshold.accumulated += 1
         if(threshold.accumulated > threshold.accumulate_threshold):
             threshold.accumulated = 0
-            return self.__class__.Action.DOWN
-        return self.__class__.Action.FLAT
+            return Action.DOWN
+        return Action.FLAT
 
     def schedule(self, intensity_data):
         self.start_round_time = time.perf_counter()
 
         # intensity of queries waiting for first token
-        observation_data = PredictiveSchedulingDataFormat.ObservationData(
-            point_data = self.last_point_data, period_data = intensity_data.period_data)
+        observation_data = ObservationData(point_data = self.last_point_data, period_data = intensity_data.period_data)
         self.last_point_data = intensity_data.point_data
         pred_TpP, pred_TpD = self.get_prediction(observation_data)
         action = self.check_threshold(self.threshold_P, pred_TpP, intensity_data.TpP)
         action = min(action, self.check_threshold(self.threshold_D, pred_TpD, intensity_data.TpD))
         match action:
-            case self.__class__.Action.UP:
+            case Action.UP:
                 self.step_up()
-            case self.__class__.Action.FLAT:
+            case Action.FLAT:
                 if(self.batch_size == 0):
                     self.step_up()
-            case self.__class__.Action.DOWN:  
+            case Action.DOWN:  
                 self.step_down()
         self.prediction_logs.append([round(time.perf_counter() - self.model_worker.runtime_data.start_time_pointer, 3),
             self.batch_size, intensity_data.TpP, pred_TpP, intensity_data.TpD, pred_TpD])

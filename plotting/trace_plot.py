@@ -1,129 +1,76 @@
-import numpy as np
-import sys
 import matplotlib.pyplot as plt
-import math
-from plotting.constants import *
+from enum import Enum
+from plotting.constants import color_list, line_style_list
 
-def trace_plot_aggregated_intensity_with_analysis_data(aggregated_intensity, analysis_data, y_tag, plot_file):
-    bin_midpoints = [x[0] for x in aggregated_intensity]
-    intensity = [x[1] for x in aggregated_intensity]
-    # Extract latency timestamps and values
-    analysis_data_timestamps = [entry[0] for entry in analysis_data]
-    analysis_data_values = [entry[1] for entry in analysis_data]
+"""
+    Trace plot data with format:
+        label: Name of data to be plotted
+        data = [(timestamp_1, data_1), (timestamp_2, data_2) ...]
+"""
+class TracePlotData():
+    def __init__(self, label, data):
+        self.label = label
+        self.x, self.y = zip(*data)
 
-    # Create figure and plot intensity
-    fig, ax1 = plt.subplots(figsize=(10, 5))
 
-    y_tag_name, y_tag_unit = y_tag
-    ax1.plot(bin_midpoints, intensity, linestyle='-', color='b', label='Intensity')
-    ax1.set_xlabel('Time (s)')
-    ax1.set_ylabel('Intensity', color='b')
-    ax1.tick_params(axis='y', labelcolor='b')
-    ax1.grid(True)
+"""
+    Trace axis information including:
+        label: Name of this axis; if not provided default is the label of first given TracePlotData
+        plot_type: LINE / BAR (HACK: TracePlotData plotted on same axis is forced to be plotted as either bar / line)
+        plot_data_list: list of TracePlotData to be plotted on this axis
+        y_tag: A tuple describing this axis: (name, unit) 
+"""
+class TraceAxisData():
+    class PlotType(Enum):
+        LINE = 1
+        BAR = 2
 
-    # Create secondary y-axis for latency
-    ax2 = ax1.twinx()
-    ax2.plot(analysis_data_timestamps, analysis_data_values, linestyle='--', color='r', label='Latency')
-    ax2.set_ylabel((y_tag_name + ' ' + y_tag_unit) if(len(y_tag_unit) > 0) else y_tag_name, color='r')
-    ax2.tick_params(axis='y', labelcolor='r')
+    def __init__(self, *plot_data_list, label = None, y_tag, plot_type = PlotType.LINE):
+        self.label = label
+        self.plot_data_list = list(plot_data_list)
+        self.y_tag_name, self.y_tag_unit = y_tag
+        self.plot_type = plot_type
+        if((not label) and self.plot_data_list):
+            self.label = self.plot_data_list[0].label
+    
+    def append(self, plot_data):
+        self.plot_data_list.append(plot_data)
+        
+"""
+    Plot trace graph with list of TraceAxisData, save to 'plot_file'.
+"""
+def plot_trace_graph(plot_file, *axis_list):
+    fig, ax = plt.subplots(figsize=(10, 5))
+    titles = []
+    handles = []
+    labels = []
+    ax.set_xlabel('Time (s)')
+    idy = 0
 
-    # Title and layout
-    plt.title('Aggregated Request Intensity & ' + y_tag_name + ' Over Time')
+    for idx, axis_data in enumerate(axis_list):
+        for plot_data in axis_data.plot_data_list:
+            match axis_data.plot_type:
+                case TraceAxisData.PlotType.LINE:
+                    ax.plot(plot_data.x, plot_data.y, linestyle = line_style_list[idy], color = color_list[idy], label = plot_data.label)
+                case TraceAxisData.PlotType.BAR: 
+                    ax.bar(plot_data.x, plot_data.y, label = plot_data.label, color = color_list[idy], alpha=0.5)
+            idy += 1
+        
+        y_tag_name = axis_data.y_tag_name
+        y_tag_unit = axis_data.y_tag_unit
+        ax.set_ylabel((y_tag_name + ' (' + y_tag_unit + ')') if(y_tag_unit) else y_tag_name)
+        ax.tick_params(axis='y')
+        titles.append(axis_data.label)
+
+        h, l = ax.get_legend_handles_labels()
+        handles = handles + h
+        labels = labels + l
+        if(not idx):
+            ax.grid(True)
+        if idx < len(axis_list) - 1:
+            ax = ax.twinx()
+
+    ax.legend(handles, labels, loc="upper right")
+    plt.title(' & '.join(titles))
     fig.tight_layout()
     plt.savefig(plot_file)
-
-
-def trace_plot_aggregated_intensity(aggregated_intensity, plot_file):
-    bin_midpoints = [x[0] for x in aggregated_intensity]
-    intensity = [x[1] for x in aggregated_intensity]
-    # Plotting the data
-    plt.figure(figsize=(10, 5))
-    plt.plot(bin_midpoints, intensity, linestyle='-', color='b')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Intensity')
-    plt.title('Aggregated Request Intensity')
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(plot_file)
-
-def trace_plot_two_intensity_with_analysis_data(intensity_data_one, label1, intensity_data_two, label2, analysis_data, analysis_label, analysis_tag, plot_file):
-    fig, ax1 = plt.subplots(figsize=(10, 5))
-
-    # Extract timestamps and values
-    timestamps_one, values_one = zip(*intensity_data_one)
-    timestamps_two, values_two = zip(*intensity_data_two)
-
-    # Plot smoothed intensity data on left y-axis
-    ax1.plot(timestamps_one, values_one, label=label1, color="#4B0082", linestyle="-")
-    ax1.plot(timestamps_two, values_two, label=label2, color="#377eb8", linestyle="--")
-    ax1.set_xlabel("Time (s)")
-    ax1.set_ylabel("Intensity")
-    ax1.legend(loc="upper left")
-    ax1.grid(True, linestyle="--", alpha=0.5)
-
-    # Create right y-axis for analysis data
-    ax2 = ax1.twinx() 
-    timestamps_analysis, values_analysis = zip(*analysis_data)
-    ax2.plot(timestamps_analysis, values_analysis, label=analysis_label, color="#FF4500", linestyle=":")
-    analysis_tag_name, analysis_tag_unit = analysis_tag
-    ax2.set_ylabel((analysis_tag_name + ' ' + analysis_tag_unit) if(len(analysis_tag_unit) > 0) else analysis_tag_name)
-    ax2.legend(loc="upper right")
-
-    # Save plot
-    plt.title("Request Intensity & " + analysis_tag_name)
-    plt.savefig(plot_file)
-    plt.show()
-
-def trace_plot_two_intensity_with_analysis_data_bar_plot(intensity_data_one, label1, intensity_data_two, label2, analysis_data, analysis_label, analysis_tag, plot_file):
-    fig, ax1 = plt.subplots(figsize=(10, 5))
-
-    # Extract timestamps and values
-    timestamps_one, values_one = zip(*intensity_data_one)
-    timestamps_two, values_two = zip(*intensity_data_two)
-
-    # Plot smoothed intensity data on left y-axis
-    ax1.plot(timestamps_one, values_one, label=label1, color="#4B0082", linestyle="-")
-    ax1.plot(timestamps_two, values_two, label=label2, color="#377eb8", linestyle="--")
-    ax1.set_xlabel("Time (s)")
-    ax1.set_ylabel("Intensity")
-    ax1.legend(loc="upper left")
-    ax1.grid(True, linestyle="--", alpha=0.5)
-
-    ax2 = ax1.twinx()  # Create secondary y-axis
-    timestamps_analysis, values_analysis = zip(*analysis_data)
-    # Change plot to a bar plot
-    ax2.bar(timestamps_analysis, values_analysis, label=analysis_label, color="#FF4500", alpha=0.5)
-    analysis_tag_name, analysis_tag_unit = analysis_tag
-    ax2.set_ylabel((analysis_tag_name + ' ' + analysis_tag_unit) if(len(analysis_tag_unit) > 0) else analysis_tag_name)
-    ax2.legend(loc="upper right")
-
-    # Save plot
-    plt.title("Request Intensity & " + analysis_tag_name)
-    plt.savefig(plot_file)
-    plt.show()
-
-def trace_plot_request_intensity(timestamps, plot_file):
-    # Convert timestamps to NumPy array for efficient processing
-    SUB_BIN_SIZE = 1
-    timestamps = np.array(timestamps)
-
-    # Define bin edges from min to max timestamp
-    min_time, max_time = np.min(timestamps), np.max(timestamps)
-    bins = np.arange(min_time, max_time + SUB_BIN_SIZE, SUB_BIN_SIZE)
-
-    # Count occurrences per bin
-    intensity, _ = np.histogram(timestamps, bins=bins)
-
-    # Compute bin centers for plotting
-    bin_centers = bins[:-1] + (SUB_BIN_SIZE / 2)
-
-    # Create the plot
-    plt.figure(figsize=(10, 5))
-    plt.plot(bin_centers, intensity, linestyle="-", color="blue", label="Request Intensity")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Request Count")
-    plt.title("Request Intensity Over Time")
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.legend()
-    plt.savefig(plot_file)
-

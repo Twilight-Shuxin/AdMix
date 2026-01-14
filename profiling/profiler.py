@@ -1,8 +1,8 @@
-from profiling.utils import *
+from profiling.utils import model_workers
 from profiling.constants import *
 import torch.multiprocessing as mp
-from plotting.trace_plot import *
-from trace.trace_utils import set_trace_config, read_trace_config_json
+from plotting.trace_plot import TracePlotData, TraceAxisData, plot_trace_graph
+from trace.trace_utils import set_LLM_trace_config
 import random
 import subprocess 
 import time
@@ -18,20 +18,11 @@ class ProfileServer():
         self.starts = profile_config.starts
         self.ends = profile_config.ends
         self.mps_list = profile_config.mps_list
-        self.profile_groups = profile_config.profile_groups
+        self.dcgm_groups = profile_config.dcgm_groups
         self.log_path = profile_config.path
         self.profile_path = profile_config.profile_path
         self.trace_path = profile_config.trace_path
         self.test_time = profile_config.test_time
-        for id, trace in enumerate(self.trace_path):
-            if(trace != None and "[" in trace):
-                self.trace_path[id], trace_config_id = trace.split("[")
-                trace_config_id = int(trace_config_id.strip("]"))
-                set_trace_config(trace_config_id)
-                trace_config = read_trace_config_json("trace_config.json")
-                # Prioritize test time in cmd args
-                if(self.test_time is None and "time" in trace_config):
-                    self.test_time = trace_config["time"]
         self.seq_len = profile_config.seq_len
         self.dirname = os.path.split(os.path.abspath(__file__))[0]
         # The logfile names are set to: worker_tag-global_tag-specific_suffix; normally global tag is 
@@ -43,6 +34,8 @@ class ProfileServer():
 
     # Currently, within a main run each worker's test config mainly remains the same.
     # So save the basic configurations that are barely changed first in self.test_configs for each model worker.
+    # FIXME: basic configurations actually may be different across runs theoretically, but 
+    # current implementation fixes them to be the same (e.g. global_cnt is fixed).
     def get_test_configs(self):
         self.test_configs = {}
         for id, model_name in enumerate(self.model_names):
@@ -54,11 +47,10 @@ class ProfileServer():
                 batch_size = self.batch_sizes[id],
                 start = self.starts[id],
                 end = self.ends[id],
-                dcgm_group = self.dcgm_group,
                 test_time = self.test_time,
-                recording_action = recording_action,
                 scheduler = self.scheduler,
                 trace_path = self.trace_path[id],
+                global_cnt = len(self.model_names),
                 inter_flag = (self.starts[id] != 0) or (self.ends[id] != self.model_total_modules[model_name])
             )
             if(model_name == "llm"):
@@ -69,7 +61,7 @@ class ProfileServer():
     def get_worker_total_modules(self):
         self.model_total_modules = {}
         for model_name in self.model_names:
-            self.pipe_map[model_name].send(("get_total_modules"))
+            self.pipe_map[model_name].send("get_total_modules")
             self.model_total_modules[model_name] = self.pipe_map[model_name].recv()
     
     # With the test_configs of all model workers, get their self tags and save to self.self_tags;
@@ -77,7 +69,7 @@ class ProfileServer():
     def get_worker_self_tags(self):
         self.self_tags = {}
         for model_name in self.model_names:
-            self.pipe_map[model_name].send(("self_tag"))
+            self.pipe_map[model_name].send("self_tag")
             self.pipe_map[model_name].send(self.test_configs[model_name])
             self.self_tags[model_name] = self.pipe_map[model_name].recv()
         if("llm" in self.model_names):
@@ -88,7 +80,7 @@ class ProfileServer():
     def get_worker_full_tags(self):
         self.full_tags = {}
         for model_name in self.model_names:
-            self.pipe_map[model_name].send(("full_tag"))
+            self.pipe_map[model_name].send("full_tag")
             self.pipe_map[model_name].send(self.test_configs[model_name])
             self.full_tags[model_name] = self.pipe_map[model_name].recv()
 
@@ -153,22 +145,23 @@ class ProfileServer():
     # execute in adaptive mode.
     def test(self):
         print("start test:", self.global_tag)
-        for model_names in self.model_names:
-            self.test_configs[model_name].global_cnt = len(self.model_names)
 
-        for prof_id, prof_group in enumerate(self.profile_groups):
+        for dcgm_id, dcgm_group in enumerate(self.dcgm_groups):
             for id, model_name in enumerate(self.model_names):
-                if (prof_id == 0):
+                if (dcgm_id == 0):
                     recording_action = RecordingAction.ALL if (id == 0) else RecordingAction.STATISTICS_ONLY
                 elif (id == 0):
                     recording_action = RecordingAction.DCGM_ONLY
                 else:
                     recording_action = RecordingAction.NO_RECORD
-                test_configs[model_name].dcgm_group = prof_group
-                test_configs[model_name].set_recording_action(recording_action)
+                self.test_configs[model_name].dcgm_group = dcgm_group
+                self.test_configs[model_name].set_recording_action(recording_action)
 
-                self.pipe_map[model_name].send("test" if(model_name == "llm" or self.scheduler == None) else "adaptive_serve")
+                self.pipe_map[model_name].send("test")
                 self.pipe_map[model_name].send(self.test_configs[model_name])
+            # Wait for warmup
+            self.barrier.wait()
+            # Wait for actual test
             self.barrier.wait()
             print("round one end")
 
@@ -182,6 +175,9 @@ class ProfileServer():
     # Log file path: self.log_path/worker_tag-filename
     def get_model_worker_log_filepath(self, model_name, filename):
         return os.path.join(self.log_path, "-".join([self.full_tags[model_name], filename]))
+    
+    def get_log_filepath(self, filename):
+        return os.path.join(self.log_path, "-".join([self.global_tag, filename]))
 
     """
         Collect dcgm data & a full summary of the previous test run.
@@ -191,6 +187,7 @@ class ProfileServer():
         TODO: haven't checked plot fucntion
     """
     def collect_data(self):
+        dcgm_data = None
         passed_flag = True
         total = 0
         passed = 0
@@ -198,51 +195,49 @@ class ProfileServer():
         log_filepath = os.path.join(self.log_path, self.global_tag + '-final_summary.log')
         print("Writing final summary to:", log_filepath)
         with open(log_filepath, 'w+') as summary_file:
-            for model_name in self.model_names:
+            for idx, model_name in enumerate(self.model_names):
                 self.pipe_map[model_name].send("collect")
-                if(self.test_configs[model_name].dcgm_group != None):
+                if(idx == 0):
+                    self.pipe_map[model_name].send("dcgm")
+                    self.pipe_map[model_name].send(self.dcgm_groups)
                     dcgm_data = self.pipe_map[model_name].recv()
+                else:
+                    self.pipe_map[model_name].send("summary_only")
                 print("==== Profile:", model_name)
                 if(model_name == "llm"):
                     passed_flag, completed, passed, total, slo_info = self.pipe_map[model_name].recv()
                     print("* Passed:", passed_flag, "Total Completed", completed, "Met", passed, "Total Submitted", total, "Percentage", passed / total, "SLO_info", slo_info)
                     summary_file.write(model_name + " " + str(passed_flag) + " " + str(completed) + "/" + str(passed) + "/" + str(total) + " " + str(passed / total) + " " + str(slo_info) + "\n")
                 else:
-                    absolute_throughput, throughput = self.pipe_map[model_name].recv()
-                    print("* Absolute throughput:", absolute_throughput, "Throughput", throughput)
-                    summary_file.write(model_name + " " + str(absolute_throughput) + " " + str(throughput) + "\n")
+                    absolute_throughput = self.pipe_map[model_name].recv()
+                    print("* Absolute throughput:", absolute_throughput)
+                    summary_file.write(model_name + " " + str(absolute_throughput) + "\n")
             
             summary_file.write("============================\n")
-            if(dcgm_data != None):
+            if(dcgm_data is not None):
                 print(dcgm_data)
                 for key, value in dcgm_data.items():
                     summary_file.write(key + " " + str(value) + "\n")
 
         if("llm" in self.model_names and len(self.model_names) >= 2):
-            intensity_list = []
-            with open(self.get_model_worker_log_filepath("llm", 'aggregated_intensity_all.log'), 'r') as input_file:
+            submitted_intensity = []
+            with open(self.get_model_worker_log_filepath("llm", 'avg_submitted_intensity.log'), 'r') as input_file:
                 lines = input_file.readlines()
                 for line in lines:
-                    bin_midpoint_data, intensity_data = map(float, line.strip('\n').split(' '))
-                    intensity_list.append([bin_midpoint_data, intensity_data]) 
+                    submitted_intensity.append(tuple(map(float, line.strip('\n').split(' '))))
+            submitted_intensity = TraceAxisData(TracePlotData('Number of submitted reqs', submitted_intensity), y_tag = ('Intensity', ''))
             for model_name in self.model_names:
                 if(model_name == "llm"):
                     continue
-                values = []
+                throughputs = []
                 with open(self.get_model_worker_log_filepath(model_name, 'flow.log'), 'r') as input_file:
                     lines = input_file.readlines()
                     for line in lines:
                         parts = line.split()
-                        values.append([float(parts[0]), int(parts[1])])  
-                trace_plot_aggregated_intensity_with_analysis_data(intensity_list, values, ('Side Absolute Throughput', ''), 
-                    self.get_model_worker_log_filepath(model_name, 'aggregated_intensity_absolute_throughput.png'))
+                        throughputs.append([float(parts[0]), int(parts[1])])  
+                side_throughput = TraceAxisData(TracePlotData('Throughput of offline workload', throughputs), y_tag = ('Throughput', ''))
+                plot_trace_graph(self.get_log_filepath('submitted_offline_throughput.png'), submitted_intensity, side_throughput)
         return passed_flag, passed, total 
-
-
-    def run(self):
-        self.setup()
-        self.test()
-        self.shutdown()
 
 
 
