@@ -63,12 +63,15 @@ def get_period_data(llm_worker):
     
     NF = llm_worker.scheduler_data.finished_count_period
     if(NF):
-        LF_avg = llm_worker.finished_tokens_period / NF
+        LF_avg = llm_worker.scheduler_data.finished_tokens_period / NF
     else:
         LF_avg = 0
     
     TpP = llm_worker.scheduler_data.prefill_throughput_period
     TpD = llm_worker.scheduler_data.decode_throughput_period
+
+    llm_worker.scheduler_data.prefill_throughput_period = 0
+    llm_worker.scheduler_data.decode_throughput_period = 0 
 
     llm_worker.scheduler_data.prefill_length_period = 0
     llm_worker.scheduler_data.prefill_length_heap_period = MaxHeap()

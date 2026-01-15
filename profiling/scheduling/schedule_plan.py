@@ -22,6 +22,6 @@ class BasicSchedulePlan(SchedulePlan):
         req_process_time = time.perf_counter() - req_start_time
         model_worker.runtime_data.absolute_throughput += self.batch_size
         if(model_worker.test_config.record_statistics):
-            model_worker.profile_data.logs.append((model_worker.test_config.batch_size, req_process_time * 1000))
+            model_worker.profile_data.logs.append((self.batch_size, req_process_time * 1000))
             model_worker.profile_data.absolute_throughput_records.add(
                 time.perf_counter() - model_worker.runtime_data.start_time_pointer, self.batch_size)

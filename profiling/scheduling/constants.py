@@ -7,7 +7,7 @@ class FeatureModel(BaseModel):
         for name, field in self.model_fields.items():
             value = getattr(self, name)
             if isinstance(value, FeatureModel):
-                vec.extend(value.feature_vector())
+                vec.extend(value.vector())
             else:
                 vec.append(value)
         return vec

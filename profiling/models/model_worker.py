@@ -208,7 +208,7 @@ class ModelWorker(Process):
             writer = csv.writer(log_output)
             writer.writerow(headers)
             for record in record_list:
-                if(isinstance(record, list)):
+                if(isinstance(record, list) or isinstance(record, tuple)):
                     writer.writerow(record)  # Writes entire list
                 else:
                     writer.writerow([record])

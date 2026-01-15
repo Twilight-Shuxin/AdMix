@@ -18,7 +18,6 @@ def save_processed_data(X, y1, y2, tag):
 
 def data_prep(data_path, all_test):
     # 1. Load data
-    # df = pd.read_csv('../train_data/llm[BurstGPT].csv')
     df = pd.read_csv(data_path)
 
     # Add square features for non-linear scaling effects

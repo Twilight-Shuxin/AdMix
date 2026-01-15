@@ -278,7 +278,7 @@ class LLMWorker(ModelWorker):
 
         if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
             received_token_period = 0
-            last_refreshed_counter = self.scheduler_data.refreshed_flag
+            last_refreshed_counter = self.scheduler_data.refreshed_counter
 
         try:
             async for chunk in receiver:
