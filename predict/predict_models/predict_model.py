@@ -30,8 +30,7 @@ class PredictModel():
     
     def save(self):
         self._save()
-        if(not self.loaded):
-            self.sc.save()
+        self.sc.save()
 
     def load(self):
         self.loaded = self._load()
