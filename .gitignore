@@ -1,1 +1,14 @@
-data*
+data*/
+!data/
+data/*
+*.pdf
+*.png
+*.json
+*.csv
+*.out
+*.log
+*.pt
+*.pkl
+*.pth
+!dataset/
+*.bin
