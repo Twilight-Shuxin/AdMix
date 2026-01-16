@@ -113,11 +113,7 @@ async def predictive_profiler(llm_worker):
             
     except asyncio.CancelledError:
         llm_worker.write_list_to_csv("predict_data.csv", 
-        ['Timestamp (s)', 't1 prefill intensity', 't1 prefill average length', 't1 prefill max length', 't1 prefill max length execution time (s)',
-        't1 decode intensity', 't1 decode average length', 
-        't1~t2 prefill intensity', 't1~t2 prefill average length', 't1~t2 prefill max length', 't1~t2 prefill max length execution time (s)',
-        't1~t2 finished', 't1~t2 finished average throughput',
-        'Prefill throughput', 'Decode throughput'], logs)
+        PredHeaders.ORDERED, logs)
     except Exception as e:
         print(e)
 
@@ -150,21 +146,46 @@ class ObservationData(FeatureModel):
     period_data: ObservationPeriodData = Field(
         default_factory=ObservationPeriodData
     )
-    def extended_data(self):
-        values = [
-            self.point_data.prefill_data.L_avg,
-            self.point_data.prefill_data.L_max,
-            self.point_data.LD_avg,
-            self.period_data.prefill_data.L_avg,
-            self.period_data.prefill_data.L_max,
-        ]
-        return [v * v for v in values]
     
     def pred_feature_data(self):
-        return self.vector()[:-2] + self.extended_data()
+        return self.vector()[:-2]
     
     def get_pred_feature_len(self):
         return len(self.pred_feature_data())
+
+class PredHeaders:
+    time = "Time"
+    prefill_N_t1 = "Prefill_N t1"
+    prefill_avgL_t1 = "Prefill_avgL t1"
+    prefill_maxL_t1 = "Prefill_maxL t1"
+    prefill_T_maxL_t1 = "Prefill_T_maxL t1"
+    decode_N_t1 = "Decode_N t1"
+    decode_avgL_t1 = "Decode_avgL t1"
+    prefill_N_t1_2 = "Prefill_N t1-2"
+    prefill_avgL_t1_2 = "Prefill_avgL t1-2"
+    prefill_maxL_t1_2 = "Prefill_maxL t1-2"
+    prefill_T_maxL_t1_2 = "Prefill_T_maxL t1-2"
+    finished = "Finished_N"
+    finished_tkn = "Avg Finished_Tkn"
+    prefill_tp = "Prefill_Tp"
+    decode_tp = "Decode_Tp"
+
+    ORDERED = [
+        time,
+        prefill_N_t1,
+        prefill_avgL_t1,
+        prefill_maxL_t1,
+        prefill_T_maxL_t1,
+        decode_N_t1,
+        prefill_N_t1_2,
+        prefill_avgL_t1_2,
+        prefill_maxL_t1_2,
+        prefill_T_maxL_t1_2,
+        finished,
+        finished_tkn,
+        prefill_tp,
+        decode_tp,
+    ]
 
 class PredictiveSchedulingDataFormat(SchedulingDataFormat):
     @classmethod
@@ -208,17 +229,18 @@ class PredictiveScheduler(Scheduler):
         self.prefill_predictor = MLPPredictModel("prefill", input_dim, device)
         self.decode_predictor = MLPPredictModel("decode", input_dim, device)
         
-        self.threshold_D = Threshold(
+        self.threshold_D = self.Threshold(
             fine_threshold = 0.2,
             alert_threshold = 0.3,
             accumulate_threshold = 5
         )
-        self.threshold_P = Threshold(
+        self.threshold_P = self.Threshold(
             fine_threshold = 0.2,
             alert_threshold = 0.3,
             accumulate_threshold = 5,
         )
         self.prediction_logs = []
+        self.last_point_data = ObservationPointData()
 
     def get_prediction(self, observation_data):
         vals = observation_data.pred_feature_data()
@@ -234,20 +256,20 @@ class PredictiveScheduler(Scheduler):
             if(true_Tp == 0 and pred_Tp != 0):
                 threshold.accumulated += 1
                 if(pred_Tp > 2):
-                    return Action.FLAT
+                    return self.Action.FLAT
                 else:
-                    return Action.UP 
+                    return self.Action.UP 
             else:
                 threshold.accumulated = 0
-            return Action.UP
+            return self.Action.UP
         if(true_Tp < pred_Tp - max(3, pred_Tp * threshold.alert_threshold)):
             threshold.accumulated = 0
-            return Action.DOWN
+            return self.Action.DOWN
         threshold.accumulated += 1
         if(threshold.accumulated > threshold.accumulate_threshold):
             threshold.accumulated = 0
-            return Action.DOWN
-        return Action.FLAT
+            return self.Action.DOWN
+        return self.Action.FLAT
 
     def schedule(self, intensity_data):
         self.start_round_time = time.perf_counter()
@@ -256,18 +278,18 @@ class PredictiveScheduler(Scheduler):
         observation_data = ObservationData(point_data = self.last_point_data, period_data = intensity_data.period_data)
         self.last_point_data = intensity_data.point_data
         pred_TpP, pred_TpD = self.get_prediction(observation_data)
-        action = self.check_threshold(self.threshold_P, pred_TpP, intensity_data.TpP)
-        action = min(action, self.check_threshold(self.threshold_D, pred_TpD, intensity_data.TpD))
+        action = self.check_threshold(self.threshold_P, pred_TpP, intensity_data.period_data.TpP)
+        action = min(action, self.check_threshold(self.threshold_D, pred_TpD, intensity_data.period_data.TpD))
         match action:
-            case Action.UP:
+            case self.Action.UP:
                 self.step_up()
-            case Action.FLAT:
+            case self.Action.FLAT:
                 if(self.batch_size == 0):
                     self.step_up()
-            case Action.DOWN:  
+            case self.Action.DOWN:  
                 self.step_down()
         self.prediction_logs.append([round(time.perf_counter() - self.model_worker.runtime_data.start_time_pointer, 3),
-            self.batch_size, intensity_data.TpP, pred_TpP, intensity_data.TpD, pred_TpD])
+            self.batch_size, intensity_data.period_data.TpP, pred_TpP, intensity_data.period_data.TpD, pred_TpD])
         self.execute()
     
     def step_up(self):
@@ -294,10 +316,10 @@ class PredictiveScheduler(Scheduler):
             time.sleep(left_time)
     
     def scheduler_init(self):
-        profile_data = self.model_worker.read_profile_data()
+        profiled_data = self.model_worker.read_profiled_data()
         max_batch_size = self.model_worker.supported_batchsize[-1]
         for i in reversed(range(1, max_batch_size + 1)):
-            if(profile_data[str(i)] < self.time_interval):
+            if(profiled_data[str(i)] < self.time_interval):
                 max_batch_size = i
                 break
         self.max_batch_size = max_batch_size

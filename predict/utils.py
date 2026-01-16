@@ -1,7 +1,8 @@
 import torch
 from predict_models import *
+from predict_models.constants import SAVED_SCALER_FILE
 
-def get_model(model_type, input_dim):
+def get_model(model_type, predict_name, input_dim):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     match model_type:
         case "MLP":
@@ -15,18 +16,14 @@ def get_model(model_type, input_dim):
         case "random_forest":
             return RandomForestModel(predict_name)
 
-"""
-    Load data from .pt files and return data as numpy arrays along with its input dim.
-"""
-def load_data(predict_name, data_class):
-    X_tensor, y_tensor = torch.load(predict_name + "_" + data_class + ".pt", weights_only=True)
-    X_np = X_tensor.numpy()
-    y_np = y_tensor.numpy()
-    input_dim = X_tensor.shape[1]
-    return input_dim, X_np, y_np
+class PackedData():
+    def __init__(self, X, y):
+        self.X = X
+        self.y = y
+        self.input_dim = X.shape[1]
 
-def load_scaler():
-    sc = StandardScaler()
-    model_path = os.getenv("MODEL_PATH", "outputs") + "/"
-    sc = load(model_path + 'std_scaler.bin')
-    return sc
+def load_data(path):
+    X, y_prefill, y_decode = torch.load(path, weights_only = True)
+    return PackedData(X.numpy(), {
+            "prefill":y_prefill.numpy(), 
+            "decode":y_decode.numpy()})

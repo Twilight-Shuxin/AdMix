@@ -339,10 +339,10 @@ class ModelWorker(Process):
     """
         Read profiled data from self.profile_path/model_name.json.
     """
-    def read_profile_data(self):
+    def read_profiled_data(self):
         with open(os.path.join(self.profile_path, self.model_name + ".json"), "r") as profile_file:
-            self.profile_data = json.load(profile_file)
-        return self.profile_data
+            self.profiled_data = json.load(profile_file)
+        return self.profiled_data
 
     def run(self) -> None:
         self.init_start()

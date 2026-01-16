@@ -1,5 +1,5 @@
 from sklearn.tree import DecisionTreeRegressor
-from predict_model import SKLPredictModel
+from predict_models.predict_model import SKLPredictModel
 
 # Visualize the decision tree
 # plt.figure(figsize=(26,8))
@@ -10,7 +10,6 @@ from predict_model import SKLPredictModel
 class DecisionTreePredictModel(SKLPredictModel):
     def __init__(self, tag):
         self.model_name = "decision_tree"
-        self.saved_model_suffix_name = "pkl"
         self.model = DecisionTreeRegressor(random_state=42)
         super().__init__(tag)
     

@@ -1,6 +1,7 @@
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
+from predict_models.constants import OUTPUT_FOLDER
 
 def average_chunks(data, chunk_size):
     """Return a list where each item is the average of every `chunk_size` items."""
@@ -13,21 +14,18 @@ def average_chunks(data, chunk_size):
 def plot_predicted(timestamps, real, predicted, file_name):
     # Plotting
     plt.figure(figsize=(10, 5))
-    real_data = list(zip(timestamps, real))
-    predicted_data = list(zip(timestamps, predicted))
-
     chunk_size = 20
     steped_timestamps = [timestamp for timestamp in range(0, len(timestamps), chunk_size)]
-    real_data = average_chunks(real_data, chunk_size)
-    predicted_data = average_chunks(predicted_data, chunk_size)
-    plt.plot(steped_timestamps, real_data, label='True', color='blue', alpha=0.7)
-    plt.plot(steped_timestamps, predicted_data, label='Predicted', color='red', alpha=0.7)
+    real = average_chunks(real, chunk_size)
+    predicted = average_chunks(predicted, chunk_size)
+    plt.plot(steped_timestamps, real, label='True', color='blue', alpha=0.7)
+    plt.plot(steped_timestamps, predicted, label='Predicted', color='red', alpha=0.7)
     plt.xlabel('Time')
     plt.ylabel('Averaged Throughput')
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(file_name + ".pdf")
+    plt.savefig(OUTPUT_FOLDER / f'{file_name}.pdf')
     plt.close() 
 
 def plot_abs_error_cdf(real, predicted, file_name):
@@ -60,7 +58,7 @@ def plot_abs_error_cdf(real, predicted, file_name):
     plt.ylim([0, 1])
     plt.grid(True, linestyle="--", alpha=0.5)
     plt.tight_layout()
-    plt.savefig(file_name + ".pdf")
+    plt.savefig(OUTPUT_FOLDER / f'{file_name}.pdf')
     plt.close()
 
 def plot_abs_pct_error_cdf(real, predicted, file_name):
@@ -80,5 +78,5 @@ def plot_abs_pct_error_cdf(real, predicted, file_name):
     plt.ylim([0, 1])
     plt.grid(True, linestyle="--", alpha=0.5)
     plt.tight_layout()
-    plt.savefig(file_name + ".pdf")
+    plt.savefig(OUTPUT_FOLDER / f'{file_name}.pdf')
     plt.close() 

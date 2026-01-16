@@ -4,6 +4,8 @@ from .poisson_model import PoissonPredictModel
 from .decision_tree_model import DecisionTreePredictModel
 from .random_forest_model import RandomForestModel
 
+from .constants import *
+
 __all__ = [
    "MLPPredictModel",
    "LinearPredictModel",

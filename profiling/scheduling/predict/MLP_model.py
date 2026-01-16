@@ -27,5 +27,3 @@ class MLPPredictModel(PytorchPredictModel):
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
         super().__init__(tag)
-        self.load()
-        self.model.eval()

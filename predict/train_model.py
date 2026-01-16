@@ -2,36 +2,32 @@ import torch
 import torch.nn as nn
 import os
 import sys
-from utils import get_model
+from utils import get_model, load_data
+from predict_models.constants import DEFAULT_PRED_LIST, TRAIN_DATA_FILE, VALIDATE_DATA_FILE
 
 # python train_model.py MLP prefill
 # python train_model.py MLP
 
 def main():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # Check for GPU availability
     model_type = sys.argv[1]
-    predict_name_list = ["prefill", "decode"]
     if(len(sys.argv) > 2):
         predict_name_list = [sys.argv[2]]
+    else:
+        predict_name_list = DEFAULT_PRED_LIST
+
+    train_data = load_data(TRAIN_DATA_FILE)
+    validate_data = load_data(VALIDATE_DATA_FILE)
 
     for predict_name in predict_name_list:
         print("Training for:", predict_name, "...")
-        X_train_tensor, y_train_tensor = torch.load(predict_name + "_train.pt", weights_only = True)
-        X_test_tensor, y_test_tensor = torch.load(predict_name + "_validate.pt", weights_only = True)
 
-        X_train_np = X_train_tensor.numpy()
-        y_train_np = y_train_tensor.numpy()
-        X_test_np = X_test_tensor.numpy()
-        y_test_np = y_test_tensor.numpy()
-        input_dim = X_train_tensor.shape[1]
-
-        saved_model_path = 'model_' + predict_name + '_' + model_type + '.pkl'
-        get_model(model_name, input_dim, device)
+        input_dim = train_data.X.shape[1]
+        model = get_model(model_type, predict_name, input_dim)
         model.load()
-        model.train(X_train_np, y_train_np)
+        model.train(train_data.X, train_data.y[predict_name])
         model.save()
-        _, test_loss, avg_time = model.eval(X_test_np, y_test_np)
-        print(f"📉 Final Validation Loss (MSE): {test_loss:.4f}, avg_time: {avg_time}")
+        _, validation_loss, avg_time = model.eval(validate_data.X, validate_data.y[predict_name])
+        print(f"📉 Final Validation Loss (MSE): {validation_loss:.4f}, avg_time: {avg_time}")
 
 if __name__ == "__main__":
     main()

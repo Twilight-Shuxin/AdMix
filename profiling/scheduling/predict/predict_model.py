@@ -1,120 +1,70 @@
-import torch
-import torch.nn as nn
-import os
-from torch.utils.data import TensorDataset, DataLoader
-import numpy as np
-import pickle
-from sklearn.metrics import mean_squared_error
-import time
-from sklearn.preprocessing import StandardScaler
-from joblib import load
 
+import os
+import pickle
+import numpy as np
+import torch
+import time
+from joblib import dump, load
+import torch.nn as nn
+from torch.utils.data import TensorDataset, DataLoader
+from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import StandardScaler
+
+SAVED_SCALER_FILE = "std_scaler.bin"
+
+class WrappedStandardScaler():
+    def transform(self, x):
+        return self.sc.transform(x)
+    
+    def load(self):
+        self.sc = load(SAVED_SCALER_FILE)
+        
 class PredictModel():
     def __init__(self, tag):
-        current_file = os.path.abspath(__file__)
-        self.path_prefix = os.path.dirname(current_file)
-        if(len(self.path_prefix) != 0):
-            self.path_prefix += "/"
-        self.get_saved_model_path(tag)
-        self.time_test_repeats = 10
-        self.load_sc()
-    
-    def load_sc(self):
-        self.sc = StandardScaler()
-        self.sc=load(self.path_prefix + 'std_scaler.bin')
+        self.set_model_path(tag)
+        self.sc = WrappedStandardScaler()
+        self.loaded = False
 
-    def get_saved_model_path(self, tag):
-        self.save_model_path =  self.path_prefix + "model_" + self.model_name + "_" + tag + "." + self.saved_model_suffix_name
+    def set_model_path(self, tag):
+        model_filename = f"model_{self.model_name}_{tag}.{self.saved_model_suffix_name}"
+        self.load_model_path = model_filename
 
-    def train(self, X_data, y_data, train_config = {}):
-        pass
-
-    def eval(self, X_data, y_data = None):
-        pass
+    def load(self):
+        self.loaded = self._load()
 
 class SKLPredictModel(PredictModel):
-    def train(self, X_data, y_data, train_config = {}):
-        self.model.fit(X_data, y_data)
-        _, test_loss = self.eval(X_data, y_data)
-        print(f"📉 Final Train Loss (MSE): {test_loss:.4f}")
-
-    def eval(self, X_data, y_data = None):
-        test_outputs = self.model.predict(X_data)
-        mse = None
-        if isinstance(y_data, np.ndarray):
-            mse = mean_squared_error(test_outputs, y_data)
-        start_time = time.time()
-        for i in range(self.time_test_repeats):
-            _ = self.model.predict(X_data[i:i+1, :])
-        end_time = time.time()
-        # r2 = r2_score(test_outputs, y_data)
-        return test_outputs, mse, (end_time - start_time) / self.time_test_repeats
-
-    def save(self):
-        print("Saving to:", self.save_model_path)
-        with open(self.save_model_path, "wb") as model_file:
-            pickle.dump(self.model, model_file)
-    
-    def load(self):
-        if os.path.exists(self.save_model_path):
-            print("Loading from:", self.save_model_path)
-            with open(self.save_model_path, "rb") as model_file:
-                self.model = pickle.load(model_file)
-
-class PytorchPredictModel(PredictModel):
-    def train(self, X_data, y_data, train_config = {}):
-        num_epochs = train_config.get("num_epochs", 1000) 
-        batch_size = train_config.get("batch_size", 32)
-        X_train_tensor = torch.from_numpy(X_data).float().to(self.device)
-        y_train_tensor = torch.from_numpy(y_data).float().to(self.device)
-        train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        for epoch in range(num_epochs):
-            self.model.train()
-            epoch_loss = 0.0
-            for batch_X, batch_y in train_loader:
-                self.model.optimizer.zero_grad()
-                outputs = self.model(batch_X)
-                loss = self.model.criterion(outputs, batch_y.view(-1, 1))
-                loss.backward()
-                self.model.optimizer.step()
-                epoch_loss += loss.item() * batch_X.size(0)
-            # Print average loss for the epoch
-            if (epoch + 1) % 5 == 0:
-                avg_loss = epoch_loss / len(train_loader.dataset)
-                print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {avg_loss:.4f}")
-
-    def eval(self, X_data, y_data = None):
-        X_test_tensor = torch.from_numpy(X_data).float().to(self.device)
-        if isinstance(y_data, np.ndarray):
-            y_test_tensor = torch.from_numpy(y_data).float().to(self.device)
-        test_loss = None
-        self.model.eval()
-        with torch.no_grad():
-            test_outputs = self.model(X_test_tensor)
-            test_outputs = test_outputs.squeeze()
-            if isinstance(y_data, np.ndarray):
-                test_loss = self.model.criterion(test_outputs, y_test_tensor)
-        torch.cuda.synchronize()
-        start_time = time.time()
-        for i in range(self.time_test_repeats):
-            X_tensor = torch.from_numpy(X_data[i:i+1, :]).to(self.device)
-            _ = self.model(X_tensor)
-            torch.cuda.synchronize()
-        end_time = time.time()
-        return test_outputs.cpu().numpy(), test_loss.item(), (end_time - start_time) / self.time_test_repeats
-    
-    def save(self):
-        print("Saving to:", self.save_model_path)
-        torch.save(self.model.state_dict(), self.save_model_path)
-
-    def load(self):
-        if os.path.exists(self.save_model_path):
-            print("Loading from:", self.save_model_path)
-            self.model.load_state_dict(torch.load(self.save_model_path, weights_only=True))
-            self.model.to(self.device)  # Ensure the model is also moved to the GPU
+    def __init__(self, tag):
+        self.saved_model_suffix_name = "pkl"
+        super().__init__(tag)
     
     def exec(self, X_data):
-        X_data_std = self.sc.transform(X_data)
-        tensor = torch.tensor(X_data_std, dtype=torch.float32).to("cuda")
-        return self.model(tensor)
+        return self.model.predict(X_data)
+
+    def _load(self):
+        if os.path.exists(self.load_model_path):
+            print("Loading from:", self.load_model_path)
+            with open(self.load_model_path, "rb") as model_file:
+                self.model = pickle.load(model_file)
+            self.sc.load()
+            return True
+        return False
+
+class PytorchPredictModel(PredictModel):
+    def __init__(self, tag):
+        self.model.eval()
+        super().__init__(tag)
+
+    def exec(self, X_data):
+        X_test_tensor = torch.from_numpy(np.asarray(X_data)).float().to(self.device)
+        with torch.no_grad():
+            test_outputs = self.model(X_test_tensor).squeeze()
+            test_outputs = torch.round(test_outputs).clamp(min=0)
+        return test_outputs.cpu().numpy()
+
+    def _load(self):
+        if os.path.exists(self.load_model_path):
+            print("Loading from:", self.load_model_path)
+            self.model.load_state_dict(torch.load(self.load_model_path, weights_only=True))
+            self.model.to(self.device)  # Ensure the model is also moved to the GPU
+            return True
+        return False

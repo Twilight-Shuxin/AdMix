@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch.optim as optim
-from predict_model import PytorchPredictModel
+from predict_models.predict_model import PytorchPredictModel
 
 class MLPRegressor(nn.Module):
     def __init__(self, input_dim, device):
