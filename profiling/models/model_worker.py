@@ -140,7 +140,7 @@ class ModelWorker(Process):
         self.input_config = self.get_input_config_from_test_config(self.test_config)
         self.test_config.full_tag = self.get_full_tag(self.test_config)
     
-    def init_testenv_data(self, warmup = False):
+    def init_testenv_data(self):
         self.init_profile_data()
         self.init_runtime_data()
         self.init_scheduler_data()
@@ -361,7 +361,7 @@ class ModelWorker(Process):
                 self.init_testenv_data()
                 self.warmup()
                 self.test_config.set_test()
-                self.init_testenv_data(warmup = False)
+                self.init_testenv_data()
                 self.barrier.wait()
                 self.test()
                 self.barrier.wait()

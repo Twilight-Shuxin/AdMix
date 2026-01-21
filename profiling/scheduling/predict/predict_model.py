@@ -1,36 +1,41 @@
 
 import os
 import pickle
+from pathlib import Path
 import numpy as np
 import torch
 import time
-from joblib import dump, load
-import torch.nn as nn
-from torch.utils.data import TensorDataset, DataLoader
-from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import StandardScaler
+from joblib import load
 
-SAVED_SCALER_FILE = "std_scaler.bin"
+GMODEL_FOLDER = Path(os.getenv("GPREDICT_MODEL_PATH", os.path.dirname(os.path.abspath(__file__))))
+SAVED_SCALER_FILE = GMODEL_FOLDER / "std_scaler.bin"
 
 class WrappedStandardScaler():
+    def __init__(self):
+        self.save_path = SAVED_SCALER_FILE
+
     def transform(self, x):
         return self.sc.transform(x)
-    
+
     def load(self):
-        self.sc = load(SAVED_SCALER_FILE)
+        if os.path.exists(self.save_path):
+            print("Loaded scaler from", self.save_path)
+            self.sc = load(self.save_path)
         
 class PredictModel():
     def __init__(self, tag):
         self.set_model_path(tag)
         self.sc = WrappedStandardScaler()
-        self.loaded = False
+        self.load()
+        self.model.eval()
 
     def set_model_path(self, tag):
         model_filename = f"model_{self.model_name}_{tag}.{self.saved_model_suffix_name}"
-        self.load_model_path = model_filename
+        self.load_model_path = GMODEL_FOLDER / model_filename
 
     def load(self):
-        self.loaded = self._load()
+        self._load()
+        self.sc.load()
 
 class SKLPredictModel(PredictModel):
     def __init__(self, tag):
@@ -38,24 +43,20 @@ class SKLPredictModel(PredictModel):
         super().__init__(tag)
     
     def exec(self, X_data):
-        return self.model.predict(X_data)
+        return self.model.predict(self.sc.transform(X_data))
 
     def _load(self):
         if os.path.exists(self.load_model_path):
-            print("Loading from:", self.load_model_path)
             with open(self.load_model_path, "rb") as model_file:
                 self.model = pickle.load(model_file)
-            self.sc.load()
-            return True
-        return False
 
 class PytorchPredictModel(PredictModel):
     def __init__(self, tag):
-        self.model.eval()
+        self.saved_model_suffix_name = "pth"
         super().__init__(tag)
 
     def exec(self, X_data):
-        X_test_tensor = torch.from_numpy(np.asarray(X_data)).float().to(self.device)
+        X_test_tensor = torch.from_numpy(np.asarray(self.sc.transform(X_data))).float().to(self.device)
         with torch.no_grad():
             test_outputs = self.model(X_test_tensor).squeeze()
             test_outputs = torch.round(test_outputs).clamp(min=0)
@@ -63,8 +64,6 @@ class PytorchPredictModel(PredictModel):
 
     def _load(self):
         if os.path.exists(self.load_model_path):
-            print("Loading from:", self.load_model_path)
             self.model.load_state_dict(torch.load(self.load_model_path, weights_only=True))
+            print("Loaded model from", self.load_model_path)
             self.model.to(self.device)  # Ensure the model is also moved to the GPU
-            return True
-        return False

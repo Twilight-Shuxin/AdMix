@@ -11,22 +11,6 @@ from enum import IntEnum
 import time
 import asyncio
 
-# Data used for prediction: 
-# ==============================
-#   t1 prefill intensity
-#   t1 average prefill max length
-#   t1 prefill max length
-#   t1 decoding intensity
-#   t1 decode average length
-#   before t1 max length query execution time
-#   t1-t2 prefill intensity
-#   t1-t2 average prefill max length
-#   t1-t2 prefill max length
-#   t1-t2 max length query execution time
-#   t1~t2 finished
-#   t1~t2 finished average throughput
-# ==============================
-
 def get_point_data(llm_worker):
     timestamp = time.perf_counter() - llm_worker.runtime_data.start_time_pointer
     NP = llm_worker.runtime_data.waiting_first_record_counter.counter
@@ -177,6 +161,7 @@ class PredHeaders:
         prefill_maxL_t1,
         prefill_T_maxL_t1,
         decode_N_t1,
+        decode_avgL_t1,
         prefill_N_t1_2,
         prefill_avgL_t1_2,
         prefill_maxL_t1_2,

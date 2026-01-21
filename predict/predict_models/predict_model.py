@@ -4,7 +4,6 @@ import pickle
 import numpy as np
 import torch
 import time
-import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.metrics import mean_squared_error
 from predict_models.constants import MODEL_FOLDER

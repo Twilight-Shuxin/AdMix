@@ -263,8 +263,8 @@ class LLMWorker(ModelWorker):
         def update_user_idle_time_info_record(user_idle_time, user_idle_time_info_record, current_timestamp, idle_time):
             if(idle_time > user_idle_time):
                 user_idle_time = idle_time
-                if((not user_idle_time_info_record) and (idle_time > self.idle_slo)):
-                    user_idle_time_info_record = current_timestamp - user_idle_time + self.idle_slo
+                if((not user_idle_time_info_record) and (idle_time > self.idle_time_slo)):
+                    user_idle_time_info_record = current_timestamp - user_idle_time + self.idle_time_slo
             return user_idle_time, user_idle_time_info_record
 
         first_chunk_time = None
