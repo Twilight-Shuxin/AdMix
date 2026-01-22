@@ -434,12 +434,10 @@ class LLMWorker(ModelWorker):
         while(time.perf_counter() < self.runtime_data.time_limit):
             if(self.test_config.trace_path):
                 req_time, sample_in_length, sample_out_length = self.test_config.trace.next()
-
-                if(req_time < self.test_config.test_time):
-                    sleep_time = req_time + self.runtime_data.start_time_pointer - time.perf_counter()
-                    if(sleep_time > 0):
-                        await asyncio.sleep(sleep_time)
-                else: 
+                sleep_time = min(req_time, self.test_config.test_time) + self.runtime_data.start_time_pointer - time.perf_counter()
+                if(sleep_time > 0):
+                    await asyncio.sleep(sleep_time)
+                if(req_time >= self.test_config.test_time):
                     break
                 llm_input = self.get_input(InputConfig(seq_len = sample_in_length))
                 task_list.append(asyncio.create_task(self.async_inference(llm_input, sample_out_length)))
@@ -458,4 +456,3 @@ class LLMWorker(ModelWorker):
         for id, task in enumerate(task_list):
             if(not task.done()):
                 task.cancel()
-
