@@ -19,17 +19,15 @@ def atomic_joblib_dump(obj, path, compress = True):
 
 class WrappedStandardScaler():
     def __init__(self):
-        self.init = False
+        self.sc = None
         self.save_path = SAVED_SCALER_FILE
         self.loaded = False
     
     def transform(self, x):
-        if(not self.init):
-            self.init = True
+        if(not self.sc):
             self.sc = StandardScaler()
             return self.sc.fit_transform(x)
         else:
-            self.load()
             return self.sc.transform(x)
 
     def save(self):
@@ -40,5 +38,5 @@ class WrappedStandardScaler():
     def load(self):
         if os.path.exists(self.save_path):
             self.sc = load(self.save_path)
-            self.init = True
+            print("Loaded scaler from:", self.save_path)
             self.loaded = True

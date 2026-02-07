@@ -128,5 +128,6 @@ class PytorchPredictModel(PredictModel):
             print("Loading from:", self.load_model_path)
             self.model.load_state_dict(torch.load(self.load_model_path, weights_only=True))
             self.model.to(self.device)  # Ensure the model is also moved to the GPU
+            self.sc.load()
             return True
         return False

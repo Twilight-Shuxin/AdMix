@@ -206,8 +206,9 @@ class ProfileServer():
                 print("==== Profile:", model_name)
                 if(model_name == "llm"):
                     passed_flag, completed, passed, total, slo_info = self.pipe_map[model_name].recv()
-                    print("* Passed:", passed_flag, "Total Completed", completed, "Met", passed, "Total Submitted", total, "Percentage", passed / total, "SLO_info", slo_info)
-                    summary_file.write(model_name + " " + str(passed_flag) + " " + str(completed) + "/" + str(passed) + "/" + str(total) + " " + str(passed / total) + " " + str(slo_info) + "\n")
+                    percentage = passed / total if total else -1
+                    print("* Passed:", passed_flag, "Total Completed", completed, "Met", passed, "Total Submitted", total, "Percentage", percentage, "SLO_info", slo_info)
+                    summary_file.write(model_name + " " + str(passed_flag) + " " + str(completed) + "/" + str(passed) + "/" + str(total) + " " + str(percentage) + " " + str(slo_info) + "\n")
                 else:
                     absolute_throughput = self.pipe_map[model_name].recv()
                     print("* Absolute throughput:", absolute_throughput)
