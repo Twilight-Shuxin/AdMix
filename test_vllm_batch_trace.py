@@ -70,7 +70,7 @@ def main():
         if(hasattr(trace_config, 'test_time')):
             test_time = trace_config.test_time
     trace = LLMTrace(trace_config)
-    loop.run_until_complete(test_trace(trace, test_time))
+    # loop.run_until_complete(test_trace(trace, test_time))
     loop.run_until_complete(async_inference(3000, 2))
 
 if __name__ == "__main__":
