@@ -38,6 +38,8 @@ class LLMWorker(ModelWorker):
             self.profile_data.first_token_time = TimeBinRecord(init = [], time_limit = self.test_config.test_time)
             self.profile_data.between_token_time =  TimeBinRecord(init = [], time_limit = self.test_config.test_time)
             self.profile_data.logs = []
+            self.profile_data.tmp_logs = []
+            self.profile_data.tmp2_logs = []
     
     def init_runtime_data(self):
         self.runtime_data = RuntimeData()
@@ -178,7 +180,7 @@ class LLMWorker(ModelWorker):
         llm_input = self.get_input(InputConfig(seq_len = 10))
         self.runtime_data.start_time_pointer = time.perf_counter()
         for _ in range(warmup_iter):
-            self.loop.run_until_complete(self.async_inference(llm_input, 10))
+            self.loop.run_until_complete(self.async_inference(0, llm_input, 10))
     
     """
         Write basic logs:
@@ -191,6 +193,75 @@ class LLMWorker(ModelWorker):
         self.write_list_to_csv("all.csv", 
             ['Request timestamp (s)', 'Input token cnt', 'Output token cnt', 'TFT (s)', 'Latency (s)', 'Idle time (s)', 'Success'], 
             self.profile_data.logs)
+        
+        self.profile_data.tmp_logs = sorted(self.profile_data.tmp_logs, key = lambda x: x[0])
+        for idx, _ in enumerate(self.profile_data.tmp_logs):
+            self.profile_data.tmp_logs[idx][0] = round(self.profile_data.tmp_logs[idx][0], 3)
+            self.profile_data.tmp_logs[idx][1] = round(self.profile_data.tmp_logs[idx][1], 3)
+            self.profile_data.tmp_logs[idx][3] = round(self.profile_data.tmp_logs[idx][3], 3)
+            # flag = self.profile_data.tmp_logs[idx][1] >= self.profile_data.tmp_logs[idx - 1][1] if idx else True
+            # self.profile_data.tmp_logs[idx].append(flag)
+        self.write_list_to_csv("tmp.csv", 
+            ['Req time', 'First tkn time', 'uuid', 'TFT (s)', 'All prefill len', 'Input tkn len'], 
+            self.profile_data.tmp_logs)
+        self.profile_data.tmp_logs = sorted(self.profile_data.tmp_logs, key = lambda x: (x[1], x[2], -x[4]))
+        last = -1
+        for idx, log in enumerate(self.profile_data.tmp_logs):
+            if(last < 0 or log[1] - self.profile_data.tmp_logs[last][1] > 0.0055):
+                spent_time = min(round(log[1] - (self.profile_data.tmp_logs[last][1] if last > 0 else 0), 2), log[3])
+                last = idx
+                self.profile_data.tmp_logs[idx].extend([0, 0])
+                self.profile_data.tmp_logs[last][7] = spent_time
+            else:
+                self.profile_data.tmp_logs[idx].extend([0, 0])
+            self.profile_data.tmp_logs[last][6] += self.profile_data.tmp_logs[idx][5]
+        self.write_list_to_csv("tmp_sort.csv", 
+            ['Req time', 'First tkn time', 'uuid', 'TFT (s)', 'All prefill len', 'Input tkn len', 'Sumed len', 'Spent time'], 
+            self.profile_data.tmp_logs)
+        
+        # self.profile_data.tmp2_logs.append(round(current_timestamp, 3), 'p' if first_chunk_time is None else 'd', token_cnt, round(between_token_time, 3))
+        self.profile_data.tmp2_logs = sorted(self.profile_data.tmp2_logs, key = lambda x: x[0])
+        tmp2_final_logs = []
+        for log in self.profile_data.tmp2_logs:
+            # log: (time, (p, tkn_cnt, btt, id))
+            if(not tmp2_final_logs or log[0] - tmp2_final_logs[-1][0] > 0.0055):
+                passed_time = round(log[0] - tmp2_final_logs[-1][0], 2) if tmp2_final_logs else 0
+                tmp2_final_logs.append([log[0], 0, 0, 0, 0, passed_time, passed_time])
+            if(log[1][0] == 'p'):
+                tmp2_final_logs[-1][1] += 1
+                tmp2_final_logs[-1][3] += log[1][1]
+            else:
+                tmp2_final_logs[-1][2] += 1
+                tmp2_final_logs[-1][4] += log[1][1]
+            tmp2_final_logs[-1][6] = min(tmp2_final_logs[-1][6], log[1][2])
+
+        self.write_list_to_csv("tmp2.csv", 
+            ['Time', 'Prefill cnt', 'Decode cnt', 'Prefill Tkn', 'Decode Tkn', 'Between Time', 'Spent Time'], 
+            tmp2_final_logs)
+        
+        tmp3_final_logs = []
+        for log in self.profile_data.tmp2_logs:
+            # log: (time, (p, tkn_cnt, btt, id))
+            if(not tmp3_final_logs or log[0] - tmp3_final_logs[-1][0] > 0.0055):
+                passed_time = round(log[0] - tmp3_final_logs[-1][0], 3) if tmp3_final_logs else 0
+                tmp3_final_logs.append([log[0], 0, 0, 0, 0, passed_time, passed_time, [], []])
+            if(log[1][0] == 'p'):
+                tmp3_final_logs[-1][1] += 1
+                tmp3_final_logs[-1][3] += log[1][1]
+            else:
+                tmp3_final_logs[-1][2] += 1
+                tmp3_final_logs[-1][4] += log[1][1]
+            tmp3_final_logs[-1][6] = min(tmp3_final_logs[-1][6], log[1][2])
+            if(log[1][0] == 'p'):
+                tmp3_final_logs[-1][7].append(log[1][3])
+            else:
+                tmp3_final_logs[-1][8].append(log[1][3])
+        for idx, _ in enumerate(tmp3_final_logs):
+            tmp3_final_logs[idx][7] = sorted(tmp3_final_logs[idx][7])
+            tmp3_final_logs[idx][8] = sorted(tmp3_final_logs[idx][8])
+        self.write_list_to_csv("tmp3.csv", 
+            ['Time', 'Prefill cnt', 'Decode cnt', 'Prefill Tkn', 'Decode Tkn', 'Between Time', 'Spent Time'], 
+            tmp3_final_logs)
     
     def write_logs(self):
         self.write_basic_logs()
@@ -258,7 +329,7 @@ class LLMWorker(ModelWorker):
             return add_failed(user_idle_time_info_record)
         return True
 
-    async def stream_response(self, receiver, request_timestamp, input_length, output_length):
+    async def stream_response(self, uuid, receiver, request_timestamp, input_length, output_length):
         
         def update_user_idle_time_info_record(user_idle_time, user_idle_time_info_record, current_timestamp, idle_time):
             if(idle_time > user_idle_time):
@@ -290,6 +361,9 @@ class LLMWorker(ModelWorker):
                 token_cnt += 1
                 if(self.scheduler_data.scheduling_data_format == AIMDSchedulingDataFormat):
                     self.scheduler_data.uncompleted_tokens -= 1
+                
+                if(self.test_config.record_statistics):
+                    self.profile_data.tmp2_logs.append([round(current_timestamp, 3), ('p' if first_chunk_time is None else 'd', token_cnt, round(between_token_time, 3), uuid)])
 
                 if first_chunk_time is None:
                     first_chunk_time = between_token_time
@@ -342,7 +416,7 @@ class LLMWorker(ModelWorker):
             return first_chunk_time, user_idle_time, user_idle_time_info_record, 0
 
     # input: (prompt, prompt len)
-    async def async_inference(self, input, max_tokens):
+    async def async_inference(self, uuid, input, max_tokens):
         prompt, prompt_len = input
         first_chunk_time = None 
         user_idle_time = 0 
@@ -360,6 +434,7 @@ class LLMWorker(ModelWorker):
                       
             if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
                 self.scheduler_data.total_prefill_length += prompt_len
+                saved_prefill_length_tmp = self.scheduler_data.total_prefill_length
                 self.scheduler_data.prefill_length_period += prompt_len
                 self.scheduler_data.prefill_length_heap.push((prompt_len, request_timestamp))
                 self.scheduler_data.prefill_length_heap_period.push((prompt_len, request_timestamp))
@@ -381,7 +456,7 @@ class LLMWorker(ModelWorker):
                         print(await resp.text())
                         return
                     first_chunk_time, user_idle_time, user_idle_time_info_record, completed = await \
-                        self.stream_response(resp.content.iter_any(), request_timestamp, prompt_len, max_tokens)
+                        self.stream_response(uuid, resp.content.iter_any(), request_timestamp, prompt_len, max_tokens)
             
             current_timestamp = time.perf_counter() - self.runtime_data.start_time_pointer
             self.runtime_data.submitted_record_counter.rm(current_timestamp)
@@ -393,6 +468,8 @@ class LLMWorker(ModelWorker):
             result = self.check_single_query_performance(request_timestamp, first_chunk_time, user_idle_time_info_record)
             if(self.test_config.record_statistics):
                 self.profile_data.logs.append([request_timestamp, prompt_len, max_tokens, first_chunk_time, latency, user_idle_time, result])
+                if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
+                    self.profile_data.tmp_logs.append([request_timestamp, request_timestamp + first_chunk_time, uuid, first_chunk_time, saved_prefill_length_tmp, prompt_len])
         except asyncio.CancelledError:
             raise
     
@@ -430,7 +507,8 @@ class LLMWorker(ModelWorker):
             self.double_barrier.wait()
         self.runtime_data.start_time_pointer = time.perf_counter()
         self.runtime_data.time_limit = self.runtime_data.start_time_pointer + self.test_config.test_time
-
+        
+        uuid = 0
         while(time.perf_counter() < self.runtime_data.time_limit):
             if(self.test_config.trace_path):
                 req_time, sample_in_length, sample_out_length = self.test_config.trace.next()
@@ -440,10 +518,11 @@ class LLMWorker(ModelWorker):
                 if(req_time >= self.test_config.test_time):
                     break
                 llm_input = self.get_input(InputConfig(seq_len = sample_in_length))
-                task_list.append(asyncio.create_task(self.async_inference(llm_input, sample_out_length)))
+                uuid += 1
+                task_list.append(asyncio.create_task(self.async_inference(uuid, llm_input, sample_out_length)))
             else:
                 llm_input = self.get_input(self.input_config)
-                await self.async_inference(llm_input, self.test_config.seq_len[1])
+                await self.async_inference(uuid, llm_input, self.test_config.seq_len[1])
 
         if(self.scheduler_data.intensity_server):
             self.scheduler_data.intensity_server.close()
@@ -456,3 +535,4 @@ class LLMWorker(ModelWorker):
         for id, task in enumerate(task_list):
             if(not task.done()):
                 task.cancel()
+
