@@ -30,7 +30,7 @@ class ConstantScheduler(Scheduler):
     def schedule(self, intensity_data):
         return BasicSchedulePlan(self.batch_size)
     
-    def serve(self):
+    def _serve(self):
         self.model_worker.double_barrier.wait()
         self.model_worker.runtime_data.start_time_pointer = time.perf_counter()
         self.model_worker.runtime_data.time_limit = self.model_worker.runtime_data.start_time_pointer + self.model_worker.test_config.test_time
