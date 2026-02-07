@@ -1,7 +1,7 @@
 import os
 import time
 import asyncio
-from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, unpack_data_bytes
+from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, get_data
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
 from profiling.scheduling.monitor import get_llm_intensity_unix
 from profiling.constants import list_to_string

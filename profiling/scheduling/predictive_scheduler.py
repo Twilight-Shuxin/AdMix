@@ -1,5 +1,5 @@
 import torch
-from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, unpack_data_bytes, get_data_length
+from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, get_data
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
 from profiling.scheduling.predict.MLP_model import MLPPredictModel
 from profiling.scheduling.monitor import get_llm_intensity_unix
