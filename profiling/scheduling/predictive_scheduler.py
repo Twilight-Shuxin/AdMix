@@ -184,8 +184,7 @@ class PredictiveSchedulingDataFormat(SchedulingDataFormat):
 
     @classmethod
     def read_data(cls, client_socket):
-        length = get_data_length(client_socket)
-        return unpack_data_bytes(ObservationData, client_socket, length)
+        return get_data(ObservationData, client_socket)
 
 class PredictiveScheduler(Scheduler):
     data_format = PredictiveSchedulingDataFormat

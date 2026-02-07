@@ -1,7 +1,7 @@
 import os
 import time
 import asyncio
-from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, unpack_data_bytes, get_data_length
+from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, unpack_data_bytes
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
 from profiling.scheduling.monitor import get_llm_intensity_unix
 from profiling.constants import list_to_string
@@ -25,8 +25,7 @@ class AIMDSchedulingDataFormat(SchedulingDataFormat):
     
     @classmethod
     def read_data(cls, client_socket):
-        length = get_data_length(client_socket)
-        return unpack_data_bytes(AIMDSchedulingDataFormat.ObservationData, client_socket, length)
+        return get_data(AIMDSchedulingDataFormat.ObservationData, client_socket)
 
 async def AIMD_monitor(llm_worker):
     llm_worker.scheduler_data.uncompleted_tokens_last_record = (0,0)
