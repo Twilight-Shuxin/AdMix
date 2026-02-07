@@ -1,5 +1,5 @@
 import torch
-from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, get_data
+from profiling.scheduling.scheduler import AIMDBaseScheduler, SchedulingDataFormat, pack_data_bytes, get_data
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
 from profiling.scheduling.predict.MLP_model import MLPPredictModel
 from profiling.scheduling.monitor import get_llm_intensity_unix
@@ -186,7 +186,7 @@ class PredictiveSchedulingDataFormat(SchedulingDataFormat):
     def read_data(cls, client_socket):
         return get_data(ObservationData, client_socket)
 
-class PredictiveScheduler(Scheduler):
+class PredictiveScheduler(AIMDBaseScheduler):
     data_format = PredictiveSchedulingDataFormat
     scheduling_plan = BasicSchedulePlan
     profiling_executor = predictive_profiler
@@ -196,11 +196,6 @@ class PredictiveScheduler(Scheduler):
         alert_threshold : float
         accumulate_threshold : int
         accumulated : int = 0
-    
-    class Action(IntEnum):
-        UP = 3
-        FLAT = 2
-        DOWN = 1
 
     def __init__(self):
         self.batch_size = 1
@@ -264,28 +259,10 @@ class PredictiveScheduler(Scheduler):
         pred_TpP, pred_TpD = self.get_prediction(observation_data)
         action = self.check_threshold(self.threshold_P, pred_TpP, intensity_data.period_data.TpP)
         action = min(action, self.check_threshold(self.threshold_D, pred_TpD, intensity_data.period_data.TpD))
-        match action:
-            case self.Action.UP:
-                self.step_up()
-            case self.Action.FLAT:
-                if(self.batch_size == 0):
-                    self.step_up()
-            case self.Action.DOWN:  
-                self.step_down()
+        self.execute_action(action)
         self.prediction_logs.append([round(time.perf_counter() - self.model_worker.runtime_data.start_time_pointer, 3),
             self.batch_size, intensity_data.period_data.TpP, pred_TpP, intensity_data.period_data.TpD, pred_TpD])
         self.execute()
-    
-    def step_up(self):
-        if(self.batch_size == 0):
-            self.batch_size += 1
-            return
-        if(self.batch_size < self.max_batch_size):
-            self.batch_size += self.alpha if (self.batch_size != 1 or self.alpha == 1) else self.alpha - 1
-            self.batch_size = min(self.max_batch_size, self.batch_size)
-    
-    def step_down(self):
-        self.batch_size = self.batch_size // self.beta
     
     def execute(self):
         end_round_time = self.start_round_time + self.time_interval

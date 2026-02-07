@@ -33,3 +33,31 @@ class Scheduler():
     def serve(self, model_worker):
         self.model_worker = model_worker
         self._serve()
+
+class AIMDBaseScheduler(Scheduler):
+    class Action(IntEnum):
+        UP = 3
+        FLAT = 2
+        DOWN = 1
+    
+    def step_up(self):
+        if(self.batch_size == 0):
+            self.batch_size += 1
+            return
+        if(self.batch_size < self.max_batch_size):
+            self.batch_size += self.alpha if (self.batch_size != 1 or self.alpha == 1) else self.alpha - 1
+            self.batch_size = min(self.max_batch_size, self.batch_size)
+    
+    def step_down(self):
+        self.batch_size = self.batch_size // self.beta
+    
+    @classmethod
+    def execute_action(cls, action):
+        match action:
+            case self.Action.UP:
+                self.step_up()
+            case self.Action.FLAT:
+                if(self.batch_size == 0):
+                    self.step_up()
+            case self.Action.DOWN:  
+                self.step_down()

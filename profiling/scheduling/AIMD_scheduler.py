@@ -1,7 +1,7 @@
 import os
 import time
 import asyncio
-from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, get_data
+from profiling.scheduling.scheduler import AIMDBaseScheduler, SchedulingDataFormat, pack_data_bytes, get_data
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
 from profiling.scheduling.monitor import get_llm_intensity_unix
 from profiling.constants import list_to_string
@@ -57,7 +57,7 @@ async def AIMD_profiler(llm_worker):
     except Exception as e:
         print(e)
 
-class AIMDScheduler(Scheduler):
+class AIMDScheduler(AIMDBaseScheduler):
     data_format = AIMDSchedulingDataFormat
     scheduling_plan = BasicSchedulePlan
     profiling_executor = AIMD_profiler
@@ -73,14 +73,12 @@ class AIMDScheduler(Scheduler):
              (current_timestamp - self.profile[self.profile_pointer][0] > self.half_scheduling_interval)):
             self.profile_pointer += 1
 
+        action = self.Action.FLAT
         if (uncompleted_tokens > 10 and self.profile[self.profile_pointer][1] * 1.1 < uncompleted_tokens):
-            self.batch_size //= self.beta
+            action = self.Action.DOWN
         elif (self.last != self.profile_pointer and self.batch_size < self.max_batch_size):
-            if(self.batch_size == 0):
-                self.batch_size = 1
-            else:
-                self.batch_size += self.alpha
-                self.batch_size = min(self.max_batch_size, self.batch_size)
+            action = self.Action.UP
+        self.execute_action(action)
         
         if(self.last != self.profile_pointer):
             self.last = self.profile_pointer
