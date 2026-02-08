@@ -1,4 +1,5 @@
 import time
+from enum import IntEnum
 from pydantic import BaseModel
 from profiling.scheduling.monitor import get_llm_info_unix
 

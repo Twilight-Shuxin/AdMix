@@ -1,6 +1,8 @@
 import sys
+import json
 import asyncio
 import aiohttp
+import socket
 from profiling.constants import *
 from profiling.scheduling.scheduler import get_data_length
 from profiling.scheduling.monitor import LLM_INTENSITY_SOCKET_PATH
@@ -61,10 +63,10 @@ async def test_trace(trace, test_time):
 def main():
     loop = asyncio.new_event_loop()
 
-    trace_config_id = int(sys.argv[1])
+    trace_config_id = int(sys.argv[2])
     test_time = None
-    if(len(sys.argv) > 2):
-        test_time = int(sys.argv[2])
+    if(len(sys.argv) > 3):
+        test_time = int(sys.argv[3])
     
     set_LLM_trace_config(trace_config_id)
     trace_config = read_LLM_trace_config()
@@ -81,7 +83,7 @@ def main():
     data = client_socket.recv(length)
     data = json.loads(data.decode("utf-8"))
     client_socket.close()
-    shuxin_csv(["Latency", "Total kn", "Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn", "Prefill Reqs"], data)
+    write_list_to_csv("./data/" + sys.argv[1],["Latency", "Total kn", "Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn", "Prefill Reqs"], data)
 
 
 if __name__ == "__main__":

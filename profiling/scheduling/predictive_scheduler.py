@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 from profiling.scheduling.constants import SCHEDULING_BIN_SIZE, FeatureModel
 from plotting.constants import *
 from profiling.constants import *
-from enum import IntEnum
 import time
 import asyncio
 
