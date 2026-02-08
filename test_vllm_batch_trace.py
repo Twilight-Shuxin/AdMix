@@ -2,6 +2,7 @@ import sys
 import asyncio
 import aiohttp
 from profiling.constants import *
+from profiling.scheduling.scheduler import get_data_length
 from profiling.scheduling.monitor import LLM_INTENSITY_SOCKET_PATH
 from dataset.sharegpt_dataset import ShareGPTDataset
 from trace.trace_utils import LLMTrace, set_LLM_trace_config, read_LLM_trace_config
@@ -13,11 +14,6 @@ server_config = {
     "stream": True
 }
 sharegpt_dataset = ShareGPTDataset("shareGPT.json")
-
-def get_data_length(conn):
-    length_bytes = conn.recv(4)
-    length = int.from_bytes(length_bytes, "big")
-    return length
 
 def get_prompt(prompt_len):
     prompt, _ = sharegpt_dataset.get_query(InputConfig(seq_len = prompt_len))
@@ -76,27 +72,17 @@ def main():
         if(hasattr(trace_config, 'test_time')):
             test_time = trace_config.test_time
     trace = LLMTrace(trace_config)
-    # loop.run_until_complete(test_trace(trace, test_time))
-    def main():
-    for i in range(100):
-        client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        # try:
-        #     client_socket.connect(SHUXIN_LLM_SOCKET_PATH)
-        #     client_socket.sendall(b"hi")
-        #     length = get_data_length(client_socket)
-        #     data = conn.recv(length)
-        #     data = json.loads(data.decode("utf-8"))
-        #     client_socket.close()
-        # except:
-        #     data = None
-        client_socket.connect(SHUXIN_LLM_SOCKET_PATH)
-        client_socket.sendall(b"hi")
-        length = get_data_length(client_socket)
-        data = client_socket.recv(length)
-        data = json.loads(data.decode("utf-8"))
-        client_socket.close()
-        print(data)
-        time.sleep(0.1)
+    loop.run_until_complete(test_trace(trace, test_time))
+
+    client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    client_socket.connect(LLM_INTENSITY_SOCKET_PATH)
+    client_socket.sendall(b"hi")
+    length = get_data_length(client_socket)
+    data = client_socket.recv(length)
+    data = json.loads(data.decode("utf-8"))
+    client_socket.close()
+    shuxin_csv(["Latency", "Total kn", "Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn", "Prefill Reqs"], data)
+
 
 if __name__ == "__main__":
     main()
