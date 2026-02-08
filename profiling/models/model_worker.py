@@ -158,7 +158,7 @@ class ModelWorker(Process):
             command = "{}/start_dcgm_dmon.sh {} {} \"{}\"".format(self.dirname, str(self.true_device_id + 2), str(profile_id), 
                 log_filepath)
             os.system(command)
-            with open('dcgm_pid.log', 'r') as pid_file:
+            with open(DCGM_TMP_FILE, 'r') as pid_file:
                 pid = int(pid_file.read())
             dcgm_procs.append((pid, command))
         parent_conn, child_conn = Pipe()

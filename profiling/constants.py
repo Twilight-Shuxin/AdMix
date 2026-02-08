@@ -8,6 +8,7 @@ from collections import Counter
 from plotting.constants import PLOTTING_BIN_SIZE
 
 EPS = 1e-6
+DCGM_TMP_FILE = "dcgm_pid.log"
 
 class ArgsType(Enum):
     INT = 1
@@ -326,7 +327,7 @@ def dcgm_dmon_monitor(dcgm_procs, conn):
                 os.kill(pid, 0)  # Doesn't actually kill; just checks permission/existence
             except ProcessLookupError:
                 os.system(cmd + " append")
-                with open('tmp.log', 'r') as pid_file:
+                with open(DCGM_TMP_FILE, 'r') as pid_file:
                     pid = int(pid_file.read())
                 dcgm_procs[id] = (pid, cmd)
             except PermissionError:
