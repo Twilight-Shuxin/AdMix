@@ -5,14 +5,17 @@ from profiling.scheduling.monitor import get_llm_info_unix
 def pack_data_bytes(data_object : BaseModel):
     return data_object.json().encode("utf-8")
 
+def get_data_length(conn):
+    length_bytes = conn.recv(4)
+    return int.from_bytes(length_bytes, "big")
+
 """
     Get data from a connection, where the data will be interpreted as a data_cls object.
     Expect the data_cls object to have a parse_raw class function to transform the received raw data into the actual object.
 """
 def conn_get_data(data_cls, conn):
     # Get data length
-    length_bytes = conn.recv(4)
-    length = int.from_bytes(length_bytes, "big")
+    length = get_data_length(conn)
     # Read data
     data = conn.recv(length)
     return data_cls.parse_raw(data.decode("utf-8"))
