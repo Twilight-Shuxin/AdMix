@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys
@@ -11,8 +12,8 @@ def plot_dcgm(records, data_path_prefix, tag):
         print("Warning: plot_dcgm: Not enough records for trimming.")
 
     plt.figure(figsize=(10, 5))
-
-    records = average_chunks(records, chunk_size = 30)
+    chunk_size = 30
+    records = average_chunks(records, chunk_size)
     df = pd.DataFrame({tag: records})
 
     tag_config = {
