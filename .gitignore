@@ -13,3 +13,5 @@ data/*
 !dataset/
 *.bin
 tmp/
+__pycache__/
+*.py[cod]
