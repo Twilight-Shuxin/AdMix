@@ -1,5 +1,6 @@
 import time
 from pydantic import BaseModel
+from profiling.scheduling.monitor import get_llm_info_unix
 
 def pack_data_bytes(data_object : BaseModel):
     return data_object.json().encode("utf-8")
@@ -32,4 +33,11 @@ class Scheduler():
 
     def serve(self, model_worker):
         self.model_worker = model_worker
+        # Be informed that the llm worker is ready to accept queries through unix server
+        self.model_worker.double_barrier.wait()
+
+        # Update test_config according to llm worker, and re-initialize test environment data
+        self.model_worker.test_config.test_time = get_llm_info_unix()
+        self.model_worker.init_testenv_data()
+        
         self._serve()

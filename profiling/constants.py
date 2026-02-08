@@ -359,7 +359,6 @@ def get_dcgm_data(profile_filepath):
         for line in lines:
             line = line.strip('\n').strip(' ')
             if line and not line.startswith("#Entity") and not line.startswith("ID"):
-                # print(line, line.split("      "))
                 _, value = line.split("      ")
                 values.append(float(value))
     return values

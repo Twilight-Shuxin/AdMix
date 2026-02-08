@@ -7,7 +7,7 @@ import asyncio
 import aiohttp
 from profiling.models.model_worker import ModelWorker
 from profiling.constants import *
-from profiling.scheduling.monitor import LLM_SOCKET_PATH
+from profiling.scheduling.monitor import LLM_SERVER_SOCKET_PATH, LLM_INTENSITY_SOCKET_PATH
 from profiling.scheduling.utils import get_scheduler_class
 from profiling.scheduling import AIMDScheduler, AIMDSchedulingDataFormat, PredictiveScheduler, PredictiveSchedulingDataFormat
 from dataset.sharegpt_dataset import ShareGPTDataset
@@ -402,7 +402,7 @@ class LLMWorker(ModelWorker):
     def profile(self):
         pass
     
-    async def unix_handler(self, reader, writer):
+    async def intensity_unix_handler(self, reader, writer):
         _ = await reader.read(32)
         data = self.scheduler_data.scheduling_data_format.pack_data(self)
         writer.write(len(data).to_bytes(4, "big"))
@@ -411,25 +411,37 @@ class LLMWorker(ModelWorker):
         await writer.drain()
         writer.close()
     
-    async def create_unix_intensity_server(self):
-        print("Starting Unix server")
-        self.scheduler_data.intensity_server = await asyncio.start_unix_server(self.unix_handler, LLM_SOCKET_PATH)
+    async def server_unix_handler(self, reader, writer):
+        action = (await reader.read(32)).decode("utf-8")
+        match(action):
+            case "test_time":
+                writer.write(self.test_config.test_time.to_bytes(4, "big"))
+                await writer.drain()
+        writer.close()
+    
+    async def create_unix_servers(self):
+        print("Starting Unix servers")
+        self.scheduler_data.intensity_server = await asyncio.start_unix_server(self.intensity_unix_handler, LLM_INTENSITY_SOCKET_PATH)
+        self.scheduler_data.general_server = await asyncio.start_unix_server(self.server_unix_handler, LLM_SERVER_SOCKET_PATH)
     
     async def _test(self):
         if(self.test_config.scheduler):
             if(self.test_config.global_cnt > 1): # Serving mode
-                asyncio.create_task(self.create_unix_intensity_server())
+                await self.create_unix_servers()
                 if(self.scheduler_data.scheduler_type.monitor):
                     self.scheduler_data.scheduler_monitor = asyncio.create_task(self.scheduler_data.scheduler_type.monitor(self))
+                # Inform opportunistic worker that the communication servers are ready for connection
+                self.double_barrier.wait()
+                # Be informed by opportunistic worker that the other side have retrieved necessary information and is ready to move on,
+                # has to be handled asynchronously
+                await asyncio.to_thread(self.double_barrier.wait)
             else: # Profiling mode
                 print("Scheduler profiling...")
                 self.scheduler_data.scheduler_profiler = asyncio.create_task(self.scheduler_data.scheduler_type.profiling_executor(self))
                 
-        task_list = []
-        if(self.test_config.scheduler != None and self.test_config.global_cnt > 1):
-            self.double_barrier.wait()
         self.runtime_data.start_time_pointer = time.perf_counter()
         self.runtime_data.time_limit = self.runtime_data.start_time_pointer + self.test_config.test_time
+        task_list = []
 
         while(time.perf_counter() < self.runtime_data.time_limit):
             if(self.test_config.trace_path):
@@ -447,6 +459,7 @@ class LLMWorker(ModelWorker):
 
         if(self.scheduler_data.intensity_server):
             self.scheduler_data.intensity_server.close()
+            self.scheduler_data.general_server.close()
         if(self.scheduler_data.scheduler_profiler):
             print("Close scheduler profiler")
             self.scheduler_data.scheduler_profiler.cancel()
