@@ -1,4 +1,4 @@
-from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, get_data
+from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, conn_get_data
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
 from pydantic import BaseModel
 import time
@@ -18,7 +18,7 @@ class ConstantSchedulingDataFormat(SchedulingDataFormat):
 
     @classmethod
     def read_data(cls, client_socket):
-        return get_data(ConstantSchedulingDataFormat.ObservationData, client_socket)
+        return conn_get_data(ConstantSchedulingDataFormat.ObservationData, client_socket)
 
 class ConstantScheduler(Scheduler):
     data_format = ConstantSchedulingDataFormat

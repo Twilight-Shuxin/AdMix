@@ -1,5 +1,5 @@
 import torch
-from profiling.scheduling.scheduler import AIMDBaseScheduler, SchedulingDataFormat, pack_data_bytes, get_data
+from profiling.scheduling.scheduler import AIMDBaseScheduler, SchedulingDataFormat, pack_data_bytes, conn_get_data
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
 from profiling.scheduling.predict.MLP_model import MLPPredictModel
 from profiling.scheduling.monitor import get_llm_intensity_unix
@@ -184,7 +184,7 @@ class PredictiveSchedulingDataFormat(SchedulingDataFormat):
 
     @classmethod
     def read_data(cls, client_socket):
-        return get_data(ObservationData, client_socket)
+        return conn_get_data(ObservationData, client_socket)
 
 class PredictiveScheduler(AIMDBaseScheduler):
     data_format = PredictiveSchedulingDataFormat
@@ -293,7 +293,7 @@ class PredictiveScheduler(AIMDBaseScheduler):
         self.model_worker.double_barrier.wait()
         self.model_worker.runtime_data.start_time_pointer = time.perf_counter()
         self.model_worker.runtime_data.time_limit = self.model_worker.runtime_data.start_time_pointer + self.model_worker.test_config.test_time
-        
+
         while(time.perf_counter() < self.model_worker.runtime_data.time_limit):
             current_intensity = get_llm_intensity_unix(self.data_format)
             self.schedule(current_intensity)
