@@ -518,13 +518,10 @@ class LLMWorker(ModelWorker):
                 
         self.runtime_data.start_time_pointer = time.perf_counter()
         self.runtime_data.time_limit = self.runtime_data.start_time_pointer + self.test_config.test_time
-<<<<<<< HEAD
         
         uuid = 0
-=======
         task_list = []
 
->>>>>>> 0118de1e089f4b3086adf3b463676c36f421d473
         while(time.perf_counter() < self.runtime_data.time_limit):
             if(self.test_config.trace_path):
                 req_time, sample_in_length, sample_out_length = self.test_config.trace.next()
