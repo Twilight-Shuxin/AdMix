@@ -202,16 +202,8 @@ class ModelWorker(Process):
             for log_record in record_list: 
                 log_output.write(list_to_string(log_record) + "\n")
     
-    def write_list_to_csv(self, file_name, headers, record_list, subpath = None):
-        log_filepath = self.get_file_path(file_name, subpath)
-        with open(log_filepath, "w", newline="", encoding="utf-8") as log_output:
-            writer = csv.writer(log_output)
-            writer.writerow(headers)
-            for record in record_list:
-                if(isinstance(record, list) or isinstance(record, tuple)):
-                    writer.writerow(record)  # Writes entire list
-                else:
-                    writer.writerow([record])
+    def write_csv(self, file_name, headers, record_list, subpath = None):
+        write_list_to_csv(self.get_file_path(file_name, subpath), headers, record_list)
     
     """
         Write logs:
@@ -220,7 +212,7 @@ class ModelWorker(Process):
     """
     def write_logs(self):
         self.write_analytics("summary.log", [x[1] for x in self.profile_data.logs])
-        self.write_list_to_csv("all.csv", ['Batch Size', 'Latency (ms)'], self.profile_data.logs)
+        self.write_csv("all.csv", ['Batch Size', 'Latency (ms)'], self.profile_data.logs)
         self.write_all("flow.log", self.profile_data.absolute_throughput_records.append_timestamps())
   
 

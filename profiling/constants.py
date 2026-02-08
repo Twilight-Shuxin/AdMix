@@ -1,3 +1,4 @@
+import csv
 import os
 import copy
 from enum import Enum
@@ -383,6 +384,16 @@ def get_dcgm_analysis_excluding_zeros(profile_filepath):
 
 def timebin_ranges(time_bin_len, time_len):
     return np.arange(0, time_len + 0.5, time_bin_len)
+
+def write_list_to_csv(file_path, headers, record_list):
+    with open(filepath, "w", newline="", encoding="utf-8") as log_output:
+        writer = csv.writer(log_output)
+        writer.writerow(headers)
+        for record in record_list:
+            if(isinstance(record, list) or isinstance(record, tuple)):
+                writer.writerow(record)  # Writes entire list
+            else:
+                writer.writerow([record])
 
 
 """
