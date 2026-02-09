@@ -188,7 +188,7 @@ class LLMWorker(ModelWorker):
         self.profile_data.logs = sorted(self.profile_data.logs, key = lambda x: x[0])
         self.write_analytics("ftsummary.log", [x[3] for x in self.profile_data.logs])
         self.write_analytics("btsummary.log", [(x[4] / x[2]) for x in self.profile_data.logs])
-        self.write_list_to_csv("all.csv", 
+        self.write_csv("all.csv", 
             ['Request timestamp (s)', 'Input token cnt', 'Output token cnt', 'TFT (s)', 'Latency (s)', 'Idle time (s)', 'Success'], 
             self.profile_data.logs)
     
@@ -204,7 +204,7 @@ class LLMWorker(ModelWorker):
                 max_list_ftt, avg_list_btt, max_list_btt
             ))
         ]
-        self.write_list_to_csv("ttsummary.csv", 
+        self.write_csv("ttsummary.csv", 
             ['Bin Timestamp (s)', 'FT throughput', 'BT throughput', 'Average TFT (s)', 'Max TFT (s)', 'Average TBT (s)', 'Max TBT(s)'], 
             tt_logs)
         
