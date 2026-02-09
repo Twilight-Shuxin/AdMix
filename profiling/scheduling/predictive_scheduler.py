@@ -1,9 +1,9 @@
 import torch
+from pydantic import BaseModel, Field
 from profiling.scheduling.scheduler import AIMDBaseScheduler, SchedulingDataFormat, pack_data_bytes, conn_get_data
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
 from profiling.scheduling.predict.MLP_model import MLPPredictModel
 from profiling.scheduling.monitor import get_llm_intensity_unix
-from pydantic import BaseModel, Field
 from profiling.scheduling.constants import SCHEDULING_BIN_SIZE, FeatureModel
 from plotting.constants import *
 from profiling.constants import *
@@ -274,17 +274,6 @@ class PredictiveScheduler(AIMDBaseScheduler):
         left_time = end_round_time - time.perf_counter()
         if(left_time > 0.001):
             time.sleep(left_time)
-    
-    def scheduler_init(self):
-        profiled_data = self.model_worker.read_profiled_data()
-        max_batch_size = self.model_worker.supported_batchsize[-1]
-        for i in reversed(range(1, max_batch_size + 1)):
-            if(profiled_data[str(i)] < self.time_interval):
-                max_batch_size = i
-                break
-        self.max_batch_size = max_batch_size
-        self.alpha = self.model_worker.alpha
-        self.beta = self.model_worker.beta
     
     def _serve(self):
         self.scheduler_init()

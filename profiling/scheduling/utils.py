@@ -11,7 +11,7 @@ def get_scheduler_class(scheduler_name):
         case "predictive":
             return PredictiveScheduler
         case "batch":
-            return 
+            return BatchScheduler
     return None  
 
 def get_scheduler(scheduler_name):

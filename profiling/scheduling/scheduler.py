@@ -65,6 +65,17 @@ class AIMDBaseScheduler(Scheduler):
         FLAT = 2
         DOWN = 1
     
+    def scheduler_init(self):
+        profiled_data = self.model_worker.read_profiled_data()
+        max_batch_size = self.model_worker.supported_batchsize[-1]
+        for i in reversed(range(1, max_batch_size + 1)):
+            if(profiled_data[str(i)] < self.time_interval):
+                max_batch_size = i
+                break
+        self.max_batch_size = max_batch_size
+        self.alpha = self.model_worker.alpha
+        self.beta = self.model_worker.beta
+    
     def step_up(self):
         if(self.batch_size == 0):
             self.batch_size += 1
@@ -76,8 +87,7 @@ class AIMDBaseScheduler(Scheduler):
     def step_down(self):
         self.batch_size = self.batch_size // self.beta
     
-    @classmethod
-    def execute_action(cls, action):
+    def execute_action(self, action):
         match action:
             case self.Action.UP:
                 self.step_up()

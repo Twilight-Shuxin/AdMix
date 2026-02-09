@@ -9,7 +9,7 @@ from profiling.models.model_worker import ModelWorker
 from profiling.constants import *
 from profiling.scheduling.monitor import LLM_SERVER_SOCKET_PATH, LLM_INTENSITY_SOCKET_PATH
 from profiling.scheduling.utils import get_scheduler_class
-from profiling.scheduling import AIMDScheduler, AIMDSchedulingDataFormat, PredictiveScheduler, PredictiveSchedulingDataFormat
+from profiling.scheduling import AIMDScheduler, AIMDSchedulingDataFormat, PredictiveScheduler, PredictiveSchedulingDataFormat, BatchScheduler
 from dataset.sharegpt_dataset import ShareGPTDataset
 from trace.trace_utils import LLMTrace, set_LLM_trace_config, read_LLM_trace_config
 from plotting.trace_plot import TracePlotData, TraceAxisData, plot_trace_graph
@@ -421,7 +421,8 @@ class LLMWorker(ModelWorker):
     
     async def create_unix_servers(self):
         print("Starting Unix servers")
-        self.scheduler_data.intensity_server = await asyncio.start_unix_server(self.intensity_unix_handler, LLM_INTENSITY_SOCKET_PATH)
+        if(self.scheduler_data.scheduler_type != BatchScheduler):
+            self.scheduler_data.intensity_server = await asyncio.start_unix_server(self.intensity_unix_handler, LLM_INTENSITY_SOCKET_PATH)
         self.scheduler_data.general_server = await asyncio.start_unix_server(self.server_unix_handler, LLM_SERVER_SOCKET_PATH)
     
     async def _test(self):

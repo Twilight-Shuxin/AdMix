@@ -1,8 +1,11 @@
 import time
-from pydantic import BaseModel
+from typing import List
+from pydantic import BaseModel, Field
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
-from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, conn_get_data
+from profiling.scheduling.scheduler import AIMDBaseScheduler, SchedulingDataFormat, pack_data_bytes, conn_get_data
 from profiling.scheduling.batch_predict.MLP_model import MLPPredictModel
+from profiling.scheduling.constants import FeatureModel
+from profiling.scheduling.monitor import get_llm_intensity_unix
 
 class ObservationSingleBatchData(FeatureModel):
     latency: float = 0
@@ -15,7 +18,7 @@ class ObservationSingleBatchData(FeatureModel):
         return self.vector()[1:]
     
     def get_pred_feature_len(self):
-        return self.pred_feature_data()
+        return len(self.pred_feature_data())
 
 class ObservationData(FeatureModel):
     data: List[ObservationSingleBatchData] = Field(default_factory=list)
@@ -53,7 +56,7 @@ class BatchScheduler(AIMDBaseScheduler):
         
         device = "cuda"
         input_dim = ObservationSingleBatchData().get_pred_feature_len()
-        self.predictor = MLPPredictModel(, input_dim, device)
+        self.predictor = MLPPredictModel(input_dim, device)
         self.prediction_logs = []
         self.execution_logs = []
 
@@ -68,20 +71,23 @@ class BatchScheduler(AIMDBaseScheduler):
 
     def schedule(self, intensity_data):
         self.start_round_time = time.perf_counter()
-        
-        pred_latency = self.get_prediction(intensity_data)
-        self.prediction_logs.extend(
-            [
-                feature + [latency, pred_latency]
-                for feature, latency, pred_latency in zip(
-                    observation_data.pred_feature_data(),
-                    [x.latency for x in intensity_data.data],
-                    pred_latency,
-                )
-            ]
-        )
+        if(intensity_data.data):
+            print("??", intensity_data.data)
+            pred_latency = self.get_prediction(intensity_data)
+            self.prediction_logs.extend(
+                [
+                    feature + [latency, pred_latency]
+                    for feature, latency, pred_latency in zip(
+                        observation_data.pred_feature_data(),
+                        [x.latency for x in intensity_data.data],
+                        pred_latency,
+                    )
+                ]
+            )
 
-        action = self.get_action([x.latency for x in intensity_data.data], pred_latency)
+            action = self.get_action([x.latency for x in intensity_data.data], pred_latency)
+        else:
+            action = self.Action.UP
         self.execute_action(action)
         self.execute()
     
@@ -98,6 +104,7 @@ class BatchScheduler(AIMDBaseScheduler):
             time.sleep(left_time)
     
     def _serve(self):
+        self.scheduler_init()
         self.model_worker.double_barrier.wait()
         self.model_worker.runtime_data.start_time_pointer = time.perf_counter()
         self.model_worker.runtime_data.time_limit = self.model_worker.runtime_data.start_time_pointer + self.model_worker.test_config.test_time

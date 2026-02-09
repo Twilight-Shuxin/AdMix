@@ -29,9 +29,9 @@ class PredictModel():
         self.load()
         self.model.eval()
 
-    def set_model_path(self, tag):
+    def set_model_path(self):
         model_filename = f"model_{self.model_name}.{self.saved_model_suffix_name}"
-        self.load_model_path = GMODEL_FOLDER / model_filename
+        self.load_model_path = GBATCH_PREDICT_MODEL_FOLDER / model_filename
 
     def load(self):
         self._load()
