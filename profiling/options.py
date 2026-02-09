@@ -85,7 +85,7 @@ def parse_profile_options():
         "--tag", type = str, default = None
     )
     parser.add_argument(
-        "--test_time", type = float, default = None
+        "--test_time", type = int, default = None
     )
     parser.add_argument(
         "--mode", type = str, default = RuntimeMode.TEST.value
