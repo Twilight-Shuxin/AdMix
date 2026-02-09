@@ -1,4 +1,5 @@
 import sys
+import time
 import asyncio
 from trace.trace_utils import LLMTrace, set_LLM_trace_config, read_LLM_trace_config
 from llm_utils import get_data_from_vllm, async_inference
@@ -36,7 +37,7 @@ def main():
     trace = get_trace(trace_config_id, test_time)
     loop.run_until_complete(test_trace(trace, test_time))
     data = get_data_from_vllm()
-    write_list_to_csv("./data/" + sys.argv[1],["Latency", "Total kn", "Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn"], data)
+    write_list_to_csv("./data/" + sys.argv[1],["Latency", "Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn"], data)
 
 if __name__ == "__main__":
     main()

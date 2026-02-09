@@ -67,7 +67,7 @@ def main():
         print("Running: ", idx, decode_tkn, len(prefill_configs), str(round(time.perf_counter() - start_time, 3)) + "s")
         
     data = get_data_from_vllm()
-    write_list_to_csv("./data/" + sys.argv[1],["Latency", "Total kn", "Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn"], data)
+    write_list_to_csv("./data/" + sys.argv[1],["Latency", "Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn"], data)
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,6 @@
 import time
+import json
+import torch
 from typing import List
 from pydantic import BaseModel, Field
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
@@ -24,11 +26,13 @@ class ObservationData(FeatureModel):
     data: List[ObservationSingleBatchData] = Field(default_factory=list)
 
     @classmethod
-    def parse_raw(cls, raw: list[list[ObservationSingleBatchData]]) -> "ObservationData":
+    def parse_raw(cls, payload) -> "ObservationData":
+        payload = json.loads(payload)
         return cls(
-            data=ObservationSingleBatchData(
-                **dict(zip(ObservationSingleBatchData.model_fields.keys(), values))
-            )
+            data=[
+                ObservationSingleBatchData(**dict(zip(ObservationSingleBatchData.model_fields, row)))
+                for row in payload
+            ]
         )
     
     def pred_feature_data(self):
@@ -74,9 +78,9 @@ class BatchScheduler(AIMDBaseScheduler):
             pred_latency = self.get_prediction(intensity_data)
             self.prediction_logs.extend(
                 [
-                    feature + [latency, pred_latency]
+                    feature.copy() + [latency, pred_latency]
                     for feature, latency, pred_latency in zip(
-                        observation_data.pred_feature_data(),
+                        intensity_data.pred_feature_data(),
                         [x.latency for x in intensity_data.data],
                         pred_latency,
                     )
