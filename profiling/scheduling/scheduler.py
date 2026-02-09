@@ -13,13 +13,24 @@ def get_data_length(conn):
 """
     Get data from a connection, where the data will be interpreted as a data_cls object.
     Expect the data_cls object to have a parse_raw class function to transform the received raw data into the actual object.
+    
+    chunked: whether to receive the data by chunks
 """
-def conn_get_data(data_cls, conn):
+def conn_get_data(data_cls, conn, chunked = False):
     # Get data length
     length = get_data_length(conn)
     # Read data
-    data = conn.recv(length)
+    data = conn.recv(length) if not chunked else conn_get_data_chunked(conn, length)
     return data_cls.parse_raw(data.decode("utf-8"))
+
+def conn_get_data_chunked(conn, data_length):
+    buf = bytearray()
+    while len(buf) < data_length:
+        chunk = conn.recv(data_length - len(buf))
+        if not chunk:
+            raise ConnectionError("socket closed")
+        buf.extend(chunk)
+    return bytes(buf)
 
 class SchedulingDataFormat():
     def default_data():
