@@ -425,6 +425,8 @@ class LLMWorker(ModelWorker):
         self.scheduler_data.general_server = await asyncio.start_unix_server(self.server_unix_handler, LLM_SERVER_SOCKET_PATH)
     
     async def _test(self):
+        self.init_testenv_data()
+        
         if(self.test_config.scheduler):
             if(self.test_config.global_cnt > 1): # Serving mode
                 await self.create_unix_servers()

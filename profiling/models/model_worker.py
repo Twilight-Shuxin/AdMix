@@ -237,10 +237,19 @@ class ModelWorker(Process):
         All runtime settings have been completed by the wrapper function 'test' ↓
     """
     def _test(self):
-        if(self.scheduler_data.scheduler):
+        if(self.test_config.scheduler):
+            # Be informed that the llm worker is ready to accept queries through unix server
+            self.model_worker.double_barrier.wait()
+
+            # Update test_config according to llm worker, and re-initialize test environment data
+            self.test_config.test_time = get_llm_info_unix()
+            self.init_testenv_data()
+
+            # Start serving
             self.scheduler_data.scheduler.serve(self)
             return
 
+        self.init_testenv_data()
         # Start test
         self.runtime_data.start_time_pointer = time.perf_counter()
         self.runtime_data.time_limit = self.runtime_data.start_time_pointer + self.test_config.test_time
@@ -352,9 +361,8 @@ class ModelWorker(Process):
                 self.test_config.set_warmup()
                 self.init_testenv_data()
                 self.warmup()
-                self.test_config.set_test()
-                self.init_testenv_data()
                 self.barrier.wait()
+                self.test_config.set_test()
                 self.test()
                 self.barrier.wait()
             elif(action == "self_tag"):
