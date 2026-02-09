@@ -95,7 +95,7 @@ async def predictive_profiler(llm_worker):
             last_point_data = observation_data.point_data
             
     except asyncio.CancelledError:
-        llm_worker.write_list_to_csv("predict_data.csv", 
+        llm_worker.write_csv("predict_data.csv", 
         PredHeaders.ORDERED, logs)
     except Exception as e:
         print(e)
@@ -286,7 +286,7 @@ class PredictiveScheduler(AIMDBaseScheduler):
             current_intensity = get_llm_intensity_unix(self.data_format)
             self.schedule(current_intensity)
         
-        self.model_worker.write_list_to_csv("scheduled.csv", 
+        self.model_worker.write_csv("scheduled.csv", 
             ["Time", "Batch Size", "Prefill_Tp", "Predicted_Prefill_Tp", "Decode_Tp", "Predicted_Decode_Tp"],
             self.prediction_logs)
         
