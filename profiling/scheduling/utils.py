@@ -1,6 +1,4 @@
-from profiling.scheduling.AIMD_scheduler import AIMDScheduler
-from profiling.scheduling.predictive_scheduler import PredictiveScheduler
-from profiling.scheduling.constant_scheduler import ConstantScheduler
+from profiling.scheduling import *
 
 def get_scheduler_class(scheduler_name):
     if(scheduler_name is None):
@@ -12,6 +10,8 @@ def get_scheduler_class(scheduler_name):
             return AIMDScheduler
         case "predictive":
             return PredictiveScheduler
+        case "batch":
+            return 
     return None  
 
 def get_scheduler(scheduler_name):
