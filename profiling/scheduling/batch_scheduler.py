@@ -113,7 +113,7 @@ class BatchScheduler(AIMDBaseScheduler):
             current_intensity = get_llm_intensity_unix(self.data_format)
             self.schedule(current_intensity)
 
-        self.model_worker.write_list_to_csv("batch_predicted.csv", 
+        self.model_worker.write_csv("batch_predicted.csv", 
             ["Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn", "Latency", "Pred Latency"],
             self.prediction_logs)
 
