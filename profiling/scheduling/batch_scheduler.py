@@ -41,7 +41,6 @@ class BatchSchedulingDataFormat(SchedulingDataFormat):
 
     @classmethod
     def read_data(cls, client_socket):
-        length = get_data_length(client_socket)
         return conn_get_data(ObservationData, client_socket, chunked = True)
 
 class BatchScheduler(AIMDBaseScheduler):
