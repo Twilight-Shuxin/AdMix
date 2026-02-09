@@ -239,7 +239,7 @@ class ModelWorker(Process):
     def _test(self):
         if(self.test_config.scheduler):
             # Be informed that the llm worker is ready to accept queries through unix server
-            self.model_worker.double_barrier.wait()
+            self.double_barrier.wait()
 
             # Update test_config according to llm worker, and re-initialize test environment data
             self.test_config.test_time = get_llm_info_unix()
