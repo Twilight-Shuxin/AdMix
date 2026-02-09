@@ -10,6 +10,7 @@ import json
 from profiling.constants import *
 from trace.trace_utils import SimpleTimeTrace
 from profiling.scheduling.utils import get_scheduler
+from profiling.scheduling.monitor import get_llm_info_unix
 from plotting.dcgm_plot import plot_dcgm
 
 
