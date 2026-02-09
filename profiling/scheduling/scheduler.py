@@ -1,7 +1,6 @@
 import time
 from enum import IntEnum
 from pydantic import BaseModel
-from profiling.scheduling.monitor import get_llm_info_unix
 
 def pack_data_bytes(data_object : BaseModel):
     return data_object.json().encode("utf-8")
