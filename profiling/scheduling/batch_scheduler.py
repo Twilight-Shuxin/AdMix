@@ -72,7 +72,6 @@ class BatchScheduler(AIMDBaseScheduler):
     def schedule(self, intensity_data):
         self.start_round_time = time.perf_counter()
         if(intensity_data.data):
-            print("??", intensity_data.data)
             pred_latency = self.get_prediction(intensity_data)
             self.prediction_logs.extend(
                 [
