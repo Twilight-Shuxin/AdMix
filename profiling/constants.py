@@ -246,6 +246,17 @@ class TimeBinRecord():
         self.bin_size = bin_size
         self.records = [copy.copy(init) for _ in timebin_ranges(bin_size, time_limit)]
     
+    """
+        Get TimeBinRecord object through a given list of format: [(time stamp, data), ...].
+        This created TimeBinRecord object is a summed bin. 
+    """
+    @classmethod
+    def get_summed_time_bin_record(cls, data_records, bin_size = PLOTTING_BIN_SIZE):
+        time_bin_record = TimeBinRecord(init = 0, time_limit = max([x[0] for x in data_records]), bin_size = bin_size)
+        for record in data_records:
+            time_bin_record.add(*record)
+        return time_bin_record
+
     def index(self, time_stamp):
         idx = int(time_stamp / self.bin_size)
         if(idx >= len(self.records)):
