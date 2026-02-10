@@ -58,7 +58,7 @@ class PytorchPredictModel(PredictModel):
     def exec(self, X_data):
         X_test_tensor = torch.from_numpy(np.asarray(self.sc.transform(X_data))).float().to(self.device)
         with torch.no_grad():
-            test_outputs = self.model(X_test_tensor).squeeze()
+            test_outputs = self.model(X_test_tensor).squeeze(dim=1)
             test_outputs = torch.round(test_outputs).clamp(min=0)
         return test_outputs.cpu().numpy()
 

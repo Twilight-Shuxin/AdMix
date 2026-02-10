@@ -23,20 +23,24 @@ class ObservationSingleBatchData(FeatureModel):
         return len(self.pred_feature_data())
 
 class ObservationData(FeatureModel):
-    data: List[ObservationSingleBatchData] = Field(default_factory=list)
+    ND: int = 0
+    NP: int = 0
+    batch_data: List[ObservationSingleBatchData] = Field(default_factory=list)
 
     @classmethod
     def parse_raw(cls, payload) -> "ObservationData":
-        payload = json.loads(payload)
+        general_data, batch_data = json.loads(payload)
         return cls(
-            data=[
+            ND = general_data[0],
+            NP = general_data[1],
+            batch_data=[
                 ObservationSingleBatchData(**dict(zip(ObservationSingleBatchData.model_fields, row)))
-                for row in payload
+                for row in batch_data
             ]
         )
     
     def pred_feature_data(self):
-        return [x.pred_feature_data() for x in self.data]
+        return [x.pred_feature_data() for x in self.batch_data]
 
 class BatchSchedulingDataFormat(SchedulingDataFormat):
     @classmethod
@@ -65,42 +69,63 @@ class BatchScheduler(AIMDBaseScheduler):
 
     def get_prediction(self, observation_data):
         vals = observation_data.pred_feature_data()
+        if(not vals):
+            return []
         pred_latency = self.predictor.exec(vals)
         torch.cuda.synchronize()
         return pred_latency
     
-    def get_action(self, real_latency, pred_latency):
+    def get_action(self, intensity_data, pred_latency):
+        # No batch information has been collected in the last scheduling interval
+        if(not intensity_data.batch_data):
+            # If no queries are under execution, increase batch size. 
+            if(intensity_data.ND == 0 and intensity_data.NP == 0):
+                return self.Action.UP
+            # Else maintain current status
+            # TODO: Add proactive methods to reduce batch size
+            return self.Action.FLAT
+
+        real_latency = [x.latency for x in intensity_data.batch_data]
+        percentages = [(r - p) / p for p, r in zip(pred_latency, real_latency) if r > p and p != 0]
+
+        self.prediction_logs.extend([
+                feature.copy() + [latency, pred_latency]
+                for feature, latency, pred_latency in zip(
+                    intensity_data.pred_feature_data(), real_latency,pred_latency,
+                )
+            ])
+        
+        if(not percentages):
+            return self.Action.UP
+
+        max_pct = max(percentages)
+        avg_pct = sum(percentages) / len(percentages)
+
+        if max_pct > 0.5 or avg_pct > 0.2:
+            return self.Action.DOWN
+        elif avg_pct < 0.15:
+            return self.Action.UP
         return self.Action.FLAT
 
     def schedule(self, intensity_data):
         self.start_round_time = time.perf_counter()
-        if(intensity_data.data):
-            pred_latency = self.get_prediction(intensity_data)
-            self.prediction_logs.extend(
-                [
-                    feature.copy() + [latency, pred_latency]
-                    for feature, latency, pred_latency in zip(
-                        intensity_data.pred_feature_data(),
-                        [x.latency for x in intensity_data.data],
-                        pred_latency,
-                    )
-                ]
-            )
 
-            action = self.get_action([x.latency for x in intensity_data.data], pred_latency)
-        else:
-            action = self.Action.UP
+        pred_latency = self.get_prediction(intensity_data)
+        action = self.get_action(intensity_data, pred_latency)
         self.execute_action(action)
+        
+        current_timestamp = round(time.perf_counter() - self.model_worker.runtime_data.start_time_pointer, 3)
+        self.execution_logs.append([current_timestamp, self.batch_size, list(zip([x.latency for x in intensity_data.batch_data], pred_latency))])
         self.execute()
     
     def execute(self):
         end_round_time = self.start_round_time + self.time_interval
         schedule_plan = BasicSchedulePlan(self.batch_size)
-        # self.last_execution_time = 0
-        # while(time.perf_counter() + self.last_execution_time < end_round_time):
-        #     start_time = time.perf_counter()
-        #     schedule_plan.execute(self.model_worker)
-        #     self.last_execution_time = time.perf_counter() - start_time
+        self.last_execution_time = 0
+        while(time.perf_counter() + self.last_execution_time < end_round_time):
+            start_time = time.perf_counter()
+            schedule_plan.execute(self.model_worker)
+            self.last_execution_time = time.perf_counter() - start_time
         left_time = end_round_time - time.perf_counter()
         if(left_time > 0.001):
             time.sleep(left_time)
@@ -118,5 +143,8 @@ class BatchScheduler(AIMDBaseScheduler):
         self.model_worker.write_csv("batch_predicted.csv", 
             ["Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn", "Latency", "Pred Latency"],
             self.prediction_logs)
-
+        self.model_worker.write_csv("batch_execution.csv", 
+            ["Time", "Batch size", "Details"],
+            self.execution_logs
+        )
         

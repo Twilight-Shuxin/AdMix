@@ -7,20 +7,20 @@ from profiling.constants import write_list_to_csv
 
 DECODE_PROMPT_LEN = 100
 TOKEN_BUDGET = 3000
-MAX_PREFILL_CNT = 10
+MAX_PREFILL_CNT = 20
 PREFILL_PROMPT_LENGTHS = [1900, 1000, 500, 100, 50, 10]
 PREFILL_REQ_OUTLEN = 2
 
-def search_configs(sum, config, idx):
+def search_configs(token_budget, config, idx):
     if(idx >= len(PREFILL_PROMPT_LENGTHS)):
         return [config]
     if(len(config) == MAX_PREFILL_CNT):
         return [config]
     configs = []
-    configs.extend(search_configs(sum, config, idx + 1))
+    configs.extend(search_configs(token_budget, config, idx + 1))
     prompt_len =  PREFILL_PROMPT_LENGTHS[idx]
-    if(sum >= prompt_len):
-        configs.extend(search_configs(sum - prompt_len, config + [prompt_len], idx))
+    if(prompt_len < token_budget):
+        configs.extend(search_configs(token_budget - prompt_len, config + [prompt_len], idx))
     return configs
 
 class CounterBarrier:
@@ -66,7 +66,7 @@ def main():
         asyncio.run(test(decode_tkn, prefill_configs))
         print("Running: ", idx, decode_tkn, len(prefill_configs), str(round(time.perf_counter() - start_time, 3)) + "s")
         
-    data = get_data_from_vllm()
+    additional_data, data = get_data_from_vllm()
     write_list_to_csv("./data/" + sys.argv[1],["Latency", "Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn"], data)
 
 if __name__ == "__main__":

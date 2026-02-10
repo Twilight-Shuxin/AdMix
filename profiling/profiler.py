@@ -230,7 +230,6 @@ class ProfileServer():
             for model_name in self.model_names:
                 if(model_name == "llm"):
                     continue
-                throughputs = []
                 with open(self.get_model_worker_log_filepath(model_name, 'flow.log'), 'r') as input_file:
                     lines = input_file.readlines()
                     for line in lines:

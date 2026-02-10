@@ -36,7 +36,7 @@ def main():
     test_time = int(sys.argv[3]) if len(sys.argv) > 3 else None
     trace = get_trace(trace_config_id, test_time)
     loop.run_until_complete(test_trace(trace, test_time))
-    data = get_data_from_vllm()
+    additional_data, data = get_data_from_vllm()
     write_list_to_csv("./data/" + sys.argv[1],["Latency", "Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn"], data)
 
 if __name__ == "__main__":
