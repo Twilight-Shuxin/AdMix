@@ -6,9 +6,9 @@ from llm_utils import get_data_from_vllm, async_inference
 from profiling.constants import write_list_to_csv
 
 DECODE_PROMPT_LEN = 100
-TOKEN_BUDGET = 3000
+TOKEN_BUDGET = 2200
 MAX_PREFILL_CNT = 20
-PREFILL_PROMPT_LENGTHS = [1900, 1000, 500, 100, 50, 10]
+PREFILL_PROMPT_LENGTHS = [2000, 1000, 500, 100, 50]
 PREFILL_REQ_OUTLEN = 2
 
 def search_configs(token_budget, config, idx):
@@ -43,19 +43,20 @@ class CounterBarrier:
 def prefill_test(prefill_config):
     task_list = []
     for length in prefill_config:
-        task_list.append(asyncio.create_task(async_inference(max(1, length + random.randint(-10, 10)), PREFILL_REQ_OUTLEN)))
+        task_list.append(asyncio.create_task(async_inference(max(1, length + random.randint(-20, 20)), PREFILL_REQ_OUTLEN)))
     return task_list
 
 async def test(decode_cnt, prefill_configs):
-    out_len = 3 * len(prefill_configs)
+    out_len = 6 * len(prefill_configs)
     first_generated_barrier = CounterBarrier(decode_cnt)
     decode_tasks = []
     for idx in range(decode_cnt):
         decode_tasks.append(asyncio.create_task(async_inference(DECODE_PROMPT_LEN, out_len, first_generated_barrier)))
     await first_generated_barrier.wait()
     for config in prefill_configs:
-        prefill_tasks = prefill_test(config)
-        await asyncio.gather(*prefill_tasks)
+        for _ in range(2):
+            prefill_tasks = prefill_test(config)
+            await asyncio.gather(*prefill_tasks)
     await asyncio.gather(*decode_tasks)
 
 def main():
