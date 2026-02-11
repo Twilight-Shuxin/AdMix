@@ -236,8 +236,8 @@ class ProfileServer():
                     for line in lines:
                         parts = line.split()
                         throughputs.append([float(parts[0]), int(parts[1])])  
-                throughputs = TimeBinRecord.get_summed_time_bin_record(throughputs, bin_size = 5).append_timestamps()
-                side_throughput = TraceAxisData(TracePlotData('Throughput of offline workload', throughputs), y_tag = ('Throughput', ''))
+                throughput_grouped = TimeBinRecord.get_summed_time_bin_record(throughputs, bin_size = 5).append_timestamps()
+                side_throughput = TraceAxisData(TracePlotData('Throughput of offline workload', throughput_grouped), y_tag = ('Throughput', ''))
                 plot_trace_graph(self.get_log_filepath('submitted_offline_throughput.png'), submitted_intensity, side_throughput)
         return passed_flag, passed, total 
 
