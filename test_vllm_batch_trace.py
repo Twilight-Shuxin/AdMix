@@ -37,7 +37,8 @@ def main():
     trace = get_trace(trace_config_id, test_time)
     loop.run_until_complete(test_trace(trace))
     additional_data, data = get_data_from_vllm()
-    write_list_to_csv("./data/" + sys.argv[1],["Latency", "Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn"], data)
-
+    data.sort()
+    write_list_to_csv("./batch_predict/inputs/" + sys.argv[1],["Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn", "Latency"], data)
+    
 if __name__ == "__main__":
     main()

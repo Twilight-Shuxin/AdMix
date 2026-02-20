@@ -10,14 +10,14 @@ from profiling.scheduling.constants import FeatureModel
 from profiling.scheduling.monitor import get_llm_intensity_unix
 
 class ObservationSingleBatchData(FeatureModel):
-    latency: float = 0
     ND: int = 0
     LD_avg: int = 0
     NP: int = 0
     LP_sum: int = 0
+    latency: float = 0
 
     def pred_feature_data(self):
-        return self.vector()[1:]
+        return self.vector()[:-1]
     
     def get_pred_feature_len(self):
         return len(self.pred_feature_data())
@@ -81,9 +81,9 @@ class BatchScheduler(AIMDBaseScheduler):
             # If no queries are under execution, increase batch size. 
             if(intensity_data.ND == 0 and intensity_data.NP == 0):
                 return self.Action.UP
-            # Else maintain current status
-            # TODO: Add proactive methods to reduce batch size
-            return self.Action.FLAT
+            # Else reduce batch size
+            # TODO: Improve proactive method to reduce batch size
+            return self.Action.DOWN
 
         real_latency = [x.latency for x in intensity_data.batch_data]
         percentages = [(r - p) / p for p, r in zip(pred_latency, real_latency) if r > p and p != 0]
@@ -111,6 +111,7 @@ class BatchScheduler(AIMDBaseScheduler):
         self.start_round_time = time.perf_counter()
 
         pred_latency = self.get_prediction(intensity_data)
+        pred_latency = [float(x) for x in pred_latency]
         action = self.get_action(intensity_data, pred_latency)
         self.execute_action(action)
         
@@ -132,6 +133,9 @@ class BatchScheduler(AIMDBaseScheduler):
     
     def _serve(self):
         self.scheduler_init()
+        # May have remaining data in intensity server; fetch once to clear buffer
+        current_intensity = get_llm_intensity_unix(self.data_format)
+        
         self.model_worker.double_barrier.wait()
         self.model_worker.runtime_data.start_time_pointer = time.perf_counter()
         self.model_worker.runtime_data.time_limit = self.model_worker.runtime_data.start_time_pointer + self.model_worker.test_config.test_time

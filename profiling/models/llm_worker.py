@@ -93,11 +93,19 @@ class LLMWorker(ModelWorker):
         return
     
     def start_server(self):
-        os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+        if(os.environ.get("CUDA_MPS_PIPE_DIRECTORY", None)):
+            os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+        else:
+            os.environ['CUDA_VISIBLE_DEVICES'] = str(self.true_device_id)
         os.environ['VLLM_LOGGING_LEVEL'] = 'ERROR'
         memory_util = os.environ.get('GVLLM_KV_MEM', "0.7")
+        use_modified = os.environ.get('GVLLM_USE_MODIFIED', 'False').lower() == 'true'
+        system_setup_cmd = "bash vllm_setup.sh"
+        if(use_modified):
+            system_setup_cmd += " modified"
+        os.system(system_setup_cmd)
         self.server_proc = subprocess.Popen(["python", "-m", "vllm.entrypoints.api_server"
-            , "--model", "meta-llama/Llama-2-7b-chat-hf", "--gpu-memory-utilization", memory_util])
+            , "--model", "meta-llama/Llama-2-7b-chat-hf", "--gpu-memory-utilization", memory_util, "--no-enable-prefix-caching"])
         session = requests.Session()
         session.trust_env = False
         print("Starting server...")

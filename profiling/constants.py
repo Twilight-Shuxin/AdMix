@@ -1,10 +1,11 @@
-import csv
 import os
+import csv
 import copy
-from enum import Enum
-import numpy as np
-import heapq
 import time
+import heapq
+import subprocess
+import numpy as np
+from enum import Enum
 from collections import Counter
 from plotting.constants import PLOTTING_BIN_SIZE
 
@@ -42,9 +43,13 @@ GPU_UUID = [
 def device_init(device_id):
     UUID = GPU_UUID[int(device_id)] if device_id.isdigit() else device_id
     os.environ["CUDA_VISIBLE_DEVICES"]=UUID
-    os.environ["CUDA_MPS_PIPE_DIRECTORY"]="/tmp/nvidia-mps-" + UUID
-    os.environ["CUDA_MPS_LOG_DIRECTORY"]="/tmp/nvidia-mps-" + UUID
-
+    cmd = f"gmanager checkmps {int(device_id)}"
+    p = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE, text=True)
+    stdout, stderr = p.communicate()
+    using_mps = stdout.lower().strip() == "true"
+    print("Using MPS:", using_mps)
+    os.environ["CUDA_MPS_PIPE_DIRECTORY"]=f"/tmp/nvidia-mps-{UUID}" if using_mps else ""
+    os.environ["CUDA_MPS_LOG_DIRECTORY"]=f"/tmp/nvidia-mps-{UUID}" if using_mps else ""
 
 def background(cmd, log):
     log = gmanager_home + "/" + log

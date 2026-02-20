@@ -14,5 +14,6 @@ dependencies = [
     "scikit-learn>=1.8.0",
     "torch==2.8.0",
     "torchsummary>=1.5.1",
+    "tqdm>=4.67.1",
     "vllm==0.10.2",
 ]
