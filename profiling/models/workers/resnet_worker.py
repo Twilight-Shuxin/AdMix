@@ -1,13 +1,11 @@
-from profiling.models.split.resnet import resnet50
-from profiling.models.model_worker import ModelWorker
 import torch
-import os
+from profiling.models.workers.model_worker import ModelWorker
+from profiling.models.workers.split.resnet import resnet50
 
 class ResnetWorker(ModelWorker):
-    def __init__(self, device_id, mps, pipe, barrier, log_path, profile_path):
-        super().__init__("resnet50", device_id, mps, pipe, barrier, log_path, profile_path)
+    def __init__(self, pipe, worker_barrier, single_worker_barrier):
+        super().__init__(pipe, worker_barrier, single_worker_barrier)
         self.supported_batchsize = [x for x in range(1,129)]
-        self.alpha = 8
     
     def init_start(self):
         self.model = resnet50().cuda(self.device).eval()

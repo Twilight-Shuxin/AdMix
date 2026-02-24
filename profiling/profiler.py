@@ -1,4 +1,4 @@
-from profiling.utils import model_workers
+from profiling.utils import model_clients
 from profiling.constants import *
 import torch.multiprocessing as mp
 from plotting.trace_plot import TracePlotData, TraceAxisData, plot_trace_graph
@@ -10,8 +10,7 @@ import os
 
 class ProfileServer():
     def __init__(self, profile_config):
-        self.device = profile_config.device
-        device_init(self.device)
+        self.devices = profile_config.devices
         self.model_names = profile_config.model_names
         self.model_cnt = profile_config.model_cnt
         self.batch_sizes = profile_config.batch_sizes
@@ -25,15 +24,15 @@ class ProfileServer():
         self.test_time = profile_config.test_time
         self.seq_len = profile_config.seq_len
         self.dirname = os.path.split(os.path.abspath(__file__))[0]
-        # The logfile names are set to: worker_tag-global_tag-specific_suffix; normally global tag is 
-        # an aggregated name of all worker tags, but can also be specified specifically
+        # The logfile names are set to: client_tag-global_tag-specific_suffix; normally global tag is 
+        # an aggregated name of all client tags, but can also be specified specifically
         self.global_tag = profile_config.global_tag
         self.mode = profile_config.mode
         self.scheduler = profile_config.scheduler
         self.pipe_map = {}
 
-    # Currently, within a main run each worker's test config mainly remains the same.
-    # So save the basic configurations that are barely changed first in self.test_configs for each model worker.
+    # Currently, within a main run each client's test config mainly remains the same.
+    # So save the basic configurations that are barely changed first in self.test_configs for each model client.
     # FIXME: basic configurations actually may be different across runs theoretically, but 
     # current implementation fixes them to be the same (e.g. global_cnt is fixed).
     def get_test_configs(self):
@@ -57,16 +56,16 @@ class ProfileServer():
                 test_config.seq_len = self.seq_len
             self.test_configs[model_name] = test_config
     
-    # Get the total_modules of all model workers and save to self.model_total_modules;
-    def get_worker_total_modules(self):
+    # Get the total_modules of all model clients and save to self.model_total_modules;
+    def get_client_total_modules(self):
         self.model_total_modules = {}
         for model_name in self.model_names:
             self.pipe_map[model_name].send("get_total_modules")
             self.model_total_modules[model_name] = self.pipe_map[model_name].recv()
     
-    # With the test_configs of all model workers, get their self tags and save to self.self_tags;
-    # Self tag of the llm worker is also saved to all self.test_configs
-    def get_worker_self_tags(self):
+    # With the test_configs of all model clients, get their self tags and save to self.self_tags;
+    # Self tag of the llm client is also saved to all self.test_configs
+    def get_client_self_tags(self):
         self.self_tags = {}
         for model_name in self.model_names:
             self.pipe_map[model_name].send("self_tag")
@@ -76,15 +75,15 @@ class ProfileServer():
             for model_name in self.model_names:
                 self.test_configs[model_name].llm_tag = self.self_tags["llm"]
     
-    # With the test_configs of all model workers and the global tag, get their full tags and save to self.full_tags;
-    def get_worker_full_tags(self):
+    # With the test_configs of all model clients and the global tag, get their full tags and save to self.full_tags;
+    def get_client_full_tags(self):
         self.full_tags = {}
         for model_name in self.model_names:
             self.pipe_map[model_name].send("full_tag")
             self.pipe_map[model_name].send(self.test_configs[model_name])
             self.full_tags[model_name] = self.pipe_map[model_name].recv()
 
-    # With the test_configs of all model workers, get global tag as aggregated name if self.global_tag is not defined,
+    # With the test_configs of all model clients, get global tag as aggregated name if self.global_tag is not defined,
     # else directly use self.global_tag. Save global tags to self.test_configs
     def get_global_tag(self):
         if(self.global_tag == None):
@@ -98,42 +97,40 @@ class ProfileServer():
             self.test_configs[model_name].global_tag = self.global_tag
         return self.global_tag
 
-    # Setup actions related to tags: get & save model worker self tags, the global tag, and worker full tags
+    # Setup actions related to tags: get & save model client self tags, the global tag, and client full tags
     def setup_tags(self):
-        self.get_worker_self_tags()
+        self.get_client_self_tags()
         self.get_global_tag()
-        self.get_worker_full_tags()
+        self.get_client_full_tags()
 
     # Set up environment for a test run, include actions:
     # 1. Basic barrier creation
-    # 2. Start workers
+    # 2. Start clients
     # 3. Get the total modules of each models
     # 3. Save the basic test configurations
     # 4. Basic setups related to tags ↑
     def setup(self):
-        global model_workers, profile_dict, profile_group_dict
+        global model_clients, profile_dict, profile_group_dict
         self.barrier = mp.Barrier(self.model_cnt + 1)
         self.double_barrier = mp.Barrier(2)
         for id, model_name in enumerate(self.model_names):
             pipe_parent, pipe_child = mp.Pipe()
-            if(self.mps_list[id] != None):
-                os.environ["CUDA_MPS_ACTIVE_THREAD_PERCENTAGE"] = str(self.mps_list[id])
-            worker = model_workers[model_name](
-                self.device,
+            client = model_clients[model_name](
+                self.devices,
                 self.mps_list[id],
                 pipe_child,
                 (self.double_barrier, self.barrier),
                 self.log_path,
                 self.profile_path
             )
-            worker.start()
+            client.start()
             self.pipe_map[model_name] = pipe_parent
         self.barrier.wait()
-        self.get_worker_total_modules()
+        self.get_client_total_modules()
         self.get_test_configs()
         self.setup_tags()
 
-    # PROFILE MODE: Perform profiling on model workers one by one. 
+    # PROFILE MODE: Perform profiling on model clients one by one. 
     def profile(self):
         for id, model_name in enumerate(self.model_names):
             self.pipe_map[model_name].send("profile")
@@ -141,7 +138,7 @@ class ProfileServer():
         print("finished_profiling")
 
     # TEST MODE: Normal executions of each models by themselves
-    # If scheduler is set & llm worker is included, the llm worker executes on its own but other models 
+    # If scheduler is set & llm client is included, the llm client executes on its own but other models 
     # execute in adaptive mode.
     def test(self):
         print("start test:", self.global_tag)
@@ -165,15 +162,15 @@ class ProfileServer():
             self.barrier.wait()
             print("round one end")
 
-    # Shutdown all model workers
+    # Shutdown all model clients
     def shutdown(self):
         for model_name in self.model_names:
             self.pipe_map[model_name].send("stop")
         self.barrier.wait()
     
-    # Get a model worker's log file path with specific filename 
-    # Log file path: self.log_path/worker_tag-filename
-    def get_model_worker_log_filepath(self, model_name, filename):
+    # Get a model client's log file path with specific filename 
+    # Log file path: self.log_path/client_tag-filename
+    def get_model_client_log_filepath(self, model_name, filename):
         return os.path.join(self.log_path, "-".join([self.full_tags[model_name], filename]))
     
     def get_log_filepath(self, filename):
@@ -222,7 +219,7 @@ class ProfileServer():
 
         if("llm" in self.model_names and len(self.model_names) >= 2):
             submitted_intensity = []
-            with open(self.get_model_worker_log_filepath("llm", 'avg_submitted_intensity.log'), 'r') as input_file:
+            with open(self.get_model_client_log_filepath("llm", 'avg_submitted_intensity.log'), 'r') as input_file:
                 lines = input_file.readlines()
                 for line in lines:
                     submitted_intensity.append(tuple(map(float, line.strip('\n').split(' '))))
@@ -232,7 +229,7 @@ class ProfileServer():
                 if(model_name == "llm"):
                     continue
                 throughputs = []
-                with open(self.get_model_worker_log_filepath(model_name, 'flow.log'), 'r') as input_file:
+                with open(self.get_model_client_log_filepath(model_name, 'flow.log'), 'r') as input_file:
                     lines = input_file.readlines()
                     for line in lines:
                         parts = line.split()

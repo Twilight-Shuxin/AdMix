@@ -1,12 +1,10 @@
-from profiling.models.model_worker import ModelWorker
 import torch
-import os
 import numpy as np
+from profiling.models.workers.model_worker import ModelWorker
 
 class Deeplabv3Worker(ModelWorker):
-    def __init__(self, device_id, mps, pipe, barrier, log_path, profile_path):
-        super().__init__("deeplabv3", device_id, mps, pipe, barrier, log_path, profile_path)
-        self.alpha = 1
+    def __init__(self, pipe, worker_barrier, single_worker_barrier):
+        super().__init__(pipe, worker_barrier, single_worker_barrier)
         self.supported_batchsize = [x for x in range(1,33)]
 
     def init_start(self):

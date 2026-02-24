@@ -4,18 +4,14 @@ Paper URL: https://arxiv.org/abs/1606.06650
 Author: Amir Aghdam
 """
 
-from torch import nn
-from torchsummary import summary
 import torch
-import time
-from profiling.models.model_worker import ModelWorker
-from profiling.models.split.unet import UNet3D
+from profiling.models.workers.split.unet import UNet3D
+from profiling.models.workers.model_worker import ModelWorker
 
 class UNet3DWorker(ModelWorker):
-    def __init__(self, device_id, mps, pipe, barrier, log_path, profile_path):
-        super().__init__("unet3d", device_id, mps, pipe, barrier, log_path, profile_path)
+    def __init__(self, pipe, worker_barrier, single_worker_barrier):
+        super().__init__(pipe, worker_barrier, single_worker_barrier)
         self.supported_batchsize = [x for x in range(1,17)]
-        self.alpha = 1
 
     def init_start(self):
         self.model = UNet3D(in_channels=3, num_classes=1).cuda(self.device).eval()

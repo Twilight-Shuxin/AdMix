@@ -13,7 +13,6 @@ from profiling.scheduling.utils import get_scheduler
 from profiling.scheduling.monitor import get_llm_info_unix
 from plotting.dcgm_plot import plot_dcgm
 
-
 # device is limited to CUDA_VISIBLE_DEVICE set before worker creation, thus all worker only see 'cuda'
 class ModelWorker(Process):
     def __init__(self, model_name, device_id, mps, pipe, barrier, log_path, profile_path):

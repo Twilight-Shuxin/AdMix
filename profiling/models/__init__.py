@@ -1,7 +1,7 @@
-from .resnet_worker import ResnetWorker
-from .vgg_worker import VggWorker
-from .inception_worker import InceptionWorker
-from .llm_worker import LLMWorker
-from .unet_worker import UNet3DWorker
-from .GAN_worker import GANWorker
-from .deeplabv3_worker import Deeplabv3Worker
+from .resnet_client import ResnetClient
+from .vgg_client import VggClient
+from .inception_client import InceptionClient
+# from .llm_client import LLMClient
+from .unet_client import UNet3DClient
+from .GAN_client import GANClient
+from .deeplabv3_client import Deeplabv3Client

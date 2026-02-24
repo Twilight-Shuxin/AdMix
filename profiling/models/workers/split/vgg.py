@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.hub import load_state_dict_from_url
-from profiling.models.split.submod import *
+from profiling.models.workers.split.submod import *
 
 __all__ = ['vgg19']
 

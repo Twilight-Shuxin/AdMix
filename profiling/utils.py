@@ -1,11 +1,11 @@
-from profiling.models import ResnetWorker, VggWorker, InceptionWorker, LLMWorker, UNet3DWorker, GANWorker, Deeplabv3Worker
+from profiling.models import ResnetClient, VggClient, InceptionClient, UNet3DClient, GANClient, Deeplabv3Client
 
-model_workers = {
-    "resnet50": ResnetWorker,
-    "vgg19": VggWorker,
-    "inception_v3": InceptionWorker,
-    "llm": LLMWorker,
-    "unet3d": UNet3DWorker,
-    "GAN": GANWorker,
-    "deeplabv3": Deeplabv3Worker
+model_clients = {
+    "resnet50": ResnetClient,
+    "vgg19": VggClient,
+    "inception_v3": InceptionClient,
+    # "llm": LLMClient,
+    "unet3d": UNet3DClient,
+    "GAN": GANClient,
+    "deeplabv3": Deeplabv3Client
 }
