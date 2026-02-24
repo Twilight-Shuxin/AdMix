@@ -1,11 +1,12 @@
+import os
 import torch
 from torch.multiprocessing import Process
 import time
 import inspect
 import numpy as np
-import os
 from profiling.constants import *
 from trace.trace_utils import SimpleTimeTrace
+from profiling.models.workers.constants import SyncType
 
 class ModelWorker(Process):
     def __init__(self, pipe, worker_barrier, single_worker_barrier):
@@ -135,7 +136,6 @@ class ModelWorker(Process):
     """
     def _test(self):
         self.init_testenv_data()
-        # Start test
         self.runtime_data.start_time_pointer = time.perf_counter()
         self.runtime_data.time_limit = self.runtime_data.start_time_pointer + self.test_config.test_time
         model_input = self.get_input(self.input_config)
@@ -179,7 +179,7 @@ class ModelWorker(Process):
         self.worker_barrier.wait()
         while(True):
             action = self.pipe.recv()
-            single_worker_sync = self.pipe.recv()
+            sync = self.pipe.recv()
             stop_flag = False
             match action:
                 case "profile":
@@ -204,10 +204,9 @@ class ModelWorker(Process):
                     stop_flag = True
                 case _:
                     raise NotImplementedError
-            if(single_worker_sync):
+            if(sync == SyncType.SINGLE):
                 self.single_worker_barrier.wait()
-            worker_sync = self.pipe.recv()
-            if(worker_sync):
+            elif(sync == SyncType.ALL):
                 self.worker_barrier.wait()
             if(stop_flag):
                 break

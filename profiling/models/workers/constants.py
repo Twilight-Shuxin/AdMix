@@ -1,3 +1,10 @@
+from enum import Enum
+
+class SyncType(Enum):
+    NO_SYNC = 0
+    SINGLE = 1
+    ALL = 2
+
 class WorkerTestConfig():
     def __init__(self, test_config):
         self.batch_size = test_config.batch_size

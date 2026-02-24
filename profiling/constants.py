@@ -249,6 +249,7 @@ class SchedulerData():
 class TimeBinRecord():
     def __init__(self, init, time_limit, bin_size = PLOTTING_BIN_SIZE):
         self.bin_size = bin_size
+        self.time_limit = time_limit
         self.records = [copy.copy(init) for _ in timebin_ranges(bin_size, time_limit)]
     
     """
@@ -389,13 +390,25 @@ def stop_dcgm(conn):
 """
 def get_dcgm_data(profile_filepath):
     values = []
+
+    device_records = {}
+    value_tmp = 0
+    value_cnt = 0
+    
     with open(profile_filepath, 'r') as profile_file:
         lines = profile_file.readlines()
         for line in lines:
             line = line.strip('\n').strip(' ')
             if line and not line.startswith("#Entity") and not line.startswith("ID"):
-                _, value = line.split("      ")
-                values.append(float(value))
+                device, value = line.split("      ")
+                if(device in device_records and value_cnt):
+                    values.append(value_tmp / value_cnt)
+                    device_records = {}
+                    value_tmp = 0
+                    value_cnt = 0
+                value_tmp += float(value)
+                value_cnt += 1
+                device_records[device] = True
     return values
 
 

@@ -8,6 +8,8 @@ from torch.multiprocessing import Process
 from multiprocessing import Process as StdProcess, Pipe
 from profiling.constants import *
 from plotting.dcgm_plot import plot_dcgm
+from profiling.models.workers.constants import WorkerTestConfig, SyncType
+from profiling.models.utils import avg_dict
 
 class ModelClient(Process):
     def __init__(self, model_name, devices, mps, pipe, barrier, log_path, profile_path):
@@ -39,19 +41,18 @@ class ModelClient(Process):
             self.start_worker(device)
         self.worker_barrier.wait()
     
-    def command_worker(self, pipe, command, additional_data = [], sync = False):
+    def command_worker(self, pipe, command, additional_data = [], sync = SyncType.NO_SYNC):
         pipe.send(command)
         pipe.send(sync)
         for data in additional_data:
             pipe.send(data)
-        if(sync):
+        if(sync == SyncType.SINGLE):
             self.single_worker_barrier.wait()
     
-    def command_workers(self, command, additional_data = [], sync = False):
+    def command_workers(self, command, additional_data = [], sync = SyncType.NO_SYNC):
         for pipe in self.worker_pipes:
-            self.command_worker(pipe, command, additional_data, sync = False)
-            pipe.send(sync)
-        if(sync):
+            self.command_worker(pipe, command, additional_data, sync = sync)
+        if(sync == SyncType.ALL):
             self.worker_barrier.wait()
     
     """
@@ -90,13 +91,11 @@ class ModelClient(Process):
     
     def profile(self):
         self.command_workers("profile")
-        profile_data = {
-            "model_name": self.model_name
-        }
         worker_profile_datas = []
         for pipe in self.worker_pipes:
             worker_profile_datas.append(pipe.recv())
-        profile_data = {"model_name": self.model_name}.update(avg_dict(worker_profile_datas))
+        profile_data = {"model_name": self.model_name}
+        profile_data.update(avg_dict(worker_profile_datas))
         with open(os.path.join(self.profile_path, self.model_name + ".json"), "w") as profile_file:
             json.dump(profile_data, profile_file, indent=4)
     
@@ -143,8 +142,8 @@ class ModelClient(Process):
             profile_data.absolute_throughput_time_bins: throughput at each time step
     """
     def write_logs(self):
-        self.write_analytics("summary.log", [x[1] for x in self.profile_data.logs])
-        self.write_csv("all.csv", ['Batch Size', 'Latency (ms)'], self.profile_data.logs)
+        self.write_analytics("summary.log", [x[2] for x in self.profile_data.logs])
+        self.write_csv("all.csv", ['Device_id', 'Batch Size', 'Latency (ms)'], self.profile_data.logs)
         self.write_all("flow.log", self.profile_data.absolute_throughput_records.append_timestamps())
     
     def collect_worker_data(self):
@@ -154,16 +153,16 @@ class ModelClient(Process):
         self.runtime_data = RuntimeData()
         self.runtime_data.absolute_throughput = 0
         for idx, pipe in enumerate(self.worker_pipes):
-            command_worker(pipe, "collect_performance_data")
+            self.command_worker(pipe, "collect_performance_data")
             self.runtime_data.absolute_throughput += pipe.recv()
 
         if(self.test_config.record_statistics):
             self.profile_data.logs = []
             self.profile_data.absolute_throughput_records = TimeBinRecord(init = 0, time_limit = self.test_config.test_time)
             for idx, pipe in enumerate(self.worker_pipes):
-                command_worker(pipe, "collect_profiled_data")
+                self.command_worker(pipe, "collect_profiled_data")
                 logs = pipe.recv()
-                self.profile_data.logs.extend([[self.devices[idx]] + log for log in logs])
+                self.profile_data.logs.extend([(self.devices[idx],) + log for log in logs])
                 self.profile_data.absolute_throughput_records.update(pipe.recv(), "sum")
     
     """
@@ -183,7 +182,8 @@ class ModelClient(Process):
         stdout, stderr = p.communicate()
         group_id = int(stdout.strip())
         
-        cmd = f"gmanager dcgm_add2g {group_id} {' '.join(list(map(str, self.device_ids)))}"
+        cmd = f"gmanager dcgm_add2g {group_id} {' '.join(list(map(str, self.devices)))}"
+        os.system(cmd)
 
         dcgm_procs = []
         for profile_statistic in profile_group_dict[self.test_config.dcgm_group]:
@@ -224,7 +224,7 @@ class ModelClient(Process):
         if(self.test_config.record_dcgm):
             dcgm_monitor_conn = self.start_dcgm()    
         
-        self.command_workers("test", sync = True)
+        self.command_workers("test", sync = SyncType.ALL)
         
         if(self.test_config.record_dcgm):
             stop_dcgm(dcgm_monitor_conn)
@@ -245,7 +245,7 @@ class ModelClient(Process):
                     self.double_barrier.wait()
                 case "test":
                     self.setup_testenv(self.pipe.recv())
-                    self.command_workers("warmup", sync = True)
+                    self.command_workers("warmup", sync = SyncType.ALL)
                     self.barrier.wait()
                     self.test()
                     self.barrier.wait()
