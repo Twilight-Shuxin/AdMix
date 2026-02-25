@@ -45,8 +45,15 @@ class Scheduler():
     profiling_executor = None
     monitor = None
 
-    def serve(self, model_worker):
-        self.model_worker = model_worker
+    def start_serve(self):
+        self.model_client.command_workers("sched_serve", [self.test_config])
+        inform_llm_unix("ready")
+
+        self.model_client.runtime_data.start_time_pointer = time.perf_counter()
+        self.model_client.runtime_data.time_limit = self.model_client.runtime_data.start_time_pointer + self.model_client.test_config.test_time
+
+    def serve(self, model_client):
+        self.model_client = model_client
         self._serve()
 
 class AIMDBaseScheduler(Scheduler):
@@ -56,15 +63,15 @@ class AIMDBaseScheduler(Scheduler):
         DOWN = 1
     
     def scheduler_init(self):
-        profiled_data = self.model_worker.read_profiled_data()
-        max_batch_size = self.model_worker.supported_batchsize[-1]
+        profiled_data = self.model_client.read_profiled_data()
+        max_batch_size = self.model_client.supported_batchsize[-1]
         for i in reversed(range(1, max_batch_size + 1)):
             if(profiled_data[str(i)] < self.time_interval):
                 max_batch_size = i
                 break
         self.max_batch_size = max_batch_size
-        self.alpha = self.model_worker.alpha
-        self.beta = self.model_worker.beta
+        self.alpha = self.model_client.alpha
+        self.beta = self.model_client.beta
     
     def step_up(self):
         if(self.batch_size == 0):

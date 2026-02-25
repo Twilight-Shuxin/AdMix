@@ -3,9 +3,9 @@ from profiling.models.workers.model_worker import ModelWorker
 import torch
 
 class VggWorker(ModelWorker):
-    def __init__(self, pipe, worker_barrier, single_worker_barrier):
+    def __init__(self, supported_batchsize, pipe, worker_barrier, single_worker_barrier):
         super().__init__(pipe, worker_barrier, single_worker_barrier)
-        self.supported_batchsize = [x for x in range(1,129)]
+        self.supported_batchsize = supported_batchsize
     
     def init_start(self):
         self.model = vgg19().cuda(self.device).eval()

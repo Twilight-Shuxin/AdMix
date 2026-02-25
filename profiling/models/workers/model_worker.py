@@ -105,9 +105,19 @@ class ModelWorker(Process):
         self.runtime_data = RuntimeData()
         self.runtime_data.absolute_throughput = 0
     
+    def init_scheduler_data(self):
+        self.scheduler_data = SchedulerData()
+        self.scheduler_data.scheduler = get_scheduler(self.test_config.scheduler)
+
+    # NOTE: Only llm_worker is actually engaged with scheduling data; 
+    #   Other workers only react to corresponding client's scheduled tasks.
+    def init_scheduler_data(self):
+        self.scheduler_data = SchedulerData()
+    
     def init_testenv_data(self):
         self.init_profile_data()
         self.init_runtime_data()
+        self.init_scheduler_data()
     
     def inference(self, input, start = None, end = None, sync = True):
         if((start is not None) and (end is not None) and (start != 0 or end != self.total_module)): 
@@ -179,6 +189,19 @@ class ModelWorker(Process):
     def send_profiled_data(self):
         self.pipe.send(self.profile_data.logs)
         self.pipe.send(self.profile_data.absolute_throughput_records)
+    
+    """
+        Wait for scheduled executions from the client, stop until None is received. 
+        This should not be used by the llm_worker.
+    """
+    def sched_serve(self):
+        self.runtime_data.start_time_pointer = time.perf_counter()
+        self.runtime_data.time_limit = self.runtime_data.start_time_pointer + self.test_config.test_time
+        while(True):
+            scheduling_plan = self.pipe.recv()
+            if(not scheduling_plan):
+                break
+            scheduling_plan.execute(self)
 
     def run(self) -> None:
         self.init_start()
@@ -200,6 +223,10 @@ class ModelWorker(Process):
                 case "test":
                     self.test_config.set_test()
                     self.test()
+                case "sched_serve":
+                    self.setup_testenv(self.pipe.recv())
+                    self.init_testenv_data()
+                    self.sched_serve()
                 case "get_total_modules":
                     self.pipe.send(self.total_module)
                 case "collect_performance_data":

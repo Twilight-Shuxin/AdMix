@@ -259,7 +259,7 @@ class PredictiveScheduler(AIMDBaseScheduler):
         action = self.check_threshold(self.threshold_P, pred_TpP, intensity_data.period_data.TpP)
         action = min(action, self.check_threshold(self.threshold_D, pred_TpD, intensity_data.period_data.TpD))
         self.execute_action(action)
-        self.prediction_logs.append([round(time.perf_counter() - self.model_worker.runtime_data.start_time_pointer, 3),
+        self.prediction_logs.append([round(time.perf_counter() - self.model_client.runtime_data.start_time_pointer, 3),
             self.batch_size, intensity_data.period_data.TpP, pred_TpP, intensity_data.period_data.TpD, pred_TpD])
         self.execute()
     
@@ -269,7 +269,7 @@ class PredictiveScheduler(AIMDBaseScheduler):
         self.last_execution_time = 0
         while(time.perf_counter() + self.last_execution_time < end_round_time):
             start_time = time.perf_counter()
-            schedule_plan.execute(self.model_worker)
+            self.model_client.broadcast_workers(schedule_plan, sync = SyncType.ALL)
             self.last_execution_time = time.perf_counter() - start_time
         left_time = end_round_time - time.perf_counter()
         if(left_time > 0.001):
@@ -277,16 +277,13 @@ class PredictiveScheduler(AIMDBaseScheduler):
     
     def _serve(self):
         self.scheduler_init()
+        self.start_serve()
 
-        self.model_worker.double_barrier.wait()
-        self.model_worker.runtime_data.start_time_pointer = time.perf_counter()
-        self.model_worker.runtime_data.time_limit = self.model_worker.runtime_data.start_time_pointer + self.model_worker.test_config.test_time
-
-        while(time.perf_counter() < self.model_worker.runtime_data.time_limit):
+        while(time.perf_counter() < self.model_client.runtime_data.time_limit):
             current_intensity = get_llm_intensity_unix(self.data_format)
             self.schedule(current_intensity)
         
-        self.model_worker.write_csv("scheduled.csv", 
+        self.model_client.write_csv("scheduled.csv", 
             ["Time", "Batch Size", "Prefill_Tp", "Predicted_Prefill_Tp", "Decode_Tp", "Predicted_Decode_Tp"],
             self.prediction_logs)
         

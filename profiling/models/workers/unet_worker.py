@@ -9,9 +9,9 @@ from profiling.models.workers.split.unet import UNet3D
 from profiling.models.workers.model_worker import ModelWorker
 
 class UNet3DWorker(ModelWorker):
-    def __init__(self, pipe, worker_barrier, single_worker_barrier):
+    def __init__(self, supported_batchsize, pipe, worker_barrier, single_worker_barrier):
         super().__init__(pipe, worker_barrier, single_worker_barrier)
-        self.supported_batchsize = [x for x in range(1,17)]
+        self.supported_batchsize = supported_batchsize
 
     def init_start(self):
         self.model = UNet3D(in_channels=3, num_classes=1).cuda(self.device).eval()

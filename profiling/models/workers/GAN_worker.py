@@ -5,9 +5,9 @@ from profiling.models.workers.split.gan import GAN
 from profiling.models.workers.model_worker import ModelWorker
 
 class GANWorker(ModelWorker):
-    def __init__(self, pipe, worker_barrier, single_worker_barrier):
+    def __init__(self, supported_batchsize, pipe, worker_barrier, single_worker_barrier):
         super().__init__(pipe, worker_barrier, single_worker_barrier)
-        self.supported_batchsize = [x for x in range(1,33)]
+        self.supported_batchsize = supported_batchsize
     
     def init_start(self):
         self.model = GAN().cuda(self.device).eval()

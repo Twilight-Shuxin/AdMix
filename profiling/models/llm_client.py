@@ -3,7 +3,6 @@ import torch.multiprocessing as mp
 from profiling.constants import *
 from profiling.models.workers import LLMWorker
 from profiling.models.model_client import ModelClient
-from profiling.models.workers.constants import WorkerTestConfig
 from plotting.trace_plot import TracePlotData, TraceAxisData, plot_trace_graph
 
 class LLMClient(ModelClient):
@@ -138,4 +137,7 @@ class LLMClient(ModelClient):
     def setup_testenv(self, test_config):
         self.test_config = test_config        
         self.test_config.full_tag = self.get_full_tag(self.test_config)
-        self.command_workers("setup_testenv", [WorkerTestConfig(test_config)])
+        self.command_workers("setup_testenv", [test_config])
+    
+    def _test(self):
+        self.command_workers("test", sync = SyncType.ALL)

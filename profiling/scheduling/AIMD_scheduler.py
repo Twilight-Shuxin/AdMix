@@ -88,24 +88,22 @@ class AIMDScheduler(AIMDBaseScheduler):
         self.profile = []
         self.profile_pointer = 0
 
-        with open(os.path.join(self.model_worker.profile_path, self.model_worker.test_config.llm_tag + ".log"), "r") as profile_file:
+        with open(os.path.join(self.model_client.profile_path, self.model_client.get_self_tag(self.model_client.test_config) + ".log"), "r") as profile_file:
             lines = profile_file.readlines()
             for line in lines:
                 self.profile.append([float(x) for x in line.strip().split(" ")])
         
         self.batch_size = 1
-        self.max_batch_size = self.model_worker.supported_batchsize[-1]
-        self.alpha = self.model_worker.alpha
-        self.beta = self.model_worker.beta
+        self.max_batch_size = self.model_client.supported_batchsize[-1]
+        self.alpha = self.model_client.alpha
+        self.beta = self.model_client.beta
         self.last = -1
         self.logs = []
 
-        self.model_worker.double_barrier.wait()
-        self.model_worker.runtime_data.start_time_pointer = time.perf_counter()
-        self.model_worker.runtime_data.time_limit = self.model_worker.runtime_data.start_time_pointer + self.model_worker.test_config.test_time
+        self.start_serve()
         
         time.sleep(0.1)
-        while(time.perf_counter() < self.model_worker.runtime_data.time_limit):
+        while(time.perf_counter() < self.model_client.runtime_data.time_limit):
             schedule_plan = self.schedule(get_llm_intensity_unix(self.data_format))
-            schedule_plan.execute(self.model_worker)
+            self.model_client.broadcast_workers(schedule_plan, sync = SyncType.ALL)
         

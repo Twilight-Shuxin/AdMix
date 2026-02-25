@@ -9,7 +9,8 @@ from multiprocessing import Process as StdProcess, Pipe
 from profiling.constants import *
 from plotting.dcgm_plot import plot_dcgm
 from profiling.models.utils import avg_dict
-from profiling.models.workers.constants import WorkerTestConfig, SyncType
+from profiling.models.workers.constants import SyncType
+from profiling.scheduling.monitor import get_llm_info_unix
 
 class ModelClient(Process):
     def __init__(self, model_name, devices, mps, pipe, barrier, log_path, profile_path):
@@ -32,7 +33,7 @@ class ModelClient(Process):
     def start_worker(self, devices):
         device_init(self.devices, devices, self.mps)
         pipe_parent, pipe_child = mp.Pipe()
-        worker = self.model_worker(pipe_child, self.worker_barrier, self.single_worker_barrier)
+        worker = self.model_worker(self.supported_batchsize, pipe_child, self.worker_barrier, self.single_worker_barrier)
         worker.start()
         self.worker_pipes.append(pipe_parent)
     
@@ -42,6 +43,13 @@ class ModelClient(Process):
         for device in self.devices:
             self.start_worker([device])
         self.worker_barrier.wait()
+
+    def broadcast_workers(self, data, sync = SyncType.NO_SYNC):
+        for pipe in self.worker_pipes:
+            pipe.send(data)
+            pipe.send(sync)
+        if(sync == SyncType.ALL):
+            self.worker_barrier.wait()
     
     def command_worker(self, pipe, command, additional_data = [], sync = SyncType.NO_SYNC):
         pipe.send(command)
@@ -91,6 +99,14 @@ class ModelClient(Process):
         else:
             return self.get_self_tag(test_config) + f'-d{len(self.devices)}'
     
+    """
+        Read profiled data from self.profile_path/model_name.json.
+    """
+    def read_profiled_data(self):
+        with open(os.path.join(self.profile_path, self.model_name + ".json"), "r") as profile_file:
+            self.profiled_data = json.load(profile_file)
+        return self.profiled_data
+    
     def profile(self):
         self.command_workers("profile")
         worker_profile_datas = []
@@ -104,7 +120,7 @@ class ModelClient(Process):
     def setup_testenv(self, test_config):
         self.test_config = test_config        
         self.test_config.full_tag = self.get_full_tag(self.test_config)
-        self.command_workers("setup_testenv", [WorkerTestConfig(test_config)])
+        self.command_workers("setup_testenv", [test_config])
     
     def get_total_modules(self):
         self.command_worker(self.worker_pipes[0], "get_total_modules")
@@ -222,12 +238,30 @@ class ModelClient(Process):
                     plot_dcgm(records, os.path.join(self.log_path, self.test_config.full_tag + "-"), profile_statistic)
         return dcgm_data if dcgm_data else None
     
+    def init_runtime_data(self):
+        self.runtime_data = RuntimeData()
+    
+    def init_scheduler_data(self):
+        self.scheduler_data = SchedulerData()
+        self.scheduler_data.scheduler = get_scheduler(self.test_config.scheduler)
+    
+     def init_testenv_data(self):
+        self.init_runtime_data()
+        self.init_scheduler_data()
+    
+    def _test(self):
+        if(self.test_config.scheduler):
+            self.test_config.test_time = get_llm_info_unix()
+            self.init_testenv_data()
+            self.scheduler_data.scheduler.serve(self)
+            self.broadcast_workers(None, sync = SyncType.ALL)
+        else:
+            self.command_workers("test", sync = SyncType.ALL)
+    
     def test(self):
         if(self.test_config.record_dcgm):
             dcgm_monitor_conn = self.start_dcgm()    
-        
-        self.command_workers("test", sync = SyncType.ALL)
-        
+        self._test()
         if(self.test_config.record_dcgm):
             stop_dcgm(dcgm_monitor_conn)
         

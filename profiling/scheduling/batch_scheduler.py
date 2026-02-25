@@ -3,11 +3,11 @@ import json
 import torch
 from typing import List
 from pydantic import BaseModel, Field
+from profiling.scheduling.constants import FeatureModel
+from profiling.scheduling.batch_predict.MLP_model import MLPPredictModel
+from profiling.scheduling.monitor import get_llm_intensity_unix, inform_llm_unix
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
 from profiling.scheduling.scheduler import AIMDBaseScheduler, SchedulingDataFormat, pack_data_bytes, conn_get_data
-from profiling.scheduling.batch_predict.MLP_model import MLPPredictModel
-from profiling.scheduling.constants import FeatureModel
-from profiling.scheduling.monitor import get_llm_intensity_unix
 
 class ObservationSingleBatchData(FeatureModel):
     ND: int = 0
@@ -115,7 +115,7 @@ class BatchScheduler(AIMDBaseScheduler):
         action = self.get_action(intensity_data, pred_latency)
         self.execute_action(action)
         
-        current_timestamp = round(time.perf_counter() - self.model_worker.runtime_data.start_time_pointer, 3)
+        current_timestamp = round(time.perf_counter() - self.model_client.runtime_data.start_time_pointer, 3)
         self.execution_logs.append([current_timestamp, self.batch_size, list(zip([x.latency for x in intensity_data.batch_data], pred_latency))])
         self.execute()
     
@@ -125,7 +125,7 @@ class BatchScheduler(AIMDBaseScheduler):
         self.last_execution_time = 0
         while(time.perf_counter() + self.last_execution_time < end_round_time):
             start_time = time.perf_counter()
-            schedule_plan.execute(self.model_worker)
+            self.model_client.broadcast_workers(schedule_plan, sync = SyncType.ALL)
             self.last_execution_time = time.perf_counter() - start_time
         left_time = end_round_time - time.perf_counter()
         if(left_time > 0.001):
@@ -135,19 +135,16 @@ class BatchScheduler(AIMDBaseScheduler):
         self.scheduler_init()
         # May have remaining data in intensity server; fetch once to clear buffer
         current_intensity = get_llm_intensity_unix(self.data_format)
+        self.start_serve()
         
-        self.model_worker.double_barrier.wait()
-        self.model_worker.runtime_data.start_time_pointer = time.perf_counter()
-        self.model_worker.runtime_data.time_limit = self.model_worker.runtime_data.start_time_pointer + self.model_worker.test_config.test_time
-        
-        while(time.perf_counter() < self.model_worker.runtime_data.time_limit):
+        while(time.perf_counter() < self.model_client.runtime_data.time_limit):
             current_intensity = get_llm_intensity_unix(self.data_format)
             self.schedule(current_intensity)
 
-        self.model_worker.write_csv("batch_predicted.csv", 
+        self.model_client.write_csv("batch_predicted.csv", 
             ["Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn", "Latency", "Pred Latency"],
             self.prediction_logs)
-        self.model_worker.write_csv("batch_execution.csv", 
+        self.model_client.write_csv("batch_execution.csv", 
             ["Time", "Batch size", "Details"],
             self.execution_logs
         )

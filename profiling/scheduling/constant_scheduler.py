@@ -1,7 +1,9 @@
-from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, conn_get_data
-from profiling.scheduling.schedule_plan import BasicSchedulePlan
-from pydantic import BaseModel
 import time
+from pydantic import BaseModel
+from profiling.models.workers.constants import SyncType
+from profiling.scheduling.monitor import inform_llm_unix
+from profiling.scheduling.schedule_plan import BasicSchedulePlan
+from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, conn_get_data
 
 class ConstantSchedulingDataFormat(SchedulingDataFormat):
     class ObservationData(BaseModel):
@@ -31,13 +33,11 @@ class ConstantScheduler(Scheduler):
         return BasicSchedulePlan(self.batch_size)
     
     def _serve(self):
-        self.model_worker.double_barrier.wait()
-        self.model_worker.runtime_data.start_time_pointer = time.perf_counter()
-        self.model_worker.runtime_data.time_limit = self.model_worker.runtime_data.start_time_pointer + self.model_worker.test_config.test_time
+        self.start_serve()
         time.sleep(0.1)
         while(True):
-            if(time.perf_counter() > self.model_worker.runtime_data.time_limit):
+            if(time.perf_counter() > self.model_client.runtime_data.time_limit):
                 break
             schedule_plan = self.schedule(ConstantSchedulingDataFormat.ObservationData())
-            schedule_plan.execute(self.model_worker)
+            self.model_client.broadcast_workers(schedule_plan, sync = SyncType.ALL)
         

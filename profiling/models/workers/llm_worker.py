@@ -7,8 +7,11 @@ import aiohttp
 import requests
 import subprocess
 from profiling.constants import *
-from profiling.models.workers.model_worker import ModelWorker
 from dataset.sharegpt_dataset import ShareGPTDataset
+from profiling.models.workers.model_worker import ModelWorker
+from profiling.scheduling.utils import get_scheduler_class
+from profiling.scheduling.monitor import LLM_SERVER_SOCKET_PATH, LLM_INTENSITY_SOCKET_PATH
+from profiling.scheduling import AIMDScheduler, AIMDSchedulingDataFormat, PredictiveScheduler, PredictiveSchedulingDataFormat, BatchScheduler
 from trace.trace_utils import LLMTrace, set_LLM_trace_config, read_LLM_trace_config
 
 class LLMWorker(ModelWorker):
@@ -79,6 +82,40 @@ class LLMWorker(ModelWorker):
         if(self.test_config.record_statistics):
             self.runtime_data.submitted_record_counter.set_record_bins(TimeBinRecord(init = [], time_limit = self.test_config.test_time))
             self.runtime_data.waiting_first_record_counter.set_record_bins(TimeBinRecord(init = [], time_limit = self.test_config.test_time))
+    
+    def init_scheduler_data(self):
+        self.scheduler_data = SchedulerData()
+        self.scheduler_data.scheduler_type = None
+        self.scheduler_data.scheduling_data_format = None
+        self.scheduler_data.intensity_server = None
+        self.scheduler_data.scheduler_profiler = None
+        self.scheduler_data.scheduler_monitor = None
+
+        if(not self.test_config.scheduler):
+            return
+        self.scheduler_data.scheduler_type = get_scheduler_class(self.test_config.scheduler)
+        self.scheduler_data.scheduling_data_format = self.scheduler_data.scheduler_type.data_format
+        self.scheduler_data.opp_ready = asyncio.Event()
+
+        # basic_aimd
+        if(self.scheduler_data.scheduler_type == AIMDScheduler):
+            self.scheduler_data.uncompleted_tokens = 0
+
+        # predict
+        if(self.scheduler_data.scheduler_type == PredictiveScheduler):
+            # point data
+            self.scheduler_data.total_prefill_length = 0
+            self.scheduler_data.prefill_length_heap = DeletableMaxHeap()
+            self.scheduler_data.total_decode_length = 0
+
+            # period data
+            self.scheduler_data.prefill_throughput_period = 0
+            self.scheduler_data.decode_throughput_period = 0
+            self.scheduler_data.prefill_length_period = 0
+            self.scheduler_data.prefill_length_heap_period = MaxHeap()
+            self.scheduler_data.finished_count_period = 0
+            self.scheduler_data.finished_tokens_period = 0
+            self.scheduler_data.refreshed_counter = 0
     
     @classmethod
     def get_trace_config(cls, test_config):
@@ -159,6 +196,10 @@ class LLMWorker(ModelWorker):
         
         token_cnt = input_length
 
+        if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
+            received_token_period = 0
+            last_refreshed_counter = self.scheduler_data.refreshed_counter
+
         try:
             async for chunk in receiver:
                 current_timestamp = time.perf_counter() - self.runtime_data.start_time_pointer
@@ -167,22 +208,47 @@ class LLMWorker(ModelWorker):
                 
                 between_token_time = current_timestamp - last_received_time
                 token_cnt += 1
+                if(self.scheduler_data.scheduling_data_format == AIMDSchedulingDataFormat):
+                    self.scheduler_data.uncompleted_tokens -= 1
 
                 if first_chunk_time is None:
                     first_chunk_time = between_token_time
                     if(self.test_config.record_statistics): 
                         self.profile_data.first_token_time.append_to_bin(current_timestamp, first_chunk_time)
                     self.runtime_data.waiting_first_record_counter.rm(current_timestamp)
+                    
+                    if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
+                        self.scheduler_data.prefill_throughput_period += 1
+                        self.scheduler_data.total_prefill_length -= input_length
+                        self.scheduler_data.prefill_length_heap.delete((input_length, request_timestamp))
+                        self.scheduler_data.total_decode_length += token_cnt
                 else:
                     waiting_time += between_token_time
                     if(self.test_config.record_statistics):
                         self.profile_data.between_token_time.append_to_bin(current_timestamp, between_token_time)
+                    
+                    if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
+                        if(last_refreshed_counter != self.scheduler_data.refreshed_counter):
+                            received_token_period = 0
+                            last_refreshed_counter = self.scheduler_data.refreshed_counter
+                        received_token_period += 1
+                        self.scheduler_data.total_decode_length += 1
+                        self.scheduler_data.decode_throughput_period += 1
                     
                     user_idle_time, user_idle_time_info_record = update_user_idle_time_info_record(
                         user_idle_time, user_idle_time_info_record, current_timestamp, waiting_time - reading_time)
                     reading_time += self.SPEED_CONST
 
                 last_received_time = current_timestamp
+                
+            if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
+                self.scheduler_data.total_decode_length -= token_cnt
+                if(last_refreshed_counter == self.scheduler_data.refreshed_counter):
+                    self.scheduler_data.finished_tokens_period += received_token_period
+                    self.scheduler_data.finished_count_period += 1
+            if(self.scheduler_data.scheduling_data_format == AIMDSchedulingDataFormat):
+                if(output_length != token_cnt - input_length):
+                    self.scheduler_data.uncompleted_tokens -= output_length + input_length - token_cnt
             return first_chunk_time, user_idle_time, user_idle_time_info_record, 1
         except asyncio.CancelledError:
             current_timestamp = time.perf_counter() - self.runtime_data.start_time_pointer
@@ -202,6 +268,8 @@ class LLMWorker(ModelWorker):
         user_idle_time = 0 
         user_idle_time_info_record = None
         request_timestamp = None
+        if(self.scheduler_data.scheduler_type == AIMDScheduler):
+            self.scheduler_data.uncompleted_tokens += max_tokens
         completed = False
 
         try:
@@ -209,6 +277,12 @@ class LLMWorker(ModelWorker):
             current_timestamp = request_timestamp
             self.runtime_data.submitted_record_counter.add(current_timestamp)
             self.runtime_data.waiting_first_record_counter.add(current_timestamp)
+                      
+            if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
+                self.scheduler_data.total_prefill_length += prompt_len
+                self.scheduler_data.prefill_length_period += prompt_len
+                self.scheduler_data.prefill_length_heap.push((prompt_len, request_timestamp))
+                self.scheduler_data.prefill_length_heap_period.push((prompt_len, request_timestamp))
 
             timeout = aiohttp.ClientTimeout(total=4 * 60 * 60)
             async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -268,5 +342,73 @@ class LLMWorker(ModelWorker):
                 task.cancel()
 
         await asyncio.gather(*task_list, return_exceptions=True)
-
     
+    async def create_unix_servers(self):
+        async def server_unix_handler(reader, writer):
+            action = (await reader.read(32)).decode("utf-8")
+            match action:
+                case "test_time":
+                    writer.write(self.test_config.test_time.to_bytes(4, "big"))
+                    await writer.drain()
+                case "ready":
+                    self.scheduler_data.opp_ready.set()
+            await writer.wait_closed()
+    
+        async def intensity_unix_handler(reader, writer):
+            _ = await reader.read(32)
+            data = self.scheduler_data.scheduling_data_format.pack_data(self)
+            writer.write(len(data).to_bytes(4, "big"))
+            await writer.drain()
+            writer.write(data)
+            await writer.drain()
+            await writer.wait_closed()
+
+        print("Starting Unix servers")
+        self.scheduler_data.general_server = await asyncio.start_unix_server(server_unix_handler, LLM_SERVER_SOCKET_PATH)
+        if(self.scheduler_data.scheduler_type != BatchScheduler):
+            self.scheduler_data.intensity_server = await asyncio.start_unix_server(intensity_unix_handler, LLM_INTENSITY_SOCKET_PATH)
+    
+    async def _test(self):
+        self.init_testenv_data()
+        
+        if(self.test_config.scheduler):
+            if(self.test_config.global_cnt > 1): # Serving mode
+                await self.create_unix_servers()
+                if(self.scheduler_data.scheduler_type.monitor):
+                    self.scheduler_data.scheduler_monitor = asyncio.create_task(self.scheduler_data.scheduler_type.monitor(self))
+                # Be informed by opportunistic worker that the other side have retrieved necessary information and is ready to move on
+                await self.scheduler_data.opp_ready.wait()
+            else: # Profiling mode
+                print("Scheduler profiling...")
+                self.scheduler_data.scheduler_profiler = asyncio.create_task(self.scheduler_data.scheduler_type.profiling_executor(self))
+                
+        self.runtime_data.start_time_pointer = time.perf_counter()
+        self.runtime_data.time_limit = self.runtime_data.start_time_pointer + self.test_config.test_time
+        task_list = []
+
+        while(time.perf_counter() < self.runtime_data.time_limit):
+            if(self.test_config.trace_path):
+                req_time, sample_in_length, sample_out_length = self.test_config.trace.next()
+                sleep_time = min(req_time, self.test_config.test_time) + self.runtime_data.start_time_pointer - time.perf_counter()
+                if(sleep_time > 0):
+                    await asyncio.sleep(sleep_time)
+                if(req_time >= self.test_config.test_time):
+                    break
+                llm_input = self.get_input(InputConfig(seq_len = sample_in_length))
+                task_list.append(asyncio.create_task(self.async_inference(llm_input, sample_out_length)))
+            else:
+                llm_input = self.get_input(self.input_config)
+                await self.async_inference(llm_input, self.test_config.seq_len[1])
+
+        if(self.scheduler_data.intensity_server):
+            self.scheduler_data.intensity_server.close()
+            self.scheduler_data.general_server.close()
+        if(self.scheduler_data.scheduler_profiler):
+            print("Close scheduler profiler")
+            self.scheduler_data.scheduler_profiler.cancel()
+        if(self.scheduler_data.scheduler_monitor):
+            self.scheduler_data.scheduler_monitor.cancel()
+        
+        for id, task in enumerate(task_list):
+            if(not task.done()):
+                task.cancel()
