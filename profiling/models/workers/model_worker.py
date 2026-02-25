@@ -172,6 +172,13 @@ class ModelWorker(Process):
             self.loop.run_until_complete(self._test())
         else:
             self._test()
+    
+    def send_performance_data(self):
+        self.pipe.send(self.runtime_data.absolute_throughput)
+    
+    def send_profiled_data(self):
+        self.pipe.send(self.profile_data.logs)
+        self.pipe.send(self.profile_data.absolute_throughput_records)
 
     def run(self) -> None:
         self.init_start()
@@ -196,10 +203,9 @@ class ModelWorker(Process):
                 case "get_total_modules":
                     self.pipe.send(self.total_module)
                 case "collect_performance_data":
-                    self.pipe.send(self.runtime_data.absolute_throughput)
+                    self.send_performance_data()
                 case "collect_profiled_data":
-                    self.pipe.send(self.profile_data.logs)
-                    self.pipe.send(self.profile_data.absolute_throughput_records)
+                    self.send_profiled_data()
                 case "stop":
                     stop_flag = True
                 case _:

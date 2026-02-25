@@ -86,13 +86,14 @@ class ProfileServer():
     # With the test_configs of all model clients, get global tag as aggregated name if self.global_tag is not defined,
     # else directly use self.global_tag. Save global tags to self.test_configs
     def get_global_tag(self):
-        if(self.global_tag == None):
+        if(not self.global_tag):
             tags = []
             for model_name in self.model_names:
                 tags.append(self.self_tags[model_name])
             self.global_tag = '+'.join(tags)
-            if(self.scheduler != None):
+            if(self.scheduler):
                 self.global_tag = "-".join([self.global_tag, self.scheduler])
+            self.global_tag += f'-d{len(self.devices)}'
         for model_name in self.model_names:
             self.test_configs[model_name].global_tag = self.global_tag
         return self.global_tag

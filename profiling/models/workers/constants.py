@@ -17,6 +17,7 @@ class WorkerTestConfig():
         self.record_statistics = test_config.record_statistics
         self.record_statistics_saved = None
         self.test_time = test_config.test_time
+        self.test_time_default = test_config.test_time_default
     
     def set_warmup(self):
         self.record_statistics_saved = self.record_statistics

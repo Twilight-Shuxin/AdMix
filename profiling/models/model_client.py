@@ -8,8 +8,8 @@ from torch.multiprocessing import Process
 from multiprocessing import Process as StdProcess, Pipe
 from profiling.constants import *
 from plotting.dcgm_plot import plot_dcgm
-from profiling.models.workers.constants import WorkerTestConfig, SyncType
 from profiling.models.utils import avg_dict
+from profiling.models.workers.constants import WorkerTestConfig, SyncType
 
 class ModelClient(Process):
     def __init__(self, model_name, devices, mps, pipe, barrier, log_path, profile_path):
@@ -25,10 +25,12 @@ class ModelClient(Process):
         self.worker_pipes = []
         self.beta = 2
     
-    def start_worker(self, device):
-        device_init(device)
-        if(self.mps is not None):
-            os.environ["CUDA_MPS_ACTIVE_THREAD_PERCENTAGE"] = str(self.mps)
+    # To be implemented by descendant classes
+    def init_start(self):
+        pass
+    
+    def start_worker(self, devices):
+        device_init(self.devices, devices, self.mps)
         pipe_parent, pipe_child = mp.Pipe()
         worker = self.model_worker(pipe_child, self.worker_barrier, self.single_worker_barrier)
         worker.start()
@@ -38,7 +40,7 @@ class ModelClient(Process):
         self.worker_barrier = mp.Barrier(len(self.devices) + 1)
         self.single_worker_barrier = mp.Barrier(2)
         for device in self.devices:
-            self.start_worker(device)
+            self.start_worker([device])
         self.worker_barrier.wait()
     
     def command_worker(self, pipe, command, additional_data = [], sync = SyncType.NO_SYNC):
@@ -81,13 +83,13 @@ class ModelClient(Process):
     """
         Get the full tag(self tag + global tag) for given test_configuration
         If model number is greater than 1, than self tag is reduced to model name because full name is included in global tag;
-        yet if model number is 1 / no global tag available, than simply use full self tag
+        yet if model number is 1 / no global tag available, than simply use full self tag + '-d{x}' (number of devices used)
     """
     def get_full_tag(self, test_config):
         if(test_config.global_tag != None and test_config.global_cnt > 1):
             return "-".join([self.model_name, test_config.global_tag])
         else:
-            return self.get_self_tag(test_config)
+            return self.get_self_tag(test_config) + f'-d{len(self.devices)}'
     
     def profile(self):
         self.command_workers("profile")

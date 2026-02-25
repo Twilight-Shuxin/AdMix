@@ -6,6 +6,7 @@ import heapq
 import subprocess
 import numpy as np
 from enum import Enum
+from typing import List
 from collections import Counter
 from plotting.constants import PLOTTING_BIN_SIZE
 
@@ -35,21 +36,21 @@ RECORDING_ACTION_MAP = {
     "statistics": [RecordingAction.STATISTICS_ONLY, RecordingAction.ALL]
 }
 
-GPU_UUID = [
-    "GPU-dbbfc53e-396c-4cfb-bce3-88dc1c760e98",
-    "GPU-52d1d800-a5dc-f06d-1e17-7778d35b591b"
-]
-
-def device_init(device_id):
-    UUID = GPU_UUID[int(device_id)] if device_id.isdigit() else device_id
-    os.environ["CUDA_VISIBLE_DEVICES"]=UUID
-    cmd = f"gmanager checkmps {int(device_id)}"
+def get_cmd_output(cmd):
     p = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE, text=True)
     stdout, stderr = p.communicate()
-    using_mps = stdout.lower().strip() == "true"
-    print("Using MPS:", using_mps)
-    os.environ["CUDA_MPS_PIPE_DIRECTORY"]=f"/tmp/nvidia-mps-{UUID}" if using_mps else ""
-    os.environ["CUDA_MPS_LOG_DIRECTORY"]=f"/tmp/nvidia-mps-{UUID}" if using_mps else ""
+    return stdout
+
+def device_init(all_devices : List[str], device_ids : List[str], mps = None):
+    using_mps = get_cmd_output(f"gmanager checkmps {',' .join(all_devices)}").lower().strip() == "true"
+    if(using_mps):
+        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join([str(all_devices.index(device_id)) for device_id in device_ids])
+        UUID_hash = get_cmd_output(f"gmanager getuuid_hash {','.join(all_devices)}").strip()
+        os.environ["CUDA_MPS_PIPE_DIRECTORY"] = f"/tmp/nvidia-mps-{UUID_hash}" 
+        os.environ["CUDA_MPS_LOG_DIRECTORY"] = f"/tmp/nvidia-mps-{UUID_hash}"
+        os.environ["CUDA_MPS_ACTIVE_THREAD_PERCENTAGE"] = str(mps) if (mps is not None) else '100'
+    else:
+        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(device_ids)
 
 def background(cmd, log):
     log = gmanager_home + "/" + log

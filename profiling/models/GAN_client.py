@@ -1,9 +1,9 @@
-from profiling.models.model_client import ModelClient
 from profiling.models.workers import GANWorker
+from profiling.models.model_client import ModelClient
 
 class GANClient(ModelClient):
-    def __init__(self, device_id, mps, pipe, barrier, log_path, profile_path):
-        super().__init__("GAN", device_id, mps, pipe, barrier, log_path, profile_path)
+    def __init__(self, devices, mps, pipe, barrier, log_path, profile_path):
+        super().__init__("GAN", devices, mps, pipe, barrier, log_path, profile_path)
         self.alpha = 1
     
     def init_start(self):

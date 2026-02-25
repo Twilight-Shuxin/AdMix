@@ -5,6 +5,7 @@ GVLLM_PARTIAL_STRIDE stride for partial model
 
 sudo systemctl --now enable nvidia-dcgm
 
+
 python run.py --model resnet50 --batch_size 1 --device 1 --test_time 50
 python run.py --model resnet50 --batch_size 1 --device 1 --mps 50 --test_time 50
 python run.py --model resnet50 --batch_size 1 --device 1 --test_time 50 --mode PROFILE
