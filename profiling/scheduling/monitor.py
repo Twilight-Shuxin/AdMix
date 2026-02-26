@@ -21,28 +21,31 @@ def get_llm_intensity_unix(scheduling_data_format):
         return scheduling_data_format.default_data()
     return data
 
-"""
-    Read requested information from llm server. 
-    Current implementation gets only the test_time of llm server.
-    FIXME: Retries forever until information is correctly received. 
-"""
-def get_llm_info_unix():
+def llm_server_rpc(action):
     client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    retry_interval = 0.5
-    while True:
-        try:
-            client_socket.connect(LLM_SERVER_SOCKET_PATH)
-            client_socket.sendall(b"test_time")
+    client_socket.connect(LLM_SERVER_SOCKET_PATH)
+    client_socket.sendall(action.encode("utf-8"))
+    data = None
+    match action:
+        case "test_time":
             data = int.from_bytes(client_socket.recv(4), "big")
-            client_socket.close()
-            break
-        except Exception as e:
-            time.sleep(retry_interval)
+        case "ready":
+            pass
+        case "tag":
+            data = client_socket.recv(1024).decode("utf-8")
     client_socket.close()
     return data
 
-def inform_llm_unix(status):
-    client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    client_socket.connect(LLM_SERVER_SOCKET_PATH)
-    client_socket.sendall(status.encode("utf-8"))
-    client_socket.close()
+"""
+    Communicates with llm server. 
+    FIXME: Retries forever until information is correctly received. 
+"""
+def llm_server_rpc_retry(action):
+    retry_interval = 0.5
+    while True:
+        try:
+            data = llm_server_rpc(action)
+            break
+        except Exception as e:
+            time.sleep(retry_interval)
+    return data

@@ -11,7 +11,7 @@ from plotting.dcgm_plot import plot_dcgm
 from profiling.models.utils import avg_dict
 from profiling.scheduling.utils import get_scheduler
 from profiling.models.workers.constants import SyncType
-from profiling.scheduling.monitor import get_llm_info_unix
+from profiling.scheduling.monitor import llm_server_rpc_retry
 
 class ModelClient(Process):
     def __init__(self, model_name, devices, mps, pipe, barrier, log_path, profile_path):
@@ -34,7 +34,8 @@ class ModelClient(Process):
     def start_worker(self, devices):
         device_init(self.devices, devices, self.mps)
         pipe_parent, pipe_child = mp.Pipe()
-        worker = self.model_worker(self.supported_batchsize, pipe_child, self.worker_barrier, self.single_worker_barrier)
+        worker = self.model_worker(self.supported_batchsize, pipe_child, self.worker_barrier, self.single_worker_barrier,
+                                    self.log_path, self.profile_path,)
         worker.start()
         self.worker_pipes.append(pipe_parent)
     
@@ -74,7 +75,9 @@ class ModelClient(Process):
             model_name(m50)
             model_name
     """
-    def get_self_tag(self, test_config):
+    def get_self_tag(self, test_config = None):
+        if(not test_config):
+            test_config = self.test_config
         tag = self.model_name
         sub_tag = ""
         if(test_config.batch_size != None):
@@ -94,7 +97,9 @@ class ModelClient(Process):
         If model number is greater than 1, than self tag is reduced to model name because full name is included in global tag;
         yet if model number is 1 / no global tag available, than simply use full self tag + '-d{x}' (number of devices used)
     """
-    def get_full_tag(self, test_config):
+    def get_full_tag(self, test_config = None):
+        if(not test_config):
+            test_config = self.test_config
         if(test_config.global_tag != None and test_config.global_cnt > 1):
             return "-".join([self.model_name, test_config.global_tag])
         else:
@@ -119,8 +124,14 @@ class ModelClient(Process):
             json.dump(profile_data, profile_file, indent=4)
     
     def setup_testenv(self, test_config):
-        self.test_config = test_config        
-        self.test_config.full_tag = self.get_full_tag(self.test_config)
+        self.test_config = test_config    
+        
+        # NOTE: Currently, among all three tags only one is used by llm client's model worker:
+        # self.test_config.self_full_tag is '{self tag}-dx', which is the profile name of llm worker's scheduler profile.
+        self.test_config.self_tag = self.get_self_tag()
+        self.test_config.self_full_tag = self.get_self_tag() + f'-d{len(self.devices)}'
+        self.test_config.full_tag = self.get_full_tag()
+
         self.command_workers("setup_testenv", [test_config])
     
     def get_total_modules(self):
@@ -252,7 +263,9 @@ class ModelClient(Process):
     
     def _test(self):
         if(self.test_config.scheduler):
-            self.test_config.test_time = get_llm_info_unix()
+            self.test_config.test_time = llm_server_rpc_retry("test_time")
+            # Updated test_config, so setup test environment again to ensure correctness.
+            self.setup_testenv(self.test_config)
             self.init_testenv_data()
             self.scheduler_data.scheduler.serve(self)
             self.broadcast_workers(None, sync = SyncType.ALL)

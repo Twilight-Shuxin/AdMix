@@ -4,8 +4,8 @@ import asyncio
 from pydantic import BaseModel
 from profiling.constants import list_to_string
 from profiling.models.workers.constants import SyncType
-from profiling.scheduling.monitor import get_llm_intensity_unix
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
+from profiling.scheduling.monitor import get_llm_intensity_unix, llm_server_rpc
 from profiling.scheduling.scheduler import AIMDBaseScheduler, SchedulingDataFormat, pack_data_bytes, conn_get_data
 
 class AIMDSchedulingDataFormat(SchedulingDataFormat):
@@ -49,7 +49,7 @@ async def AIMD_profiler(llm_worker):
             await asyncio.sleep(AIMDScheduler.scheduling_interval)
             timestamp += 0.1
     except asyncio.CancelledError:
-        file_path = os.path.join(llm_worker.profile_path, llm_worker.test_config.full_tag  + ".log")
+        file_path = os.path.join(llm_worker.profile_path, llm_worker.test_config.full_tag + ".log")
         with open(file_path, "w") as profile_file:
             print("Writing profiled results to:", file_path)
             for log_record in logs: 
@@ -88,8 +88,10 @@ class AIMDScheduler(AIMDBaseScheduler):
     def _serve(self):
         self.profile = []
         self.profile_pointer = 0
+        llm_tag = llm_server_rpc("tag")
+        print("hihihi", llm_tag)
 
-        with open(os.path.join(self.model_client.profile_path, self.model_client.get_self_tag(self.model_client.test_config) + ".log"), "r") as profile_file:
+        with open(os.path.join(self.model_client.profile_path, f"{llm_tag}.log"), "r") as profile_file:
             lines = profile_file.readlines()
             for line in lines:
                 self.profile.append([float(x) for x in line.strip().split(" ")])

@@ -1,18 +1,20 @@
 import os
-import torch
-from torch.multiprocessing import Process
 import time
+import torch
 import inspect
 import numpy as np
+from torch.multiprocessing import Process
 from profiling.constants import *
 from trace.trace_utils import SimpleTimeTrace
 from profiling.models.workers.constants import SyncType
 
 class ModelWorker(Process):
-    def __init__(self, pipe, worker_barrier, single_worker_barrier):
+    def __init__(self, pipe, worker_barrier, single_worker_barrier, log_path, profile_path):
         self.pipe = pipe
         self.worker_barrier = worker_barrier
         self.single_worker_barrier = single_worker_barrier
+        self.log_path = log_path
+        self.profile_path = profile_path
         self.device = "cuda"
         super().__init__()
     

@@ -15,8 +15,8 @@ from profiling.scheduling import AIMDScheduler, AIMDSchedulingDataFormat, Predic
 from trace.trace_utils import LLMTrace, set_LLM_trace_config, read_LLM_trace_config
 
 class LLMWorker(ModelWorker):
-    def __init__(self, pipe, worker_barrier, single_worker_barrier, slo_info):
-        super().__init__(pipe, worker_barrier, single_worker_barrier)
+    def __init__(self, pipe, worker_barrier, single_worker_barrier, log_path, profile_path, slo_info):
+        super().__init__(pipe, worker_barrier, single_worker_barrier, log_path, profile_path)
         self.server_config = {
             'host': "localhost",
             "port": 8000,
@@ -352,6 +352,9 @@ class LLMWorker(ModelWorker):
                     await writer.drain()
                 case "ready":
                     self.scheduler_data.opp_ready.set()
+                case "tag":
+                    writer.write(self.test_config.self_full_tag.encode("utf-8"))
+                    await writer.drain()
             writer.close()
             await writer.wait_closed()
     

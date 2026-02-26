@@ -92,7 +92,9 @@ class ModelWorker(Process):
             model_name(m50)
             model_name
     """
-    def get_self_tag(self, test_config):
+    def get_self_tag(self, test_config = None):
+        if(not test_config):
+            test_config = self.test_config
         tag = self.model_name
         sub_tag = ""
         if(test_config.batch_size != None):

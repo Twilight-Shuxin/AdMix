@@ -3,8 +3,8 @@ import numpy as np
 from profiling.models.workers.model_worker import ModelWorker
 
 class Deeplabv3Worker(ModelWorker):
-    def __init__(self, supported_batchsize, pipe, worker_barrier, single_worker_barrier):
-        super().__init__(pipe, worker_barrier, single_worker_barrier)
+    def __init__(self, supported_batchsize, pipe, worker_barrier, single_worker_barrier, log_path, profile_path):
+        super().__init__(pipe, worker_barrier, single_worker_barrier, log_path, profile_path)
         self.supported_batchsize = supported_batchsize
 
     def init_start(self):

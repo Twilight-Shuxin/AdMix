@@ -19,6 +19,7 @@ class LLMClient(ModelClient):
         device_init(self.devices, devices, self.mps)
         pipe_parent, pipe_child = mp.Pipe()
         worker = self.model_worker(pipe_child, self.worker_barrier, self.single_worker_barrier, 
+            self.log_path, self.profile_path,
             (self.first_token_slo, self.idle_time_slo, self.SPEED_CONST))
         worker.start()
         self.worker_pipes.append(pipe_parent)
@@ -38,7 +39,9 @@ class LLMClient(ModelClient):
             model_name(m30)[trace_tag]
             model_name[trace_tag]
     """
-    def get_self_tag(self, test_config):
+    def get_self_tag(self, test_config = None):
+        if(not test_config):
+            test_config = self.test_config
         trace_config = LLMWorker.get_trace_config(test_config)
         tag = self.model_name
         # Ignore seq_len if trace_path is set.
@@ -134,11 +137,6 @@ class LLMClient(ModelClient):
         passed_count = self.runtime_data.total_submitted - self.runtime_data.failed
         return (passed_flag, self.runtime_data.completed, passed_count, self.runtime_data.total_submitted, 
             (self.first_token_slo, self.idle_time_slo, self.SPEED_CONST, self.initial_time))
-    
-    def setup_testenv(self, test_config):
-        self.test_config = test_config        
-        self.test_config.full_tag = self.get_full_tag(self.test_config)
-        self.command_workers("setup_testenv", [test_config])
     
     def _test(self):
         self.command_workers("test", sync = SyncType.ALL)
