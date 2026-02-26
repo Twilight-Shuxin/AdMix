@@ -351,7 +351,6 @@ class LLMWorker(ModelWorker):
                     writer.write(self.test_config.test_time.to_bytes(4, "big"))
                     await writer.drain()
                 case "ready":
-                    print("ready!!")
                     self.scheduler_data.opp_ready.set()
             writer.close()
             await writer.wait_closed()
