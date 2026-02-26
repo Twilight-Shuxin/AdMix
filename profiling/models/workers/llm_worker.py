@@ -28,12 +28,12 @@ class LLMWorker(ModelWorker):
         self.initial_time = self.SPEED_CONST
     
     def init_start(self):
-        # self.start_server()
+        self.start_server()
         self.loop = asyncio.get_event_loop()
         self.dataset = ShareGPTDataset("shareGPT.json")
     
     def shutdown(self):
-        # self.stop_server()
+        self.stop_server()
         return
     
     def start_server(self):
