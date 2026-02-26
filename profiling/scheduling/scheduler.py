@@ -1,6 +1,7 @@
 import time
 from enum import IntEnum
 from pydantic import BaseModel
+from profiling.scheduling.monitor import inform_llm_unix
 
 def pack_data_bytes(data_object : BaseModel):
     return data_object.json().encode("utf-8")
@@ -46,7 +47,7 @@ class Scheduler():
     monitor = None
 
     def start_serve(self):
-        self.model_client.command_workers("sched_serve", [self.test_config])
+        self.model_client.command_workers("sched_serve", [self.model_client.test_config])
         inform_llm_unix("ready")
 
         self.model_client.runtime_data.start_time_pointer = time.perf_counter()

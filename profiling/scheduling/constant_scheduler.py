@@ -1,7 +1,6 @@
 import time
 from pydantic import BaseModel
 from profiling.models.workers.constants import SyncType
-from profiling.scheduling.monitor import inform_llm_unix
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
 from profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, pack_data_bytes, conn_get_data
 

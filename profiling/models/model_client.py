@@ -9,6 +9,7 @@ from multiprocessing import Process as StdProcess, Pipe
 from profiling.constants import *
 from plotting.dcgm_plot import plot_dcgm
 from profiling.models.utils import avg_dict
+from profiling.scheduling.utils import get_scheduler
 from profiling.models.workers.constants import SyncType
 from profiling.scheduling.monitor import get_llm_info_unix
 
@@ -245,7 +246,7 @@ class ModelClient(Process):
         self.scheduler_data = SchedulerData()
         self.scheduler_data.scheduler = get_scheduler(self.test_config.scheduler)
     
-     def init_testenv_data(self):
+    def init_testenv_data(self):
         self.init_runtime_data()
         self.init_scheduler_data()
     

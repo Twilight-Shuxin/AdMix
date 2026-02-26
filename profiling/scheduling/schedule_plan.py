@@ -3,7 +3,7 @@ from profiling.constants import InputConfig
 from plotting.constants import *
 
 class SchedulePlan():
-    def execute(self, model_worker, rec):
+    def execute(self, model_worker):
         pass
     
     def recorder(self, model_worker):

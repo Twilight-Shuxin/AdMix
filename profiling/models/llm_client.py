@@ -3,6 +3,7 @@ import torch.multiprocessing as mp
 from profiling.constants import *
 from profiling.models.workers import LLMWorker
 from profiling.models.model_client import ModelClient
+from profiling.models.workers.constants import SyncType
 from plotting.trace_plot import TracePlotData, TraceAxisData, plot_trace_graph
 
 class LLMClient(ModelClient):

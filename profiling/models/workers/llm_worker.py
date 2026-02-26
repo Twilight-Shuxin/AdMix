@@ -28,12 +28,12 @@ class LLMWorker(ModelWorker):
         self.initial_time = self.SPEED_CONST
     
     def init_start(self):
-        self.start_server()
+        # self.start_server()
         self.loop = asyncio.get_event_loop()
         self.dataset = ShareGPTDataset("shareGPT.json")
     
     def shutdown(self):
-        self.stop_server()
+        # self.stop_server()
         return
     
     def start_server(self):
@@ -351,7 +351,9 @@ class LLMWorker(ModelWorker):
                     writer.write(self.test_config.test_time.to_bytes(4, "big"))
                     await writer.drain()
                 case "ready":
+                    print("ready!!")
                     self.scheduler_data.opp_ready.set()
+            writer.close()
             await writer.wait_closed()
     
         async def intensity_unix_handler(reader, writer):
@@ -361,6 +363,7 @@ class LLMWorker(ModelWorker):
             await writer.drain()
             writer.write(data)
             await writer.drain()
+            writer.close()
             await writer.wait_closed()
 
         print("Starting Unix servers")

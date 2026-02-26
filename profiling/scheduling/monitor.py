@@ -1,6 +1,7 @@
 import os
-import asyncio
+import time
 import socket
+import asyncio
 import subprocess
 
 LLM_INTENSITY_SOCKET_PATH = "/tmp/llm_intensity_socket"
@@ -26,6 +27,7 @@ def get_llm_intensity_unix(scheduling_data_format):
     FIXME: Retries forever until information is correctly received. 
 """
 def get_llm_info_unix():
+    client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     retry_interval = 0.5
     while True:
         try:
@@ -36,8 +38,11 @@ def get_llm_info_unix():
             break
         except Exception as e:
             time.sleep(retry_interval)
+    client_socket.close()
     return data
 
 def inform_llm_unix(status):
+    client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     client_socket.connect(LLM_SERVER_SOCKET_PATH)
     client_socket.sendall(status.encode("utf-8"))
+    client_socket.close()

@@ -199,9 +199,13 @@ class ModelWorker(Process):
         self.runtime_data.time_limit = self.runtime_data.start_time_pointer + self.test_config.test_time
         while(True):
             scheduling_plan = self.pipe.recv()
+            sync = self.pipe.recv()
+            if(scheduling_plan):
+                scheduling_plan.execute(self)
+            if(sync == SyncType.ALL):
+                self.worker_barrier.wait()
             if(not scheduling_plan):
                 break
-            scheduling_plan.execute(self)
 
     def run(self) -> None:
         self.init_start()
