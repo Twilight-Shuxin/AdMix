@@ -4,9 +4,10 @@ import torch
 from typing import List
 from pydantic import BaseModel, Field
 from profiling.scheduling.constants import FeatureModel
-from profiling.scheduling.batch_predict.MLP_model import MLPPredictModel
+from profiling.models.workers.constants import SyncType
 from profiling.scheduling.monitor import get_llm_intensity_unix
 from profiling.scheduling.schedule_plan import BasicSchedulePlan
+from profiling.scheduling.batch_predict.MLP_model import MLPPredictModel
 from profiling.scheduling.scheduler import AIMDBaseScheduler, SchedulingDataFormat, pack_data_bytes, conn_get_data
 
 class ObservationSingleBatchData(FeatureModel):

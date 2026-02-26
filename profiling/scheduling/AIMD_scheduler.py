@@ -1,11 +1,12 @@
 import os
 import time
 import asyncio
-from profiling.scheduling.scheduler import AIMDBaseScheduler, SchedulingDataFormat, pack_data_bytes, conn_get_data
-from profiling.scheduling.schedule_plan import BasicSchedulePlan
-from profiling.scheduling.monitor import get_llm_intensity_unix
-from profiling.constants import list_to_string
 from pydantic import BaseModel
+from profiling.constants import list_to_string
+from profiling.models.workers.constants import SyncType
+from profiling.scheduling.monitor import get_llm_intensity_unix
+from profiling.scheduling.schedule_plan import BasicSchedulePlan
+from profiling.scheduling.scheduler import AIMDBaseScheduler, SchedulingDataFormat, pack_data_bytes, conn_get_data
 
 class AIMDSchedulingDataFormat(SchedulingDataFormat):
     class ObservationData(BaseModel):
