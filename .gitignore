@@ -11,6 +11,7 @@ data/*
 *.pkl
 *.pth
 !dataset/
+!trace/trace_config_list.json
 *.bin
 tmp/
 __pycache__/
