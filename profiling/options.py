@@ -11,7 +11,7 @@ class ProfileConfig:
         self.ends = get_comma_list(args.end, ArgsType.INT, self.model_cnt)
         self.batch_sizes = get_comma_list(args.batch_size, ArgsType.INT, self.model_cnt)
         self.dcgm_groups = get_comma_list(args.dcgm_group, ArgsType.INT)
-        self.device = args.device
+        self.device = args.devices
 
         # Save log data to under MPSTest/args.path (default: MPSTest/data)
         # Save profile data (data collected under running mode 'PROFILE') to under MPSTest/args.profile_path (default: MPSTest/profile_data)
@@ -65,7 +65,7 @@ def parse_profile_options():
         default = "-1",
     )
     parser.add_argument(
-        "--device", type = str, default = "0"
+        "--devices", type = str, default = "0"
     )
     parser.add_argument(
         "--path", type = str, default = "data"
