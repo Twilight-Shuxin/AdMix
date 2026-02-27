@@ -53,11 +53,15 @@ def read_LLM_trace_config():
     Set LLM trace config file to correct config through given id.
 """
 def set_LLM_trace_config(id):
+
+    def get_trace_by_id():
+        return next((item for item in data if str(item.get("id")) == id), None)
+    
     config_list_filename = CODE_DIR_PATH + "/" + LLM_TRACE_CONFIG_LIST_FILENAME
     config_filename = CODE_DIR_PATH + "/" + LLM_TRACE_CONFIG_FILENAME
     with open(config_list_filename, "r", encoding="utf-8") as config_list_file:
             data = json.load(config_list_file)  # Load as a list
-            selected_config = data[id]
+            selected_config = get_trace_by_id()
             with open(config_filename, "w", encoding="utf-8") as f:
                 json.dump(selected_config, f, indent=4)
 
