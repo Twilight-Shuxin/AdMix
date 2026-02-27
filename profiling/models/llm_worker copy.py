@@ -84,12 +84,12 @@ class LLMWorker(ModelWorker):
             self.scheduler_data.refreshed_counter = 0
     
     def init_start(self):
-        # self.start_server()
+        self.start_server()
         self.loop = asyncio.get_event_loop()
         self.dataset = ShareGPTDataset("shareGPT.json")
 
     def shutdown(self):
-        # self.stop_server()
+        self.stop_server()
         return
     
     def start_server(self):
@@ -138,7 +138,7 @@ class LLMWorker(ModelWorker):
     def get_trace_config(self, test_config):
         if(not test_config.trace_path):
             return None
-        trace_config_id = int(test_config.trace_path)
+        trace_config_id = test_config.trace_path
         set_LLM_trace_config(trace_config_id)
         trace_config = read_LLM_trace_config()
         # Prioritize test time in cmd args, and sync test_config.test_time with trace_config.test_time
