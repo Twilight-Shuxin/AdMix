@@ -74,5 +74,15 @@
         "prefix-caching": false,
         "model": "llama7b",
         "tp": 1
+    },
+    {
+        "id": "test",
+        "trace": "test",
+        "trace_id": 1,
+        "chunk_size": 100,
+        "start_id": 0,
+        "max_prompt_cnt": 1000,
+        "scale": 1,
+        "time": 5
     }
 ]
