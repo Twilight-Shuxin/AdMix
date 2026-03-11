@@ -18,6 +18,8 @@ async def test_trace(trace):
         if(req_time >= test_time):
             break
         task_list.append(asyncio.create_task(async_inference(sample_in_length, sample_out_length)))
+    await asyncio.sleep(1)
+    task_list.append(asyncio.create_task(async_inference(3000, 1)))
     for id, task in enumerate(task_list):
         if(not task.done()):
             task.cancel()
@@ -32,12 +34,14 @@ def get_trace(trace_config_id, test_time = None):
 
 def main():
     loop = asyncio.new_event_loop()
-    trace_config_id = int(sys.argv[2])
     test_time = int(sys.argv[3]) if len(sys.argv) > 3 else None
-    trace = get_trace(trace_config_id, test_time)
-    loop.run_until_complete(test_trace(trace))
+    trace_config_ids = ["test3"]
+    for trace_config_id in trace_config_ids:
+        for _ in range(5):
+            trace = get_trace(trace_config_id, test_time)
+            loop.run_until_complete(test_trace(trace))
     additional_data, data = get_data_from_vllm()
-    data.sort()
+    data.sort(key=lambda x: (x[0] * x[1]))
     write_list_to_csv("./batch_predict/inputs/" + sys.argv[1],["Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn", "Latency"], data)
     
 if __name__ == "__main__":

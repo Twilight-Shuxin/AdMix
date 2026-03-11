@@ -241,7 +241,7 @@ def main():
 
     data = {}
     for id, trace in enumerate(trace_list):
-        fig, axes = plt.subplots(1, 4, figsize=(20, 4))
+        fig, axes = plt.subplots(1, 3, figsize=(15, 4))
         fig.subplots_adjust(wspace=-0.1)  
         data[trace] = {}
         for model in model_list:
@@ -257,17 +257,18 @@ def main():
         for model in model_list:
             data[trace][model]['utils'] = d
         plot_normal_line(data[trace], 'SLO Attainment Rate (%)', 'satisfaction rate', axes[1])
-        plot_normal_line(data[trace], 'Average TTFT (s)', 'ft_mean', axes[2])
-        plot_normal_line(data[trace], 'Average TBT (s)', 'bt_mean', axes[3])
+        plot_normal_line(data[trace], 'SM Activity (%)', 'sm_active', axes[2])
         fig.tight_layout()
         plt.savefig(f'{OUTPUT_FOLDER}/{tag_list[id]}.pdf')
         plt.clf()
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-    fig.subplots_adjust(wspace=-0.1)  
+    
     for id, trace in enumerate(trace_list):
-        plot_normal_line(data[trace], 'SM Activity (%)', 'sm_active', axes[id], tag_list[id])
-    plt.savefig(f'{OUTPUT_FOLDER}/sm_active.pdf')
-    plt.clf()
+        fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+        fig.subplots_adjust(wspace=-0.1)  
+        plot_normal_line(data[trace], 'Average TTFT (s)', 'ft_mean', axes[0])
+        plot_normal_line(data[trace], 'Average TBT (s)', 'bt_mean', axes[1])
+        plt.savefig(f'{OUTPUT_FOLDER}/{tag_list[id]}_latency.pdf')
+        plt.clf()
 
 if __name__ == "__main__":
     main()

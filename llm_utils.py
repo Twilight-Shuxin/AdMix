@@ -20,7 +20,7 @@ def get_prompt(prompt_len):
     prompt, _ = sharegpt_dataset.get_query(InputConfig(seq_len = prompt_len))
     return prompt
 
-async def async_inference(input_len, output_len, first_generated_barrier = None):
+async def async_inference(input_len, output_len, first_generated_barrier = None, shared_queue = None):
     prompt = get_prompt(input_len)
     timeout = aiohttp.ClientTimeout(total=4 * 60 * 60)
     start = time.perf_counter()
@@ -43,7 +43,12 @@ async def async_inference(input_len, output_len, first_generated_barrier = None)
             async for chunk in resp.content.iter_any():
                 if(first_generated_barrier and (not buffer)):
                     await first_generated_barrier.signal()
+                if(shared_queue is not None):
+                    shared_queue.put_nowait(1)
                 buffer = chunk
+            if(shared_queue is not None):
+                shared_queue.put_nowait(-1)
+        
 
 def get_data_from_vllm():
     client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)

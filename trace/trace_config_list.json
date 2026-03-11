@@ -84,5 +84,25 @@
         "max_prompt_cnt": 1000,
         "scale": 1,
         "time": 5
+    },
+    {
+        "id": "test2",
+        "trace": "test",
+        "trace_id": 2,
+        "chunk_size": 100,
+        "start_id": 0,
+        "max_prompt_cnt": 1000,
+        "scale": 1,
+        "time": 5
+    },
+    {
+        "id": "test3",
+        "trace": "test",
+        "trace_id": 3,
+        "chunk_size": 100,
+        "start_id": 0,
+        "max_prompt_cnt": 1000,
+        "scale": 1,
+        "time": 10
     }
 ]

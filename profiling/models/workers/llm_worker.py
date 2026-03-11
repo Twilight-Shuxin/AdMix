@@ -14,6 +14,21 @@ from profiling.scheduling.monitor import LLM_SERVER_SOCKET_PATH, LLM_INTENSITY_S
 from profiling.scheduling import AIMDScheduler, AIMDSchedulingDataFormat, PredictiveScheduler, PredictiveSchedulingDataFormat, BatchScheduler
 from trace.trace_utils import LLMTrace, set_LLM_trace_config, read_LLM_trace_config
 
+modify_cnt = 0 
+#FIXME:: Only used for testing
+def modify_prompt(prompt):
+    return prompt
+    global modify_cnt
+    if len(prompt) > 2 and modify_cnt % 2 == 0:
+        prompt = prompt[1:]
+    if len(prompt) > 2 and modify_cnt % 3 == 0:
+        prompt = prompt[1:]
+    modify_list = ["The", "Hi", "Okay", "你好", "不啊", "私", "今日", "How", "All", "May", "Why", "Now", "Go", "早", "***", "ke", "1o1k1", "uu", "ytq", "????", "$$"]
+    prompt = modify_list[modify_cnt % len(modify_list)] + prompt
+    modify_cnt = (modify_cnt + 1) % len(modify_list)
+    return prompt
+
+
 class LLMWorker(ModelWorker):
     def __init__(self, pipe, worker_barrier, single_worker_barrier, log_path, profile_path, slo_info):
         super().__init__(pipe, worker_barrier, single_worker_barrier, log_path, profile_path)
@@ -28,12 +43,12 @@ class LLMWorker(ModelWorker):
         self.initial_time = self.SPEED_CONST
     
     def init_start(self):
-        self.start_server()
+        # self.start_server()
         self.loop = asyncio.get_event_loop()
         self.dataset = ShareGPTDataset("shareGPT.json")
     
     def shutdown(self):
-        self.stop_server()
+        # self.stop_server()
         return
     
     def start_server(self):
@@ -121,8 +136,7 @@ class LLMWorker(ModelWorker):
     def get_trace_config(cls, test_config):
         if(not test_config.trace_path):
             return None
-        trace_config_id = int(test_config.trace_path)
-        set_LLM_trace_config(trace_config_id)
+        set_LLM_trace_config(test_config.trace_path)
         trace_config = read_LLM_trace_config()
         # Prioritize test time in cmd args, and sync test_config.test_time with trace_config.test_time
         if(not (test_config.test_time_default and hasattr(trace_config, 'test_time'))):
@@ -142,12 +156,13 @@ class LLMWorker(ModelWorker):
 
     def get_input(self, input_config):
         prompt, prompt_len = self.dataset.get_query(input_config)
-        return prompt, prompt_len
+        return modify_prompt(prompt), prompt_len
     
     """
         Perform inferences for GPU & model warmup.
     """
     def warmup(self):
+        return # FIXME:: Currently ignored for debugging
         warmup_iter = 10
         llm_input = self.get_input(InputConfig(seq_len = 10))
         self.runtime_data.start_time_pointer = time.perf_counter()
@@ -201,7 +216,10 @@ class LLMWorker(ModelWorker):
             last_refreshed_counter = self.scheduler_data.refreshed_counter
 
         try:
+            first = None
             async for chunk in receiver:
+                if(not first):
+                    first = chunk
                 current_timestamp = time.perf_counter() - self.runtime_data.start_time_pointer
                 if(current_timestamp > self.test_config.test_time):
                     raise asyncio.CancelledError
@@ -240,7 +258,6 @@ class LLMWorker(ModelWorker):
                     reading_time += self.SPEED_CONST
 
                 last_received_time = current_timestamp
-                
             if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
                 self.scheduler_data.total_decode_length -= token_cnt
                 if(last_refreshed_counter == self.scheduler_data.refreshed_counter):
@@ -315,33 +332,6 @@ class LLMWorker(ModelWorker):
                 self.profile_data.logs.append([request_timestamp, prompt_len, max_tokens, first_chunk_time, latency, user_idle_time, result])
         except asyncio.CancelledError:
             raise
-    
-    async def _test(self):
-        self.init_testenv_data()
-
-        self.runtime_data.start_time_pointer = time.perf_counter()
-        self.runtime_data.time_limit = self.runtime_data.start_time_pointer + self.test_config.test_time
-        task_list = []
-
-        while(time.perf_counter() < self.runtime_data.time_limit):
-            if(self.test_config.trace_path):
-                req_time, sample_in_length, sample_out_length = self.test_config.trace.next()
-                sleep_time = min(req_time, self.test_config.test_time) + self.runtime_data.start_time_pointer - time.perf_counter()
-                if(sleep_time > 0):
-                    await asyncio.sleep(sleep_time)
-                if(req_time >= self.test_config.test_time):
-                    break
-                llm_input = self.get_input(InputConfig(seq_len = sample_in_length))
-                task_list.append(asyncio.create_task(self.async_inference(llm_input, sample_out_length)))
-            else:
-                llm_input = self.get_input(self.input_config)
-                await self.async_inference(llm_input, self.test_config.seq_len[1])
-        
-        for id, task in enumerate(task_list):
-            if(not task.done()):
-                task.cancel()
-
-        await asyncio.gather(*task_list, return_exceptions=True)
     
     async def create_unix_servers(self):
         async def server_unix_handler(reader, writer):

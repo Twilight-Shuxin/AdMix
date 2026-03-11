@@ -11,10 +11,10 @@ from profiling.scheduling.batch_predict.MLP_model import MLPPredictModel
 from profiling.scheduling.scheduler import AIMDBaseScheduler, SchedulingDataFormat, pack_data_bytes, conn_get_data
 
 class ObservationSingleBatchData(FeatureModel):
-    ND: int = 0
+    cached_tokens: int = 0
     LD_avg: int = 0
     NP: int = 0
-    LP_sum: int = 0
+    scheduled_tokens: int = 0
     latency: float = 0
 
     def pred_feature_data(self):
