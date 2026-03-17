@@ -2,9 +2,10 @@
 
 # File definitions
 VLLM_FOLDER=".venv/lib/python3.12/site-packages/vllm/v1/engine"
-original_file=${VLLM_FOLDER}/core_original.py
-modified_file=${VLLM_FOLDER}/core_shuxin.py
-test_file=${VLLM_FOLDER}/core_test.py
+VLLM_PLUGIN_FOLDER="./vllm_plugins/engine"
+original_file=${VLLM_PLUGIN_FOLDER}/core_original.py
+modified_file=${VLLM_PLUGIN_FOLDER}/core_shuxin.py
+test_file=${VLLM_PLUGIN_FOLDER}/core_test.py
 vllm_file=${VLLM_FOLDER}/core.py
 
 # Check argument

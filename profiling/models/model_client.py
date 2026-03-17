@@ -7,8 +7,8 @@ import torch.multiprocessing as mp
 from torch.multiprocessing import Process
 from multiprocessing import Process as StdProcess, Pipe
 from profiling.constants import *
-from plotting.dcgm_plot import plot_dcgm
 from profiling.models.utils import avg_dict
+from plotting.monitor_plot import plot_monitored
 from profiling.scheduling.utils import get_scheduler
 from profiling.models.workers.constants import SyncType
 from profiling.scheduling.monitor import llm_server_rpc_retry
@@ -34,7 +34,7 @@ class ModelClient(Process):
     def start_worker(self, devices):
         device_init(self.devices, devices, self.mps)
         pipe_parent, pipe_child = mp.Pipe()
-        worker = self.model_worker(self.supported_batchsize, pipe_child, self.worker_barrier, self.single_worker_barrier,
+        worker = self.model_worker(devices, self.supported_batchsize, pipe_child, self.worker_barrier, self.single_worker_barrier,
                                     self.log_path, self.profile_path,)
         worker.start()
         self.worker_pipes.append(pipe_parent)
@@ -186,7 +186,7 @@ class ModelClient(Process):
             self.command_worker(pipe, "collect_performance_data")
             self.runtime_data.absolute_throughput += pipe.recv()
 
-        if(self.test_config.record_statistics):
+        if(self.test_config.recording_action.record_statistics):
             self.profile_data.logs = []
             self.profile_data.absolute_throughput_records = TimeBinRecord(init = 0, time_limit = self.test_config.test_time)
             for idx, pipe in enumerate(self.worker_pipes):
@@ -198,11 +198,14 @@ class ModelClient(Process):
     """
         Return performance metrics collected in the last test run.
     """
-    def check_performace(self):
+    def check_performance(self):
         return self.runtime_data.absolute_throughput
     
     def get_dcgm_file_path(self, profile_statistic):
         return os.path.join(self.log_path, "-".join([self.test_config.full_tag, str(profile_statistic)]) + ".log")
+    
+    def get_pw_file_path(self):
+        return os.path.join(self.log_path, "-".join([self.test_config.full_tag, 'power']) + ".log")
 
     def start_dcgm(self):
         if(self.test_config.dcgm_group == -1):
@@ -237,18 +240,24 @@ class ModelClient(Process):
         FIXME: Current collected dcgm statistics are those in self.test_config, check if this is properly set.
     """
     def collect_dcgm(self, dcgm_groups):
-        plot_dcgm_statistics = ["sm_active", "dram_active"]
+        plot_monitored_statistics = ["sm_active", "dram_active"]
         dcgm_data = {}
         for dcgm_group in dcgm_groups:
             if(dcgm_group == -1):
                 continue
             for profile_statistic in profile_group_dict[dcgm_group]:
                 dcgm_data_path = self.get_dcgm_file_path(profile_statistic)
-                dcgm_data[profile_statistic] = get_dcgm_analysis(dcgm_data_path)
-                if(profile_statistic in plot_dcgm_statistics):
-                    records = get_dcgm_data(dcgm_data_path)
-                    plot_dcgm(records, os.path.join(self.log_path, self.test_config.full_tag + "-"), profile_statistic)
+                dcgm_data[profile_statistic], records = get_dcgm_data(dcgm_data_path)
+                if(profile_statistic in plot_monitored_statistics):
+                    plot_monitored(records, os.path.join(self.log_path, self.test_config.full_tag + "-"), profile_statistic)
         return dcgm_data if dcgm_data else None
+    
+    def collect_power(self):
+        power_data_path = self.get_pw_file_path()
+        avg_power, records = get_power_data(power_data_path)
+        plot_monitored(records, os.path.join(self.log_path, self.test_config.full_tag + "-"), "power")
+        consumed_energy = avg_power * self.test_config.test_time
+        return round(consumed_energy / 1000, 2), int(avg_power), self.test_config.test_time
     
     def init_runtime_data(self):
         self.runtime_data = RuntimeData()
@@ -273,14 +282,21 @@ class ModelClient(Process):
             self.command_workers("test", sync = SyncType.ALL)
     
     def test(self):
-        if(self.test_config.record_dcgm):
-            dcgm_monitor_conn = self.start_dcgm()    
+        if(self.test_config.recording_action.record_dcgm):
+            dcgm_monitor_conn = self.start_dcgm()   
+        if(self.test_config.recording_action.record_pw):
+            power_monitor_proc = start_power_monitor(self.devices, self.get_pw_file_path())
+
         self._test()
-        if(self.test_config.record_dcgm):
+        
+        if(self.test_config.recording_action.record_dcgm):
             stop_dcgm(dcgm_monitor_conn)
+        if(self.test_config.recording_action.record_pw):
+            power_monitor_proc.terminate()
+            power_monitor_proc.wait()
         
         self.collect_worker_data()
-        if(self.test_config.record_statistics):
+        if(self.test_config.recording_action.record_statistics):
             self.write_logs()
 
     def run(self) -> None:
@@ -306,11 +322,17 @@ class ModelClient(Process):
                     test_config = self.pipe.recv()
                     self.pipe.send(self.get_full_tag(test_config))
                 case "collect":
-                    collect_action = self.pipe.recv()
-                    if(collect_action == "dcgm"):
-                        dcgm_groups = self.pipe.recv()
-                        self.pipe.send(self.collect_dcgm(dcgm_groups))
-                    self.pipe.send(self.check_performace())
+                    while True:
+                        match self.pipe.recv():
+                            case "stop":
+                                break
+                            case "dcgm":
+                                dcgm_groups = self.pipe.recv()
+                                self.pipe.send(self.collect_dcgm(dcgm_groups))
+                            case "power":
+                                self.pipe.send(self.collect_power())
+                            case "stats":
+                                self.pipe.send(self.check_performance())
                 case "get_total_modules":
                     self.pipe.send(self.get_total_modules())
                 case "stop":

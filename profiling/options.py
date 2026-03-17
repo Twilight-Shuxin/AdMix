@@ -12,6 +12,7 @@ class ProfileConfig:
         self.batch_sizes = get_comma_list(args.batch_size, ArgsType.INT, self.model_cnt)
         self.dcgm_groups = get_comma_list(args.dcgm_group, ArgsType.INT)
         self.devices = get_comma_list(args.devices, ArgsType.STRING)
+        self.rec_pw = args.rec_pw
 
         # Save log data to under MPSTest/args.path (default: MPSTest/data)
         # Save profile data (data collected under running mode 'PROFILE') to under MPSTest/args.profile_path (default: MPSTest/profile_data)
@@ -93,6 +94,8 @@ def parse_profile_options():
     parser.add_argument(
         "--scheduler", type = str, default = None
     )
+    # if args.rec_pw is set, record energy usage.
+    parser.add_argument("--rec-pw", action="store_true", default=False)
     args = parser.parse_args()
     profile_config = ProfileConfig(args=args)
     return profile_config

@@ -5,8 +5,8 @@ from profiling.models.workers.split.gan import GAN
 from profiling.models.workers.model_worker import ModelWorker
 
 class GANWorker(ModelWorker):
-    def __init__(self, supported_batchsize, pipe, worker_barrier, single_worker_barrier, log_path, profile_path):
-        super().__init__(pipe, worker_barrier, single_worker_barrier, log_path, profile_path)
+    def __init__(self, devices, supported_batchsize, pipe, worker_barrier, single_worker_barrier, log_path, profile_path):
+        super().__init__(devices, pipe, worker_barrier, single_worker_barrier, log_path, profile_path)
         self.supported_batchsize = supported_batchsize
     
     def init_start(self):

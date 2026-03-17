@@ -30,8 +30,8 @@ def modify_prompt(prompt):
 
 
 class LLMWorker(ModelWorker):
-    def __init__(self, pipe, worker_barrier, single_worker_barrier, log_path, profile_path, slo_info):
-        super().__init__(pipe, worker_barrier, single_worker_barrier, log_path, profile_path)
+    def __init__(self, devices, pipe, worker_barrier, single_worker_barrier, log_path, profile_path, slo_info):
+        super().__init__(devices, pipe, worker_barrier, single_worker_barrier, log_path, profile_path)
         self.server_config = {
             'host': "localhost",
             "port": 8000,
@@ -43,12 +43,12 @@ class LLMWorker(ModelWorker):
         self.initial_time = self.SPEED_CONST
     
     def init_start(self):
-        # self.start_server()
+        self.start_server()
         self.loop = asyncio.get_event_loop()
         self.dataset = ShareGPTDataset("shareGPT.json")
     
     def shutdown(self):
-        # self.stop_server()
+        self.stop_server()
         return
     
     def start_server(self):
@@ -81,7 +81,7 @@ class LLMWorker(ModelWorker):
     
     def init_profile_data(self):
         self.profile_data = ProfileData()
-        if(self.test_config.record_statistics):
+        if(self.test_config.recording_action.record_statistics):
             self.profile_data.failed_records = TimeBinRecord(init = 0, time_limit = self.test_config.test_time)
             self.profile_data.first_token_time = TimeBinRecord(init = [], time_limit = self.test_config.test_time)
             self.profile_data.between_token_time =  TimeBinRecord(init = [], time_limit = self.test_config.test_time)
@@ -94,7 +94,7 @@ class LLMWorker(ModelWorker):
         self.runtime_data.failed = 0
         self.runtime_data.submitted_record_counter = RecordCounter()
         self.runtime_data.waiting_first_record_counter = RecordCounter()
-        if(self.test_config.record_statistics):
+        if(self.test_config.recording_action.record_statistics):
             self.runtime_data.submitted_record_counter.set_record_bins(TimeBinRecord(init = [], time_limit = self.test_config.test_time))
             self.runtime_data.waiting_first_record_counter.set_record_bins(TimeBinRecord(init = [], time_limit = self.test_config.test_time))
     
@@ -156,7 +156,7 @@ class LLMWorker(ModelWorker):
 
     def get_input(self, input_config):
         prompt, prompt_len = self.dataset.get_query(input_config)
-        return modify_prompt(prompt), prompt_len
+        return prompt, prompt_len
     
     """
         Perform inferences for GPU & model warmup.
@@ -179,7 +179,7 @@ class LLMWorker(ModelWorker):
     def check_single_query_performance(self, request_timestamp, first_chunk_time, user_idle_time_info_record):
         def add_failed(timestamp):
             self.runtime_data.failed += 1
-            if(self.test_config.record_statistics):
+            if(self.test_config.recording_action.record_statistics):
                 self.profile_data.failed_records.add(timestamp, 1)
             return False
 
@@ -231,7 +231,7 @@ class LLMWorker(ModelWorker):
 
                 if first_chunk_time is None:
                     first_chunk_time = between_token_time
-                    if(self.test_config.record_statistics): 
+                    if(self.test_config.recording_action.record_statistics): 
                         self.profile_data.first_token_time.append_to_bin(current_timestamp, first_chunk_time)
                     self.runtime_data.waiting_first_record_counter.rm(current_timestamp)
                     
@@ -242,7 +242,7 @@ class LLMWorker(ModelWorker):
                         self.scheduler_data.total_decode_length += token_cnt
                 else:
                     waiting_time += between_token_time
-                    if(self.test_config.record_statistics):
+                    if(self.test_config.recording_action.record_statistics):
                         self.profile_data.between_token_time.append_to_bin(current_timestamp, between_token_time)
                     
                     if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
@@ -328,7 +328,7 @@ class LLMWorker(ModelWorker):
             else:
                 latency = -1
             result = self.check_single_query_performance(request_timestamp, first_chunk_time, user_idle_time_info_record)
-            if(self.test_config.record_statistics):
+            if(self.test_config.recording_action.record_statistics):
                 self.profile_data.logs.append([request_timestamp, prompt_len, max_tokens, first_chunk_time, latency, user_idle_time, result])
         except asyncio.CancelledError:
             raise

@@ -44,7 +44,7 @@
         "tp": 1
     },
     {
-        "id": "BurstGPT_npref_7b_d1",
+        "id": "BurstGPT_npref_7b_d1_1",
         "trace": "BurstGPT",
         "trace_id": 1,
         "chunk_size": 100,
@@ -60,7 +60,23 @@
         "tp": 1
     },
     {
-        "id": "Azure_npref_7b_d1",
+        "id": "BurstGPT_npref_7b_d1_2",
+        "trace": "BurstGPT",
+        "trace_id": 2,
+        "chunk_size": 100,
+        "start_id": 200,
+        "max_prompt_cnt": 400000,
+        "scale": 9,
+        "time": 3600,
+        "tuned": true,
+        "last_true": 9,
+        "last_true_submitted": 72412,
+        "prefix-caching": false,
+        "model": "llama7b",
+        "tp": 1
+    },
+    {
+        "id": "Azure_npref_7b_d1_1",
         "trace": "Azure",
         "trace_id": 1,
         "chunk_size": 100,
@@ -70,6 +86,22 @@
         "time": 3600,
         "last_true": 0.1,
         "last_true_submitted": 9195,
+        "tuned": true,
+        "prefix-caching": false,
+        "model": "llama7b",
+        "tp": 1
+    },
+    {
+        "id": "Azure_npref_7b_d1_2",
+        "trace": "Azure",
+        "trace_id": 2,
+        "chunk_size": 100,
+        "start_id": 0,
+        "max_prompt_cnt": 400000,
+        "scale": 0.6,
+        "time": 3600,
+        "last_true": 0.6,
+        "last_true_submitted": 12743,
         "tuned": true,
         "prefix-caching": false,
         "model": "llama7b",

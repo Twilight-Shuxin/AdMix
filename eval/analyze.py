@@ -3,6 +3,7 @@ import numpy as np
 
 ROOT_FOLDER = "../data_staged/llama7b"
 OUTPUT_FOLDER = "./outputs"
+DIMENSION = "d1"
 
 scheduler_map = {
     "batch": "batch",
@@ -98,12 +99,12 @@ def get_data(model, trace_tag, sub_path, percentage = None):
         set_tag += "-" + scheduler
         path_prefix = f"llm-{set_tag}"
         offline_path_prefix = f'{model}-{set_tag}'
-        data.update(read_final_summary(f'{ROOT_FOLDER}/{sub_path}/{set_tag}-final_summary.log'))
+        data.update(read_final_summary(f'{ROOT_FOLDER}/{sub_path}/{set_tag}-{DIMENSION}-final_summary.log'))
     else:
         path_prefix = "llm[" + trace_tag + "]"
-        data.update(read_final_summary(f'{ROOT_FOLDER}/{sub_path}/{path_prefix}-final_summary.log', False))
-    data.update(read_stats(f'{ROOT_FOLDER}/{sub_path}/{path_prefix}-ftsummary.log', "ft"))
-    data.update(read_stats(f'{ROOT_FOLDER}/{sub_path}/{path_prefix}-btsummary.log', "bt"))
+        data.update(read_final_summary(f'{ROOT_FOLDER}/{sub_path}/{path_prefix}-{DIMENSION}-final_summary.log', False))
+    data.update(read_stats(f'{ROOT_FOLDER}/{sub_path}/{path_prefix}-{DIMENSION}-ftsummary.log', "ft"))
+    data.update(read_stats(f'{ROOT_FOLDER}/{sub_path}/{path_prefix}-{DIMENSION}-btsummary.log', "bt"))
     return data
 
 def plot_bar_chart(models, sub_paths, values, ylabel, ax = None, xtitle = None, ymax = None, ymin = None): 

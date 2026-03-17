@@ -12,8 +12,6 @@ from profiling.scheduling.scheduler import AIMDBaseScheduler, SchedulingDataForm
 
 class ObservationSingleBatchData(FeatureModel):
     cached_tokens: int = 0
-    LD_avg: int = 0
-    NP: int = 0
     scheduled_tokens: int = 0
     latency: float = 0
 
@@ -92,7 +90,7 @@ class BatchScheduler(AIMDBaseScheduler):
         self.prediction_logs.extend([
                 feature.copy() + [latency, pred_latency]
                 for feature, latency, pred_latency in zip(
-                    intensity_data.pred_feature_data(), real_latency,pred_latency,
+                    intensity_data.pred_feature_data(), real_latency, pred_latency,
                 )
             ])
         
@@ -143,7 +141,7 @@ class BatchScheduler(AIMDBaseScheduler):
             self.schedule(current_intensity)
 
         self.model_client.write_csv("batch_predicted.csv", 
-            ["Decode Tkn", "Decode Len", "Prefill Cnt", "Prefill Tkn", "Latency", "Pred Latency"],
+            ["Cached Tkns", "Scheduled Tkns", "Real Latency", "Pred Latency"],
             self.prediction_logs)
         self.model_client.write_csv("batch_execution.csv", 
             ["Time", "Batch size", "Details"],

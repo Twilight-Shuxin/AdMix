@@ -67,7 +67,7 @@ class AIMDBaseScheduler(Scheduler):
         profiled_data = self.model_client.read_profiled_data()
         max_batch_size = self.model_client.supported_batchsize[-1]
         for i in reversed(range(1, max_batch_size + 1)):
-            if(profiled_data[str(i)] < self.time_interval):
+            if(profiled_data[str(i)]['latency'] < self.time_interval):
                 max_batch_size = i
                 break
         self.max_batch_size = max_batch_size

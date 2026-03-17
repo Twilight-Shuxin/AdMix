@@ -23,6 +23,7 @@ class ProfileServer():
         self.trace_path = profile_config.trace_path
         self.test_time = profile_config.test_time
         self.seq_len = profile_config.seq_len
+        self.rec_pw = profile_config.rec_pw
         self.dirname = os.path.split(os.path.abspath(__file__))[0]
         # The logfile names are set to: client_tag-global_tag-specific_suffix; normally global tag is 
         # an aggregated name of all client tags, but can also be specified specifically
@@ -144,16 +145,16 @@ class ProfileServer():
     def test(self):
         print("start test:", self.global_tag)
 
+        # Even when dcgm is not profiled, a dcgm_group -1 will be inplace.
         for dcgm_id, dcgm_group in enumerate(self.dcgm_groups):
             for id, model_name in enumerate(self.model_names):
-                if (dcgm_id == 0):
-                    recording_action = RecordingAction.ALL if (id == 0) else RecordingAction.STATISTICS_ONLY
-                elif (id == 0):
-                    recording_action = RecordingAction.DCGM_ONLY
-                else:
-                    recording_action = RecordingAction.NO_RECORD
+                recording_action = RecordingAction(
+                    record_statistics = True if dcgm_id == 0 else False,
+                    record_dcgm = True if id == 0 else False,
+                    record_pw = self.rec_pw if dcgm_id == 0 else False
+                )
                 self.test_configs[model_name].dcgm_group = dcgm_group
-                self.test_configs[model_name].set_recording_action(recording_action)
+                self.test_configs[model_name].recording_action = recording_action
 
                 self.pipe_map[model_name].send("test")
                 self.pipe_map[model_name].send(self.test_configs[model_name])
@@ -178,7 +179,7 @@ class ProfileServer():
         return os.path.join(self.log_path, "-".join([self.global_tag, filename]))
 
     """
-        Collect dcgm data & a full summary of the previous test run.
+        Collect dcgm data & power data & a full summary of the previous test run.
         Return passed_flag indicating 99% SLO attainment of the LLM service, along with total and passed requests;
         (True, 0, 0) if LLM service non-existing. 
         TODO: current included dcgm data is only the last profile test run instead of all set dcgm profile groups.
@@ -186,6 +187,7 @@ class ProfileServer():
     """
     def collect_data(self):
         dcgm_data = None
+        power_data = None
         passed_flag = True
         total = 0
         passed = 0
@@ -199,24 +201,33 @@ class ProfileServer():
                     self.pipe_map[model_name].send("dcgm")
                     self.pipe_map[model_name].send(self.dcgm_groups)
                     dcgm_data = self.pipe_map[model_name].recv()
-                else:
-                    self.pipe_map[model_name].send("summary_only")
+                    if(self.rec_pw):
+                        self.pipe_map[model_name].send("power")
+                        power_data = self.pipe_map[model_name].recv()
+                self.pipe_map[model_name].send("stats")
                 print("==== Profile:", model_name)
                 if(model_name == "llm"):
                     passed_flag, completed, passed, total, slo_info = self.pipe_map[model_name].recv()
                     percentage = passed / total if total else -1
                     print("* Passed:", passed_flag, "Total Completed", completed, "Met", passed, "Total Submitted", total, "Percentage", percentage, "SLO_info", slo_info)
-                    summary_file.write(model_name + " " + str(passed_flag) + " " + str(completed) + "/" + str(passed) + "/" + str(total) + " " + str(percentage) + " " + str(slo_info) + "\n")
+                    summary_file.write(f'{model_name} {passed_flag} {completed}/{passed}/{total} {percentage} {slo_info}\n')
                 else:
                     absolute_throughput = self.pipe_map[model_name].recv()
                     print("* Absolute throughput:", absolute_throughput)
                     summary_file.write(model_name + " " + str(absolute_throughput) + "\n")
-            
-            summary_file.write("============================\n")
+                self.pipe_map[model_name].send("stop")
+        
             if(dcgm_data is not None):
-                print(dcgm_data)
+                summary_file.write("============================\n")
+                print(f"==== DCGM\n{dcgm_data}")
                 for key, value in dcgm_data.items():
                     summary_file.write(key + " " + str(value) + "\n")
+            if(power_data is not None):
+                summary_file.write("============================\n")
+                energy, power, spent_time = power_data
+                power_summary_str = f'{energy}(kJ) {power}(W) {spent_time}(s)'
+                print(f"==== Power\n{power_summary_str}")
+                summary_file.write(f'{power_summary_str}\n')
 
         if("llm" in self.model_names and len(self.model_names) >= 2):
             submitted_intensity = []

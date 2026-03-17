@@ -18,7 +18,7 @@ class LLMClient(ModelClient):
     def start_worker(self, devices):
         device_init(self.devices, devices, self.mps)
         pipe_parent, pipe_child = mp.Pipe()
-        worker = self.model_worker(pipe_child, self.worker_barrier, self.single_worker_barrier, 
+        worker = self.model_worker(devices, pipe_child, self.worker_barrier, self.single_worker_barrier,
             self.log_path, self.profile_path,
             (self.first_token_slo, self.idle_time_slo, self.SPEED_CONST))
         worker.start()
@@ -121,7 +121,7 @@ class LLMClient(ModelClient):
             self.command_worker(pipe, "collect_performance_data")
             self.runtime_data = pipe.recv()
 
-        if(self.test_config.record_statistics):
+        if(self.test_config.recording_action.record_statistics):
             for idx, pipe in enumerate(self.worker_pipes):
                 self.command_worker(pipe, "collect_profiled_data")
                 self.profile_data = pipe.recv()
@@ -132,7 +132,7 @@ class LLMClient(ModelClient):
         Attached is SLO information:
             (ftt slo, btt slo, reading speed, initial time (reading time set for first token))
     """
-    def check_performace(self):
+    def check_performance(self):
         passed_flag = self.runtime_data.total_submitted * 0.01 >= self.runtime_data.failed
         passed_count = self.runtime_data.total_submitted - self.runtime_data.failed
         return (passed_flag, self.runtime_data.completed, passed_count, self.runtime_data.total_submitted, 
