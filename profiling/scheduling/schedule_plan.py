@@ -21,7 +21,7 @@ class BasicSchedulePlan(SchedulePlan):
         model_worker.inference(modul_input)
         req_process_time = time.perf_counter() - req_start_time
         model_worker.runtime_data.absolute_throughput += self.batch_size
-        if(model_worker.test_config.record_statistics):
+        if(model_worker.test_config.recording_action.record_statistics):
             model_worker.profile_data.logs.append((self.batch_size, req_process_time * 1000))
             model_worker.profile_data.absolute_throughput_records.add(
                 time.perf_counter() - model_worker.runtime_data.start_time_pointer, self.batch_size)
