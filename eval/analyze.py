@@ -1,7 +1,9 @@
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 
 ROOT_FOLDER = "../data_staged/llama7b"
+PROFILE_DATA_FOLDER = "../profile_data"
 OUTPUT_FOLDER = "./outputs"
 DIMENSION = "d1"
 
@@ -35,6 +37,10 @@ map_subpath = {
 
 transform_percentage_list = ['sm_active']
 
+def load_profile_data(model):
+    with open(f'{PROFILE_DATA_FOLDER}/{model}.json', 'r') as f:
+        return json.load(f)
+
 def read_final_summary(path, side_model = True):
     result = {}
 
@@ -56,14 +62,25 @@ def read_final_summary(path, side_model = True):
         second_parts = lines[1].split()
         result["absolute throughput"] = int(second_parts[1])
 
-    # ---- Parse lines after ===== separator ----
-    idx = next(i for i, line in enumerate(lines) if line.startswith("===="))
-    for line in lines[idx+1:]:
-        key, value = line.split()
-        value = float(value)
-        if(key in transform_percentage_list):
-            value = round(value * 100, 1)
-        result[key] = float(value)
+    # ---- Parse sections separated by ==== ----
+    sep_indices = [i for i, line in enumerate(lines) if line.startswith("====")]
+
+    # First ==== section: DCGM key-value stats (optional)
+    if len(sep_indices) >= 1:
+        end = sep_indices[1] if len(sep_indices) >= 2 else len(lines)
+        for line in lines[sep_indices[0] + 1:end]:
+            key, value = line.split()
+            value = float(value)
+            if key in transform_percentage_list:
+                value = round(value * 100, 1)
+            result[key] = value
+
+    # Second ==== section: energy line (optional), format: 29.67(kJ) 296(W) 100(s)
+    if len(sep_indices) >= 2:
+        for line in lines[sep_indices[1] + 1:]:
+            parts = line.split()
+            result["energy"] = float(parts[0].replace("(kJ)", ""))
+        
     return result
 
 """
@@ -238,6 +255,7 @@ def main():
     tag_list = ["BurstGPT", "Azure"]
     mps_list = [20, 10]
     model_list = ["resnet50", "vgg19", "unet3d", "deeplabv3"]
+    batch_size_list = [128, 128, 16, 32]
     sub_paths = ["mps", "time", "batch"]
 
     data = {}
@@ -265,11 +283,36 @@ def main():
     
     for id, trace in enumerate(trace_list):
         fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-        fig.subplots_adjust(wspace=-0.1)  
+        fig.subplots_adjust(wspace=-0.1)
         plot_normal_line(data[trace], 'Average TTFT (s)', 'ft_mean', axes[0])
         plot_normal_line(data[trace], 'Average TBT (s)', 'bt_mean', axes[1])
         plt.savefig(f'{OUTPUT_FOLDER}/{tag_list[id]}_latency.pdf')
         plt.clf()
+
+    profile_data = {model: load_profile_data(model) for model in model_list}
+    for id, trace in enumerate(trace_list):
+        # Compute normalized energy: actual / (llm_only + side_model_separate)
+        norm_energy = {}
+        for model, batch_size in zip(model_list, batch_size_list):
+            llm_energy = data[trace][model]['utils']['energy']
+            side_energy_per_batch = profile_data[model][str(batch_size)]['avg_energy']
+            norm_energy[model] = {}
+            for sub_path in sub_paths:
+                d = data[trace][model][sub_path]
+                side_batches = d['absolute throughput'] / batch_size
+                separate_energy = llm_energy + side_batches * side_energy_per_batch
+                norm_energy[model][sub_path] = d['energy'] / separate_energy
+
+        values = np.array([
+            [norm_energy[model][sub_path] for sub_path in sub_paths]
+            for model in model_list
+        ])
+        fig, ax = plt.subplots(figsize=(6, 4))
+        plot_bar_chart(model_list, sub_paths, values, 'Normalized Energy', ax)
+        fig.tight_layout()
+        plt.savefig(f'{OUTPUT_FOLDER}/{tag_list[id]}_energy.pdf')
+        plt.clf()
+
 
 if __name__ == "__main__":
     main()

@@ -16,10 +16,10 @@ time_model_batch_sizes=(4 4 1 2)
 devices=1
 
 gmanager stopmps $devices
-export GVLLM_USE_MODIFIED=false
+# export GVLLM_USE_MODIFIED=false
 # for t_id in "${!trace_list[@]}"; do
 #     t="${trace_list[$t_id]}"
-#     run_cmd "python run.py --model llm --dcgm_group 0 --trace $t --devices 1 --path data_staged/llama7b/utils" "out.out"
+#     run_cmd "python run.py --model llm --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/utils" "out.out"
 # done
 
 for t_id in "${!trace_list[@]}"; do
@@ -31,13 +31,13 @@ for t_id in "${!trace_list[@]}"; do
 
         gmanager startmps $devices
         export GVLLM_USE_MODIFIED=false
-        run_cmd "python run.py --model llm,$m --scheduler constant[$bs] --mps 100,$mps --dcgm_group 0 --trace $t --devices $devices --path data_staged/llama7b/mps" "out.out"
-        # export GVLLM_USE_MODIFIED=true
-        # run_cmd "python run.py --model llm,$m --scheduler batch --dcgm_group 0 --trace $t --devices $devices --path data_staged/llama7b/batch" "out.out"
+        run_cmd "python run.py --model llm,$m --scheduler constant[$bs] --mps 100,$mps --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/mps" "out.out"
+        export GVLLM_USE_MODIFIED=true
+        run_cmd "python run.py --model llm,$m --scheduler batch --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/batch" "out.out"
 
-        # gmanager stopmps $devices
-        # t_bs="${time_model_batch_sizes[$m_id]}"
-        # run_cmd "python run.py --model llm,$m --scheduler constant[$t_bs] --dcgm_group 0 --trace $t --devices $devices --path data_staged/llama7b/time" "out.out"
+        gmanager stopmps $devices
+        t_bs="${time_model_batch_sizes[$m_id]}"
+        run_cmd "python run.py --model llm,$m --scheduler constant[$t_bs] --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/time" "out.out"
     done
 done
 # tag="vllm_non_prefix_caching_generated"

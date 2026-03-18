@@ -9,13 +9,14 @@ from trace.trace_utils import SimpleTimeTrace
 from profiling.models.workers.constants import SyncType
 
 class ModelWorker(Process):
-    def __init__(self, pipe, worker_barrier, single_worker_barrier, log_path, profile_path):
+    def __init__(self, devices, pipe, worker_barrier, single_worker_barrier, log_path, profile_path):
         self.pipe = pipe
         self.worker_barrier = worker_barrier
         self.single_worker_barrier = single_worker_barrier
         self.log_path = log_path
         self.profile_path = profile_path
         self.device = "cuda"
+        self.devices = devices
         super().__init__()
     
     def init_start(self):
@@ -74,11 +75,22 @@ class ModelWorker(Process):
             spent_time = []
             for _ in range(warmup_iter):
                 self.inference(self.random_input[batch_size], sync = True)
-            for _ in range(profile_iter):
+            power_monitor = start_power_monitor(self.devices)
+            profile_start = time.perf_counter()
+            test_time = 5
+            iter_cnt = 0
+            while time.perf_counter() - profile_start < test_time or iter_cnt < profile_iter:
                 start_time = time.perf_counter()
                 self.inference(self.random_input[batch_size], sync = True)
                 spent_time.append(time.perf_counter() - start_time)
-            profile_data[batch_size] = np.percentile(spent_time, 99)
+                iter_cnt += 1
+            power_monitor.terminate()
+            stdout, _ = power_monitor.communicate()
+            records = parse_power_output(stdout)
+            profile_data[batch_size] = {
+                'latency': np.percentile(spent_time, 99),
+                'avg_energy': sum([v for _,v in records]) / (iter_cnt * batch_size)
+            }
         self.pipe.send(profile_data)
     
      # Setup submodel under current test_configuration: self.submodel = model[start:end]
@@ -99,7 +111,7 @@ class ModelWorker(Process):
     
     def init_profile_data(self):
         self.profile_data = ProfileData()
-        if(self.test_config.record_statistics):
+        if(self.test_config.recording_action.record_statistics):
             self.profile_data.logs = []
             self.profile_data.absolute_throughput_records = TimeBinRecord(init = 0, time_limit = self.test_config.test_time)
     
@@ -171,7 +183,7 @@ class ModelWorker(Process):
 
             self.runtime_data.absolute_throughput += self.test_config.batch_size
             self.profile_data.absolute_throughput_records.add(time.perf_counter() - self.runtime_data.start_time_pointer, self.test_config.batch_size)
-            if(self.test_config.record_statistics):
+            if(self.test_config.recording_action.record_statistics):
                 self.profile_data.logs.append((self.test_config.batch_size, req_process_time * 1000))
         # End test
 
