@@ -361,10 +361,9 @@ def dcgm_dmon_monitor(dcgm_group_id, dcgm_procs, conn):
                 pass
 
 def start_power_monitor(devices, redirect_output = None):
-    cmd = f"nvidia-smi --query-gpu=index,power.draw --format=csv,noheader,nounits -l 1 --id={','.join(devices)}"
-    if(redirect_output):
-        cmd += f' > \"{redirect_output}\"'
-    monitor_process = subprocess.Popen(cmd, shell=True, stdout = subprocess.PIPE, stderr = subprocess.PIPE, text=True)
+    cmd = ["nvidia-smi", "--query-gpu=index,power.draw", "--format=csv,noheader,nounits", "-l", "1", f"--id={','.join(devices)}"]
+    stdout = open(redirect_output, 'w') if redirect_output else subprocess.PIPE
+    monitor_process = subprocess.Popen(cmd, stdout=stdout, stderr=subprocess.PIPE, text=True)
     return monitor_process
 
 """

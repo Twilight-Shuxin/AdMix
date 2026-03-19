@@ -7,20 +7,21 @@ source .venv/bin/activate
 # trace_list=("Azure_npref_7b_d1_1" "BurstGPT_npref_7b_d1_1" "Azure_npref_7b_d1_2" "BurstGPT_npref_7b_d1_2")
 # mps_list=(20 10 20 10)
 trace_list=("Azure_npref_7b_d1_2" "BurstGPT_npref_7b_d1_2")
-trace_list=("Azure_npref_7b_d1_2")
-mps_list=(10 10)
+trace_list=("BurstGPT_npref_7b_d1_2")
+mps_list=(15 10)
+mps_list=(10)
 models=("resnet50" "vgg19" "unet3d" "deeplabv3")
-models=("resnet50")
+# models=("resnet50")
 model_batch_sizes=(128 128 16 32)
 time_model_batch_sizes=(4 4 1 2)
 devices=1
 
-gmanager stopmps $devices
-# export GVLLM_USE_MODIFIED=false
-# for t_id in "${!trace_list[@]}"; do
-#     t="${trace_list[$t_id]}"
-#     run_cmd "python run.py --model llm --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/utils" "out.out"
-# done
+# gmanager stopmps $devices
+export GVLLM_USE_MODIFIED=false
+for t_id in "${!trace_list[@]}"; do
+    t="${trace_list[$t_id]}"
+    run_cmd "python run.py --model llm --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/utils" "out.out"
+done
 
 for t_id in "${!trace_list[@]}"; do
     t="${trace_list[$t_id]}"
@@ -35,9 +36,9 @@ for t_id in "${!trace_list[@]}"; do
         export GVLLM_USE_MODIFIED=true
         run_cmd "python run.py --model llm,$m --scheduler batch --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/batch" "out.out"
 
-        gmanager stopmps $devices
-        t_bs="${time_model_batch_sizes[$m_id]}"
-        run_cmd "python run.py --model llm,$m --scheduler constant[$t_bs] --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/time" "out.out"
+        # gmanager stopmps $devices
+        # t_bs="${time_model_batch_sizes[$m_id]}"
+        # run_cmd "python run.py --model llm,$m --scheduler constant[$t_bs] --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/time" "out.out"
     done
 done
 # tag="vllm_non_prefix_caching_generated"

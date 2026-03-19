@@ -151,7 +151,7 @@ class ProfileServer():
                 recording_action = RecordingAction(
                     record_statistics = True if dcgm_id == 0 else False,
                     record_dcgm = True if id == 0 else False,
-                    record_pw = self.rec_pw if dcgm_id == 0 else False
+                    record_pw = self.rec_pw if (dcgm_id == 0 and id == 0) else False
                 )
                 self.test_configs[model_name].dcgm_group = dcgm_group
                 self.test_configs[model_name].recording_action = recording_action

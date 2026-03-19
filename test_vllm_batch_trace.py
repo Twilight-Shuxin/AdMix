@@ -40,8 +40,9 @@ def main():
     loop.run_until_complete(test_trace(trace))
     additional_data, data = get_data_from_vllm()
     # data.sort(key=lambda x: (x[0] * x[1]))
-    # data.sort()
-    write_list_to_csv(f"./batch_predict/inputs/{trace_config_id}.csv",["Cached Tkns", "Scheduled Tkns", "Decode Tkn","Decode Len","Prefill Cnt","Prefill Tkn", "Latency"], data)
-    
+    data.sort()
+    # write_list_to_csv(f"./batch_predict/inputs/{trace_config_id}.csv",["Cached Tkns", "Scheduled Tkns", "Decode Tkn","Decode Len","Prefill Cnt","Prefill Tkn", "Latency"], data)
+    write_list_to_csv(f"./batch_predict/inputs/{trace_config_id}.csv",["Cached Tkns", "Scheduled Tkns", "Latency"], data)
+
 if __name__ == "__main__":
     main()

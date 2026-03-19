@@ -98,7 +98,7 @@
         "chunk_size": 100,
         "start_id": 0,
         "max_prompt_cnt": 400000,
-        "scale": 0.6,
+        "scale": 0.5,
         "time": 3600,
         "last_true": 0.6,
         "last_true_submitted": 12743,

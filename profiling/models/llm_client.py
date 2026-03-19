@@ -4,6 +4,7 @@ from profiling.constants import *
 from profiling.models.workers import LLMWorker
 from profiling.models.model_client import ModelClient
 from profiling.models.workers.constants import SyncType
+from profiling.scheduling.monitor import llm_server_rpc_retry
 from plotting.trace_plot import TracePlotData, TraceAxisData, plot_trace_graph
 
 class LLMClient(ModelClient):
@@ -139,4 +140,7 @@ class LLMClient(ModelClient):
             (self.first_token_slo, self.idle_time_slo, self.SPEED_CONST, self.initial_time))
     
     def _test(self):
-        self.command_workers("test", sync = SyncType.ALL)
+        self.command_workers("test", sync = SyncType.ALL, wait = False)
+        # Update test_time according to worker - which reads the trace info
+        self.test_config.test_time = llm_server_rpc_retry("test_time")
+        self.worker_barrier.wait()

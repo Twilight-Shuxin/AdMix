@@ -53,18 +53,18 @@ class ModelClient(Process):
         if(sync == SyncType.ALL):
             self.worker_barrier.wait()
     
-    def command_worker(self, pipe, command, additional_data = [], sync = SyncType.NO_SYNC):
+    def command_worker(self, pipe, command, additional_data = [], sync = SyncType.NO_SYNC, wait = True):
         pipe.send(command)
         pipe.send(sync)
         for data in additional_data:
             pipe.send(data)
-        if(sync == SyncType.SINGLE):
+        if(sync == SyncType.SINGLE and wait):
             self.single_worker_barrier.wait()
     
-    def command_workers(self, command, additional_data = [], sync = SyncType.NO_SYNC):
+    def command_workers(self, command, additional_data = [], sync = SyncType.NO_SYNC, wait = True):
         for pipe in self.worker_pipes:
             self.command_worker(pipe, command, additional_data, sync = sync)
-        if(sync == SyncType.ALL):
+        if(sync == SyncType.ALL and wait):
             self.worker_barrier.wait()
     
     """

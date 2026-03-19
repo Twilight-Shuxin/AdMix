@@ -333,7 +333,7 @@ class LLMWorker(ModelWorker):
         except asyncio.CancelledError:
             raise
     
-    async def create_unix_servers(self):
+    async def create_unix_server(self):
         async def server_unix_handler(reader, writer):
             action = (await reader.read(32)).decode("utf-8")
             match action:
@@ -365,10 +365,10 @@ class LLMWorker(ModelWorker):
     
     async def _test(self):
         self.init_testenv_data()
-        
+        await self.create_unix_server()
+
         if(self.test_config.scheduler):
             if(self.test_config.global_cnt > 1): # Serving mode
-                await self.create_unix_servers()
                 if(self.scheduler_data.scheduler_type.monitor):
                     self.scheduler_data.scheduler_monitor = asyncio.create_task(self.scheduler_data.scheduler_type.monitor(self))
                 # Be informed by opportunistic worker that the other side have retrieved necessary information and is ready to move on
@@ -394,10 +394,10 @@ class LLMWorker(ModelWorker):
             else:
                 llm_input = self.get_input(self.input_config)
                 await self.async_inference(llm_input, self.test_config.seq_len[1])
-
+        
+        self.scheduler_data.general_server.close()
         if(self.scheduler_data.intensity_server):
             self.scheduler_data.intensity_server.close()
-            self.scheduler_data.general_server.close()
         if(self.scheduler_data.scheduler_profiler):
             print("Close scheduler profiler")
             self.scheduler_data.scheduler_profiler.cancel()

@@ -251,12 +251,15 @@ def plot_normal_line(data, ylabel, attr, ax = None, xtitle = None):
 
 
 def main():
-    trace_list = ["BurstGPT1,301,100,3600,2.8", "Azure1,0,100,3600,0.1"]
-    tag_list = ["BurstGPT", "Azure"]
+    # trace_list = ["BurstGPT1,301,100,3600,2.8", "Azure1,0,100,3600,0.1"]
+    trace_list = ["BurstGPT2,200,100,3600,9"]
+    tag_list = ["BurstGPT2", "Azure"]
     mps_list = [20, 10]
+    mps_list = [10]
     model_list = ["resnet50", "vgg19", "unet3d", "deeplabv3"]
     batch_size_list = [128, 128, 16, 32]
-    sub_paths = ["mps", "time", "batch"]
+    # sub_paths = ["mps", "time", "batch"]
+    sub_paths = ["mps", "batch"]
 
     data = {}
     for id, trace in enumerate(trace_list):
@@ -295,20 +298,19 @@ def main():
         norm_energy = {}
         for model, batch_size in zip(model_list, batch_size_list):
             llm_energy = data[trace][model]['utils']['energy']
-            side_energy_per_batch = profile_data[model][str(batch_size)]['avg_energy']
+            side_energy_per_output = profile_data[model][str(batch_size)]['avg_energy'] / 1000 # Energy in profile is J
             norm_energy[model] = {}
             for sub_path in sub_paths:
                 d = data[trace][model][sub_path]
-                side_batches = d['absolute throughput'] / batch_size
-                separate_energy = llm_energy + side_batches * side_energy_per_batch
-                norm_energy[model][sub_path] = d['energy'] / separate_energy
+                separate_energy = llm_energy + d['absolute throughput'] * side_energy_per_output
+                norm_energy[model][sub_path] = round((d['energy'] / separate_energy) * 100, 1)
 
         values = np.array([
             [norm_energy[model][sub_path] for sub_path in sub_paths]
             for model in model_list
         ])
         fig, ax = plt.subplots(figsize=(6, 4))
-        plot_bar_chart(model_list, sub_paths, values, 'Normalized Energy', ax)
+        plot_line_chart(model_list, sub_paths, values, 'Normalized Energy (%)', ax)
         fig.tight_layout()
         plt.savefig(f'{OUTPUT_FOLDER}/{tag_list[id]}_energy.pdf')
         plt.clf()
