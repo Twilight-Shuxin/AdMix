@@ -17,7 +17,7 @@ time_model_batch_sizes=(4 4 1 2)
 devices=1
 
 # gmanager stopmps $devices
-export GVLLM_USE_MODIFIED=false
+export ADMIX_LLM_MODIFIED=false
 for t_id in "${!trace_list[@]}"; do
     t="${trace_list[$t_id]}"
     run_cmd "python run.py --model llm --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/utils" "out.out"
@@ -31,9 +31,9 @@ for t_id in "${!trace_list[@]}"; do
         bs="${model_batch_sizes[$m_id]}"
 
         gmanager startmps $devices
-        export GVLLM_USE_MODIFIED=false
+        export ADMIX_LLM_MODIFIED=false
         run_cmd "python run.py --model llm,$m --scheduler constant[$bs] --mps 100,$mps --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/mps" "out.out"
-        export GVLLM_USE_MODIFIED=true
+        export ADMIX_LLM_MODIFIED=true
         run_cmd "python run.py --model llm,$m --scheduler batch --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/batch" "out.out"
 
         # gmanager stopmps $devices

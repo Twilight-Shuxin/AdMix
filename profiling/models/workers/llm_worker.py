@@ -36,7 +36,8 @@ class LLMWorker(ModelWorker):
             'host': "localhost",
             "port": 8000,
             "temperature": 0,
-            "stream": True
+            "stream": True,
+            'server_type': os.environ.get('ADMIX_LLM_SERVING_PLATFORM', "vllm").lower()
         }
         self.server_proc = None
         self.first_token_slo, self.idle_time_slo, self.SPEED_CONST = slo_info
@@ -51,33 +52,88 @@ class LLMWorker(ModelWorker):
         self.stop_server()
         return
     
-    def start_server(self):
-        os.environ['VLLM_LOGGING_LEVEL'] = 'ERROR'
-        memory_util = os.environ.get('GVLLM_KV_MEM', "0.7")
-        use_modified = os.environ.get('GVLLM_USE_MODIFIED', 'False').lower() == 'true'
-        system_setup_cmd = "bash vllm_setup.sh"
-        if(use_modified):
-            system_setup_cmd += " modified"
-        os.system(system_setup_cmd)
-        self.server_proc = subprocess.Popen(["python", "-m", "vllm.entrypoints.api_server", 
-            "--model", "meta-llama/Llama-2-7b-chat-hf", "--tensor-parallel-size", str(torch.cuda.device_count()),
-            "--gpu-memory-utilization", memory_util, "--no-enable-prefix-caching"])
-
+    def _wait_for_server(self, health_url):
         session = requests.Session()
         session.trust_env = False
         print("Starting server...")
-        while(True):
+        while True:
             try:
-                response = session.get('http://localhost:8000/health') 
-                if(response.status_code == 200):
+                if session.get(health_url).status_code == 200:
                     break
             except:
                 time.sleep(1)
         print("Server ready!")
+
+    def start_vllm_server(self):
+        os.environ['VLLM_LOGGING_LEVEL'] = 'ERROR'
+        memory_util = os.environ.get('ADMIX_LLM_KV_MEM', "0.7")
+        self.server_proc = subprocess.Popen([
+            "python", "-m", "vllm.entrypoints.api_server",
+            "--model", "meta-llama/Llama-2-7b-chat-hf",
+            "--tensor-parallel-size", str(torch.cuda.device_count()),
+            "--gpu-memory-utilization", memory_util,
+            "--no-enable-prefix-caching",
+        ])
+        self._wait_for_server(f"http://localhost:{self.server_config['port']}/health")
+
+    def start_sglang_server(self):
+        memory_util = os.environ.get('ADMIX_LLM_KV_MEM', "0.7")
+        env = os.environ.copy()
+        env.update({"NO_PROXY": "0.0.0.0,localhost,127.0.0.1", "no_proxy": "0.0.0.0,localhost,127.0.0.1"})
+        self.server_proc = subprocess.Popen([
+            "uv", "run", "--project", "plugins/sglang_env",
+            "python", "-m", "sglang.launch_server",
+            "--model-path", "meta-llama/Llama-2-7b-chat-hf",
+            "--chunked-prefill-size", "2048",
+            "--enable-mixed-chunk",
+            "--tp", str(torch.cuda.device_count()),
+            "--mem-fraction-static", memory_util,
+            "--port", str(self.server_config['port']),
+            "--disable-radix-cache",
+            "--log-level", "warning",
+            "--disable-overlap-schedule"
+        ], env=env, start_new_session=True)
+        self._wait_for_server(f"http://localhost:{self.server_config['port']}/health")
+
+    def start_server(self):
+        use_modified = os.environ.get('ADMIX_LLM_MODIFIED', 'False').lower() == 'true'
+        system_setup_cmd = "bash llm_platform_setup.sh"
+        if use_modified:
+            system_setup_cmd += " modified"
+        os.system(system_setup_cmd)
+        match self.server_config['server_type']:
+            case "vllm":
+                self.start_vllm_server()
+            case "sglang":
+                self.start_sglang_server()
+
+    def build_generation_input(self, prompt, max_tokens):
+        input_message = None
+        match self.server_config['server_type']:
+            case 'sglang':
+                input_message = {
+                    "text": prompt,
+                    "stream": self.server_config['stream'],
+                    "sampling_params": {
+                        "max_new_tokens": max_tokens,
+                        "temperature": self.server_config['temperature'],
+                        "ignore_eos": True,
+                    },
+                }
+            case 'vllm':
+                input_message = {
+                    "prompt": prompt,
+                    "stream": self.server_config['stream'],
+                    "ignore_eos": True,
+                    "max_tokens": max_tokens,
+                    "temperature": self.server_config['temperature'],
+                }
+        return input_message
     
     def stop_server(self):
         if(self.server_proc):
-            self.server_proc.send_signal(signal.SIGINT)
+            os.killpg(os.getpgid(self.server_proc.pid), signal.SIGINT)
+            self.server_proc.wait()
     
     def init_profile_data(self):
         self.profile_data = ProfileData()
@@ -303,13 +359,7 @@ class LLMWorker(ModelWorker):
 
             timeout = aiohttp.ClientTimeout(total=4 * 60 * 60)
             async with aiohttp.ClientSession(timeout=timeout) as session:
-                generation_input = {
-                    "prompt": prompt,
-                    "stream": self.server_config['stream'],
-                    "ignore_eos": True,
-                    "max_tokens": max_tokens,
-                    "temperature": self.server_config['temperature'],
-                }
+                generation_input = self.build_generation_input(prompt, max_tokens)
                 async with session.post(
                     f"http://{self.server_config['host']}:{self.server_config['port']}/generate", json=generation_input
                 ) as resp:

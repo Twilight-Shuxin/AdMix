@@ -12,3 +12,15 @@ uv add matplotlib
 ```
 
 Use a slienced version of vllm: Reference my own comment @ https://github.com/vllm-project/vllm/issues/5338
+
+#### VLLM
+
+```
+export ADMIX_LLM_SERVING_PLATFORM=vllm
+```
+
+#### Sglang
+
+```
+export ADMIX_LLM_SERVING_PLATFORM=sglang
+```

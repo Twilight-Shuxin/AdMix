@@ -13,7 +13,8 @@ class MLPRegressor(nn.Module):
             nn.Linear(32,1),
         ).to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.00001)
-        self.criterion = nn.MSELoss()
+        # self.criterion = nn.MSELoss()
+        self.criterion = nn.HuberLoss(delta=40.0)
 
     def forward(self, x):
         return self.model(x)
@@ -24,6 +25,7 @@ class MLPPredictModel(PytorchPredictModel):
         self.model_name = "MLP"
         self.saved_model_suffix_name = "pth"
         self.device = device
-        self.criterion = nn.MSELoss()
+        # self.criterion = nn.MSELoss()
+        self.criterion = nn.HuberLoss(delta=40.0)
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
         super().__init__()

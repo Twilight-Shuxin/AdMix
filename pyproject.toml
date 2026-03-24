@@ -19,3 +19,8 @@ dependencies = [
     "tqdm>=4.67.1",
     "vllm==0.10.2",
 ]
+
+[tool.uv.workspace]
+exclude = [
+    "plugins/sglang_env",
+]

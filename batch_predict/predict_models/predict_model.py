@@ -43,7 +43,7 @@ class SKLPredictModel(PredictModel):
 
     def _train(self, X_data, y_data, train_config = {}):
         self.model.fit(X_data, y_data)
-        _, test_loss, avg_time = self.eval(X_data, y_data)
+        _, test_loss, avg_time = self._eval(X_data, y_data)
         print(f"📉 Final Train Loss (MSE): {test_loss:.4f}, avg time(s): {avg_time}")
 
     def _eval(self, X_data, y_data = None):

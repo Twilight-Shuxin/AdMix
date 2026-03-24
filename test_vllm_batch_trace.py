@@ -2,7 +2,7 @@ import sys
 import time
 import asyncio
 from trace.trace_utils import LLMTrace, set_LLM_trace_config, read_LLM_trace_config
-from llm_utils import get_data_from_vllm, async_inference
+from llm_utils import get_data_from_llm, async_inference
 from profiling.constants import write_list_to_csv
 
 async def test_trace(trace):
@@ -33,16 +33,17 @@ def get_trace(trace_config_id, test_time = None):
     return LLMTrace(trace_config)
 
 def main():
+    additional_data, data = get_data_from_llm()
     loop = asyncio.new_event_loop()
     test_time = int(sys.argv[2]) if len(sys.argv) > 2 else None
     trace_config_id = sys.argv[1]
     trace = get_trace(trace_config_id, test_time)
     loop.run_until_complete(test_trace(trace))
-    additional_data, data = get_data_from_vllm()
+    additional_data, data = get_data_from_llm()
     # data.sort(key=lambda x: (x[0] * x[1]))
-    data.sort()
+    # data.sort()
     # write_list_to_csv(f"./batch_predict/inputs/{trace_config_id}.csv",["Cached Tkns", "Scheduled Tkns", "Decode Tkn","Decode Len","Prefill Cnt","Prefill Tkn", "Latency"], data)
-    write_list_to_csv(f"./batch_predict/inputs/{trace_config_id}.csv",["Cached Tkns", "Scheduled Tkns", "Latency"], data)
+    write_list_to_csv(f"./batch_predict/inputs/{trace_config_id}.csv",["Scheduled Tkns", "Cached Tkns", "Latency"], data)
 
 if __name__ == "__main__":
     main()

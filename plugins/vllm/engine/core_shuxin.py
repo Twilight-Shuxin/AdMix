@@ -338,7 +338,7 @@ class EngineCore:
         for idx, req_id in enumerate(scheduler_output.scheduled_cached_reqs.req_ids):
             shuxin_cached_tokens += scheduler_output.scheduled_cached_reqs.num_computed_tokens[idx]
 
-        shuxin_log = [shuxin_cached_tokens, scheduler_output.total_num_scheduled_tokens]
+        shuxin_log = [scheduler_output.total_num_scheduled_tokens, shuxin_cached_tokens]
         
         model_output = self.execute_model_with_error_logging(
             self.model_executor.execute_model,  # type: ignore
@@ -346,9 +346,9 @@ class EngineCore:
         engine_core_outputs = self.scheduler.update_from_output(
             scheduler_output, model_output)  # type: ignore
         
-        
-        if(scheduler_output.total_num_scheduled_tokens > 0):
-            self.shuxin_log_data.append(shuxin_log + [round(time.perf_counter() - shuxin_start, 3) * 1000])
+        with self.shuxin_buffer_lock:
+            if(scheduler_output.total_num_scheduled_tokens > 0):
+                self.shuxin_log_data.append(shuxin_log + [round(time.perf_counter() - shuxin_start, 3) * 1000])
         return (engine_core_outputs,
                 scheduler_output.total_num_scheduled_tokens > 0)
 

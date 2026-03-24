@@ -2,12 +2,10 @@
 
 source ~/MPSTest/script_utils.sh
 
-# Usage: ./eval_data.sh $data_file $output_tag[optional]
+# Usage: ./eval_data.sh $data_file $output_tag [$model_name]
+
+MODEL=${3:-MLP}
 
 run_cmd "python prep_data.py $1 True"
-
-if [ -n "$2" ]; then
-    run_cmd "python eval_model.py MLP $2"
-else
-    run_cmd "python eval_model.py MLP"
-fi
+run_cmd "python eval_model.py $MODEL $2"
+run_cmd "python ./plot/plot_3d_scatter.py ./outputs/${2}_pred.csv ${2}_scatter"

@@ -14,6 +14,9 @@ def get_model(model_type, input_dim):
             return DecisionTreePredictModel()
         case "random_forest":
             return RandomForestModel()
+        case model_type if model_type.startswith("polynomial"):
+            degree = int(model_type.split("_deg")[1]) if "_deg" in model_type else 2
+            return PolynomialPredictModel(degree)
 
 class PackedData():
     def __init__(self, X, y):
