@@ -1,4 +1,5 @@
 import os
+import json
 import time
 import torch
 import signal
@@ -30,8 +31,8 @@ def modify_prompt(prompt):
 
 
 class LLMWorker(ModelWorker):
-    def __init__(self, devices, pipe, worker_barrier, single_worker_barrier, log_path, profile_path, slo_info):
-        super().__init__(devices, pipe, worker_barrier, single_worker_barrier, log_path, profile_path)
+    def __init__(self, model_name, devices, pipe, worker_barrier, single_worker_barrier, log_path, profile_path, slo_info):
+        super().__init__(model_name, devices, pipe, worker_barrier, single_worker_barrier, log_path, profile_path)
         self.server_config = {
             'host': "localhost",
             "port": 8000,
@@ -81,8 +82,7 @@ class LLMWorker(ModelWorker):
         env = os.environ.copy()
         env.update({"NO_PROXY": "0.0.0.0,localhost,127.0.0.1", "no_proxy": "0.0.0.0,localhost,127.0.0.1"})
         self.server_proc = subprocess.Popen([
-            "uv", "run", "--project", "plugins/sglang_env",
-            "python", "-m", "sglang.launch_server",
+            "plugins/sglang_env/.venv/bin/python", "-m", "sglang.launch_server",
             "--model-path", "meta-llama/Llama-2-7b-chat-hf",
             "--chunked-prefill-size", "2048",
             "--enable-mixed-chunk",
@@ -92,7 +92,7 @@ class LLMWorker(ModelWorker):
             "--disable-radix-cache",
             "--log-level", "warning",
             "--disable-overlap-schedule"
-        ], env=env, start_new_session=True)
+        ], env=env)
         self._wait_for_server(f"http://localhost:{self.server_config['port']}/health")
 
     def start_server(self):
@@ -132,8 +132,7 @@ class LLMWorker(ModelWorker):
     
     def stop_server(self):
         if(self.server_proc):
-            os.killpg(os.getpgid(self.server_proc.pid), signal.SIGINT)
-            self.server_proc.wait()
+            self.server_proc.send_signal(signal.SIGINT)
     
     def init_profile_data(self):
         self.profile_data = ProfileData()
@@ -395,6 +394,16 @@ class LLMWorker(ModelWorker):
                 case "tag":
                     writer.write(self.test_config.self_full_tag.encode("utf-8"))
                     await writer.drain()
+                case "slo": # slo in milliseconds except for speed (tkns / second)
+                    data = json.dumps(
+                        {
+                            "first": self.first_token_slo * 1000,
+                            "idle": self.idle_time_slo * 1000,
+                            "speed": self.SPEED_CONST
+                        }).encode("utf-8")
+                    writer.write(len(data).to_bytes(4, "big") + data)
+                    await writer.drain()
+
             writer.close()
             await writer.wait_closed()
     

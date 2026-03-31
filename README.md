@@ -32,6 +32,12 @@ uv add sglang
 uv pip install sgl-kernel --force-reinstall --no-deps
 ```
 
+To silence the logs of cancelling requests: modify `sglang/srt/entrypoints/http_server.py` line 544-546 & 563-565: add following code to exception catch.
+```
+if "disconnected from the client side" not in str(e):
+    logger.error(f"[http_server] Error: {e}")
+```
+
 Before running Admix:
 ```
 export ADMIX_LLM_SERVING_PLATFORM=sglang

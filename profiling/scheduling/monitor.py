@@ -33,6 +33,10 @@ def llm_server_rpc(action):
             pass
         case "tag":
             data = client_socket.recv(1024).decode("utf-8")
+        case "slo":
+            import json
+            length = int.from_bytes(client_socket.recv(4), "big")
+            data = json.loads(client_socket.recv(length))
     client_socket.close()
     return data
 

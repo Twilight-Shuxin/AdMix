@@ -3,9 +3,9 @@ import csv
 import json 
 import time
 import numpy as np
+from multiprocessing import Pipe
 import torch.multiprocessing as mp
 from torch.multiprocessing import Process
-from multiprocessing import Process as StdProcess, Pipe
 from profiling.constants import *
 from profiling.models.utils import avg_dict
 from plotting.monitor_plot import plot_monitored
@@ -34,7 +34,7 @@ class ModelClient(Process):
     def start_worker(self, devices):
         device_init(self.devices, devices, self.mps)
         pipe_parent, pipe_child = mp.Pipe()
-        worker = self.model_worker(devices, self.supported_batchsize, pipe_child, self.worker_barrier, self.single_worker_barrier,
+        worker = self.model_worker(self.model_name, devices, self.supported_batchsize, pipe_child, self.worker_barrier, self.single_worker_barrier,
                                     self.log_path, self.profile_path,)
         worker.start()
         self.worker_pipes.append(pipe_parent)
@@ -201,38 +201,8 @@ class ModelClient(Process):
     def check_performance(self):
         return self.runtime_data.absolute_throughput
     
-    def get_dcgm_file_path(self, profile_statistic):
-        return os.path.join(self.log_path, "-".join([self.test_config.full_tag, str(profile_statistic)]) + ".log")
-    
     def get_pw_file_path(self):
         return os.path.join(self.log_path, "-".join([self.test_config.full_tag, 'power']) + ".log")
-
-    def start_dcgm(self):
-        if(self.test_config.dcgm_group == -1):
-            return None
-        cmd = f"gmanager dcgm_addg tmp"
-        p = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE, text=True)
-        stdout, stderr = p.communicate()
-        group_id = int(stdout.strip())
-        
-        cmd = f"gmanager dcgm_add2g {group_id} {' '.join(list(map(str, self.devices)))}"
-        os.system(cmd)
-
-        dcgm_procs = []
-        for profile_statistic in profile_group_dict[self.test_config.dcgm_group]:
-            profile_id = profile_dict[profile_statistic]
-            log_filepath = self.get_dcgm_file_path(profile_statistic)
-            command = "{}/start_dcgm_dmon.sh {} {} \"{}\"".format(self.dirname, group_id, str(profile_id), 
-                log_filepath)
-            os.system(command)
-            with open(DCGM_TMP_FILE, 'r') as pid_file:
-                pid = int(pid_file.read())
-            dcgm_procs.append((pid, command))
-
-        parent_conn, child_conn = Pipe()
-        monitor_proc = StdProcess(target=dcgm_dmon_monitor, args=(group_id, dcgm_procs, child_conn))
-        monitor_proc.start()
-        return parent_conn
     
     """
         Collect the dcgm statistics recorded in files in the previous test runs.
@@ -246,7 +216,7 @@ class ModelClient(Process):
             if(dcgm_group == -1):
                 continue
             for profile_statistic in profile_group_dict[dcgm_group]:
-                dcgm_data_path = self.get_dcgm_file_path(profile_statistic)
+                dcgm_data_path = get_dcgm_file_path(self.log_path, self.test_config.full_tag, profile_statistic)
                 dcgm_data[profile_statistic], records = get_dcgm_data(dcgm_data_path)
                 if(profile_statistic in plot_monitored_statistics):
                     plot_monitored(records, os.path.join(self.log_path, self.test_config.full_tag + "-"), profile_statistic)
@@ -283,17 +253,16 @@ class ModelClient(Process):
     
     def test(self):
         if(self.test_config.recording_action.record_dcgm):
-            dcgm_monitor_conn = self.start_dcgm()   
+            dcgm_monitor_conn = start_dcgm(self.test_config.dcgm_group, self.devices, self.log_path, self.test_config.full_tag)   
         if(self.test_config.recording_action.record_pw):
-            power_monitor_proc = start_power_monitor(self.devices, self.get_pw_file_path())
+            power_monitor_conn = start_power_monitor(self.devices, self.get_pw_file_path())
 
         self._test()
-        
+
         if(self.test_config.recording_action.record_dcgm):
             stop_dcgm(dcgm_monitor_conn)
         if(self.test_config.recording_action.record_pw):
-            power_monitor_proc.terminate()
-            power_monitor_proc.wait()
+            stop_power_monitor(power_monitor_conn)
         
         self.collect_worker_data()
         if(self.test_config.recording_action.record_statistics):

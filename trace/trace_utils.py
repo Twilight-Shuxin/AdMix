@@ -142,4 +142,6 @@ class LLMTrace(Trace):
         if sampled_output_len > self.max_gen_len:
             sampled_output_len = self.max_gen_len
         self.index += 1
-        return query_time, int(sampled_prompt_len), int(sampled_output_len)
+        # FIXME: currently suppose model's context length is fixed to 4096; but this is actually subject to models; 
+        # change so that it matches the corresponding model afterwards. (currently this is needed for sglang)
+        return query_time, int(sampled_prompt_len), min(int(sampled_output_len), 4080 - int(sampled_prompt_len))

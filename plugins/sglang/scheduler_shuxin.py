@@ -226,7 +226,7 @@ def shuxin_unix_server(socket_path, scheduler, shared_buffer, buffer_lock):
             shared_buffer.clear()
         num_running = len(scheduler.running_batch.reqs) if scheduler.running_batch else 0
         num_waiting = len(scheduler.waiting_queue)
-        additional_data = (num_running, num_waiting)
+        additional_data = num_running + num_waiting
         payload = json.dumps([additional_data, batch]).encode("utf-8")
         chunk_size = 64 * 1024
         

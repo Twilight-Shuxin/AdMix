@@ -19,7 +19,7 @@ class LLMClient(ModelClient):
     def start_worker(self, devices):
         device_init(self.devices, devices, self.mps)
         pipe_parent, pipe_child = mp.Pipe()
-        worker = self.model_worker(devices, pipe_child, self.worker_barrier, self.single_worker_barrier,
+        worker = self.model_worker(self.model_name, devices, pipe_child, self.worker_barrier, self.single_worker_barrier,
             self.log_path, self.profile_path,
             (self.first_token_slo, self.idle_time_slo, self.SPEED_CONST))
         worker.start()

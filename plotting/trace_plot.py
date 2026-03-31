@@ -25,7 +25,7 @@ class TraceAxisData():
         LINE = 1
         BAR = 2
 
-    def __init__(self, *plot_data_list, label = None, y_tag, plot_type = PlotType.LINE):
+    def __init__(self, *plot_data_list, label = None, y_tag = (None, None), plot_type = PlotType.LINE):
         self.label = label
         self.plot_data_list = list(plot_data_list)
         self.y_tag_name, self.y_tag_unit = y_tag
@@ -56,9 +56,10 @@ def plot_trace_graph(plot_file, *axis_list):
                     ax.bar(plot_data.x, plot_data.y, label = plot_data.label, color = color_list[idy], alpha=0.5)
             idy += 1
         
-        y_tag_name = axis_data.y_tag_name
-        y_tag_unit = axis_data.y_tag_unit
-        ax.set_ylabel((y_tag_name + ' (' + y_tag_unit + ')') if(y_tag_unit) else y_tag_name)
+        if(axis_data.y_tag_name):
+            y_tag_name = axis_data.y_tag_name
+            y_tag_unit = axis_data.y_tag_unit
+            ax.set_ylabel((y_tag_name + ' (' + y_tag_unit + ')') if(y_tag_unit) else y_tag_name)
         ax.tick_params(axis='y')
         titles.append(axis_data.label)
 

@@ -89,7 +89,6 @@ class AIMDScheduler(AIMDBaseScheduler):
         self.profile = []
         self.profile_pointer = 0
         llm_tag = llm_server_rpc("tag")
-        print("hihihi", llm_tag)
 
         with open(os.path.join(self.model_client.profile_path, f"{llm_tag}.log"), "r") as profile_file:
             lines = profile_file.readlines()

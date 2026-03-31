@@ -81,8 +81,11 @@ def shuxin_unix_server(socket_path, engine, shared_buffer, buffer_lock):
         with buffer_lock:
             batch = shared_buffer.copy()
             shared_buffer.clear()
-        additional_data = (len(engine.scheduler.running), len(engine.scheduler.waiting))
-        payload = json.dumps([additional_data, batch]).encode("utf-8")
+            processing = engine.shuxin_processing.copy() if engine.shuxin_processing else None
+            if(processing):
+                processing[-1] = round(time.perf_counter() - processing[-1], 3) * 1000
+        additional_data = (len(engine.scheduler.running) + len(engine.scheduler.waiting), engine.shuxin_waiting_prompt_tkn_max)
+        payload = json.dumps([additional_data, processing, batch]).encode("utf-8")
         chunk_size = 64 * 1024
 
         if payload:
@@ -195,6 +198,8 @@ class EngineCore:
                 block_size, caching_hash_fn)
         
         self.shuxin_log_data = []
+        self.shuxin_processing = None
+        self.shuxin_waiting_prompt_tkn_max = 0
         self.shuxin_buffer_lock = threading.Lock()
         shuxin_thread = threading.Thread(
             target=shuxin_unix_server,
@@ -293,6 +298,14 @@ class EngineCore:
                            "Disabling KVTransfer for this request.")
                            
         self.scheduler.add_request(request)
+        waiting_tkns = sum(
+            req.num_prompt_tokens for req in self.scheduler.waiting
+        ) + sum(
+            req.num_prompt_tokens - req.num_computed_tokens
+            for req in self.scheduler.running
+            if req.num_computed_tokens < req.num_prompt_tokens
+        )
+        request.shuxin_waiting_prompt_tkn = waiting_tkns
 
     def abort_requests(self, request_ids: list[str]):
         """Abort requests from the scheduler."""
@@ -337,8 +350,14 @@ class EngineCore:
         shuxin_cached_tokens = 0
         for idx, req_id in enumerate(scheduler_output.scheduled_cached_reqs.req_ids):
             shuxin_cached_tokens += scheduler_output.scheduled_cached_reqs.num_computed_tokens[idx]
-
+        self.shuxin_waiting_prompt_tkn_max = max(
+                (req.shuxin_waiting_prompt_tkn for req in list(self.scheduler.waiting)),
+                default=0
+            )
         shuxin_log = [scheduler_output.total_num_scheduled_tokens, shuxin_cached_tokens]
+        if(scheduler_output.total_num_scheduled_tokens > 0):
+            with self.shuxin_buffer_lock:
+                self.shuxin_processing = shuxin_log + [shuxin_start]
         
         model_output = self.execute_model_with_error_logging(
             self.model_executor.execute_model,  # type: ignore
@@ -346,9 +365,10 @@ class EngineCore:
         engine_core_outputs = self.scheduler.update_from_output(
             scheduler_output, model_output)  # type: ignore
         
-        with self.shuxin_buffer_lock:
-            if(scheduler_output.total_num_scheduled_tokens > 0):
+        if(scheduler_output.total_num_scheduled_tokens > 0):
+            with self.shuxin_buffer_lock:
                 self.shuxin_log_data.append(shuxin_log + [round(time.perf_counter() - shuxin_start, 3) * 1000])
+                self.shuxin_processing = None
         return (engine_core_outputs,
                 scheduler_output.total_num_scheduled_tokens > 0)
 

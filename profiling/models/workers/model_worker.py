@@ -1,15 +1,18 @@
 import os
+import sys
 import time
 import torch
 import inspect
 import numpy as np
+from tqdm import tqdm
 from torch.multiprocessing import Process
 from profiling.constants import *
 from trace.trace_utils import SimpleTimeTrace
 from profiling.models.workers.constants import SyncType
 
 class ModelWorker(Process):
-    def __init__(self, devices, pipe, worker_barrier, single_worker_barrier, log_path, profile_path):
+    def __init__(self, model_name, devices, pipe, worker_barrier, single_worker_barrier, log_path, profile_path):
+        self.model_name = model_name
         self.pipe = pipe
         self.worker_barrier = worker_barrier
         self.single_worker_barrier = single_worker_barrier
@@ -66,32 +69,45 @@ class ModelWorker(Process):
     """
         Profile model to get the 99 percentile latency of each batch size setting.
         Return profiled data to master.
+        NOTE: 
     """
     def profile(self):
-        profile_iter = 15
-        warmup_iter = 5
-        profile_data = {}
-        for batch_size in self.supported_batchsize:
-            spent_time = []
+        def _warmup(batch_size, warmup_iter = 5):
             for _ in range(warmup_iter):
                 self.inference(self.random_input[batch_size], sync = True)
-            power_monitor = start_power_monitor(self.devices)
-            profile_start = time.perf_counter()
-            test_time = 5
+            return
+
+        def _profile(batch_size, test_time):
+            profile_iter = 15
+            spent_time = []
             iter_cnt = 0
+            profile_start = time.perf_counter()
             while time.perf_counter() - profile_start < test_time or iter_cnt < profile_iter:
                 start_time = time.perf_counter()
                 self.inference(self.random_input[batch_size], sync = True)
                 spent_time.append(time.perf_counter() - start_time)
                 iter_cnt += 1
-            power_monitor.terminate()
-            stdout, _ = power_monitor.communicate()
-            records = parse_power_output(stdout)
+            return spent_time
+
+        profile_data = {}
+        dcgm_group_id = create_dcgm_group(self.devices)
+        for batch_size in tqdm(self.supported_batchsize[::-1], disable=not sys.stderr.isatty()):
+            _warmup(batch_size)
+            dcgm_monitor_conn = start_dcgm_single('sm_active', self.devices, dcgm_group_id = dcgm_group_id)
+            spent_time = _profile(batch_size = batch_size, test_time = 5)
+            dcgm_records = parse_dcgm_output(stop_dcgm(dcgm_monitor_conn, del_dcgm_group = False)[0])
+            active_dcgm = [v for _, v in dcgm_records[1:] if v != 0]
             profile_data[batch_size] = {
                 'latency': np.percentile(spent_time, 99),
-                'avg_energy': sum([v for _,v in records]) / (iter_cnt * batch_size)
+                'sm_active': round((sum(active_dcgm) / len(active_dcgm)) * 100, 2) if active_dcgm else 0,
             }
-        self.pipe.send(profile_data)
+        delete_dcgm_group(dcgm_group_id)
+        _warmup(self.profile_pw_bs)
+        power_monitor_conn = start_power_monitor(self.devices)
+        iter_cnt = len(_profile(batch_size = self.profile_pw_bs, test_time = 30))
+        power_records = parse_power_output(stop_power_monitor(power_monitor_conn))
+        profile_data[self.profile_pw_bs]['avg_energy'] = sum([v for _, v in power_records]) / (iter_cnt * self.profile_pw_bs)
+        self.pipe.send(dict(sorted(profile_data.items())))
     
      # Setup submodel under current test_configuration: self.submodel = model[start:end]
     def setup_test_submodel(self):
@@ -118,10 +134,6 @@ class ModelWorker(Process):
     def init_runtime_data(self):
         self.runtime_data = RuntimeData()
         self.runtime_data.absolute_throughput = 0
-    
-    def init_scheduler_data(self):
-        self.scheduler_data = SchedulerData()
-        self.scheduler_data.scheduler = get_scheduler(self.test_config.scheduler)
 
     # NOTE: Only llm_worker is actually engaged with scheduling data; 
     #   Other workers only react to corresponding client's scheduled tasks.

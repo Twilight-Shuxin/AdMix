@@ -9,10 +9,10 @@ from enum import Enum
 from typing import List
 from collections import Counter
 from dataclasses import dataclass, field
+from multiprocessing import Process, Pipe
 from plotting.constants import PLOTTING_BIN_SIZE
 
 EPS = 1e-6
-DCGM_TMP_FILE = "dcgm_pid.log"
 
 class ArgsType(Enum):
     INT = 1
@@ -332,55 +332,183 @@ class RecordCounter():
     def set_record_bins(self, record_bins):
         self.record_bins = record_bins
 
+def get_dcgm_file_path(log_path, tag, profile_statistic):
+    return os.path.join(log_path, "-".join([tag, str(profile_statistic)]) + ".log")
+
+def create_dcgm_group(devices):
+    p = subprocess.Popen(["gmanager dcgm_addg tmp"], shell=True, stdout=subprocess.PIPE, text=True)
+    stdout, _ = p.communicate()
+    group_id = int(stdout.strip())
+    os.system(f"gmanager dcgm_add2g {group_id} {' '.join(list(map(str, devices)))}")
+    return group_id
+
+def _launch_dcgm_dmon(group_id, profile_id, log_filepath=None, append=False):
+    """
+    Launch a dcgmi dmon process for the given group and profile field ID.
+    If log_filepath is given, stdout is written to that file (appended if append=True);
+    otherwise stdout is captured via PIPE for in-memory collection.
+    Returns the Popen object.
+    """
+    if log_filepath:
+        stdout_target = open(log_filepath, 'a' if append else 'w')
+    else:
+        stdout_target = subprocess.PIPE
+    proc = subprocess.Popen(["dcgmi", "dmon", "-g", str(group_id), "-e", str(profile_id)],
+                            stdout=stdout_target, stderr=subprocess.DEVNULL, text=True)
+    if log_filepath:
+        stdout_target.close()
+    return proc
+
+def _get_dcgm_launch_args(group_id, profile_statistic, log_path=None, tag=None):
+    """
+    Build the launch args tuple (group_id, profile_id, log_filepath) for a single
+    profile statistic. log_filepath is None if log_path is not provided.
+    """
+    profile_id = profile_dict[profile_statistic]
+    log_filepath = get_dcgm_file_path(log_path, tag, profile_statistic) if log_path else None
+    return (group_id, profile_id, log_filepath)
+
+def _launch_dcgm_watchdog(group_id, launch_args_list):
+    """
+    Spawn the dcgm_dmon_monitor watchdog Process and return the parent connection.
+    launch_args_list is a list of (group_id, profile_id, log_filepath) tuples — one per
+    statistic to monitor. Popen objects are created inside the child process to avoid
+    pickling issues with the spawn start method.
+    """
+    parent_conn, child_conn = Pipe()
+    Process(target=dcgm_dmon_monitor, args=(group_id, launch_args_list, child_conn)).start()
+    return parent_conn
+
+def start_dcgm(dcgm_metric_group, devices, log_path=None, tag=None, dcgm_group_id=None):
+    """
+    Start dcgm monitoring for all profile statistics in dcgm_metric_group.
+    Creates a temporary dcgm group (unless dcgm_group_id is provided) and starts one
+    dcgmi dmon process per statistic in profile_group_dict[dcgm_metric_group].
+    Returns a connection to the watchdog process, or None if dcgm_metric_group == -1.
+    """
+    if(dcgm_metric_group == -1):
+        return None
+    if(dcgm_group_id is None):
+        dcgm_group_id = create_dcgm_group(devices)
+    launch_args_list = [_get_dcgm_launch_args(dcgm_group_id, ps, log_path, tag) for ps in profile_group_dict[dcgm_metric_group]]
+    return _launch_dcgm_watchdog(dcgm_group_id, launch_args_list)
+
+def start_dcgm_single(profile_statistic, devices, log_path=None, tag=None, dcgm_group_id=None):
+    """
+    Start dcgm monitoring for a single profile statistic.
+    Creates a temporary dcgm group (unless dcgm_group_id is provided) and starts one
+    dcgmi dmon process for the given profile_statistic.
+    Returns a connection to the watchdog process.
+    """
+    if(dcgm_group_id is None):
+        dcgm_group_id = create_dcgm_group(devices)
+    return _launch_dcgm_watchdog(dcgm_group_id, [_get_dcgm_launch_args(dcgm_group_id, profile_statistic, log_path, tag)])
+
 """
     Monitors the running dcgm processes dcgm_procs, and report the process ids through conn.
     (The dcgm processes monitors devices included in the dcgm group with group id $dcgm_group_id)
-    If dcgm processes are not detected (died), start a new one in replace. 
-    Upon receiving message from conn, report the $dcgm_group_id and final pids of the processes through conn and stop the monitoring process. 
+    If dcgm processes are not detected (died), start a new one in replace.
+    Upon receiving message from conn, report the $dcgm_group_id and final pids of the processes through conn and stop the monitoring process.
 """
-def dcgm_dmon_monitor(dcgm_group_id, dcgm_procs, conn):
+def dcgm_dmon_monitor(dcgm_group_id, launch_args_list, conn):
+    dcgm_procs = [(launch_args, _launch_dcgm_dmon(*launch_args)) for launch_args in launch_args_list]
+    accumulated = [[] for _ in dcgm_procs]
     while(True):
-        if conn.poll():
-            msg = conn.recv()
+        if conn.poll(5): # blocks for 5 seconds but respond immediately if received message
+            conn.recv()
             conn.send(dcgm_group_id)
-            conn.send([pid for pid, cmd in dcgm_procs])
+            conn.send([proc.pid for _, proc in dcgm_procs])
+            outputs = []
+            for i, (launch_args, proc) in enumerate(dcgm_procs):
+                _, _, log_filepath = launch_args
+                proc.terminate()
+                if log_filepath:
+                    proc.wait()
+                    outputs.append(None)
+                else:
+                    stdout, _ = proc.communicate()
+                    accumulated[i].append(stdout)
+                    outputs.append("".join(accumulated[i]))
+            conn.send(outputs)
             break
-        time.sleep(5)
-        for id, dcgm_proc in enumerate(dcgm_procs):
-            pid, cmd = dcgm_proc
-            try:
-                os.kill(pid, 0)  # Doesn't actually kill; just checks permission/existence
-            except ProcessLookupError:
-                os.system(cmd + " append")
-                with open(DCGM_TMP_FILE, 'r') as pid_file:
-                    pid = int(pid_file.read())
-                dcgm_procs[id] = (pid, cmd)
-            except PermissionError:
-                pass
-            else:
-                pass
+        for i, (launch_args, proc) in enumerate(dcgm_procs):
+            if proc.poll() is not None:
+                _, _, log_filepath = launch_args
+                if not log_filepath:
+                    stdout, _ = proc.communicate()
+                    accumulated[i].append(stdout)
+                new_proc = _launch_dcgm_dmon(*launch_args, append=True)
+                dcgm_procs[i] = (launch_args, new_proc)
 
-def start_power_monitor(devices, redirect_output = None):
+"""
+    Background watchdog process for power monitoring (analogous to dcgm_dmon_monitor).
+    Starts nvidia-smi, monitors it, and restarts it if it dies.
+    Upon receiving "stop" via conn, terminates nvidia-smi, sends back collected output (or None
+    if redirected to a file), and exits.
+    On restart with redirect_output, the file is opened in append mode to preserve prior data.
+"""
+def power_monitor_watchdog(devices, redirect_output, conn):
     cmd = ["nvidia-smi", "--query-gpu=index,power.draw", "--format=csv,noheader,nounits", "-l", "1", f"--id={','.join(devices)}"]
-    stdout = open(redirect_output, 'w') if redirect_output else subprocess.PIPE
-    monitor_process = subprocess.Popen(cmd, stdout=stdout, stderr=subprocess.PIPE, text=True)
-    return monitor_process
+    stdout_target = open(redirect_output, 'w') if redirect_output else subprocess.PIPE
+    monitor_proc = subprocess.Popen(cmd, stdout=stdout_target, stderr=subprocess.PIPE, text=True)
+    accumulated = []
+    while True:
+        if conn.poll(5): # blocks for 5 seconds but respond immediately if received message
+            conn.recv()
+            monitor_proc.terminate()
+            if redirect_output:
+                monitor_proc.wait()
+                conn.send(None)
+            else:
+                stdout, _ = monitor_proc.communicate()
+                accumulated.append(stdout)
+                conn.send("".join(accumulated))
+            break
+        if monitor_proc.poll() is not None:
+            if redirect_output:
+                stdout_target = open(redirect_output, 'a')
+            else:
+                stdout, _ = monitor_proc.communicate()
+                accumulated.append(stdout)
+            monitor_proc = subprocess.Popen(cmd, stdout=stdout_target, stderr=subprocess.PIPE, text=True)
+
+"""
+    Start power monitoring with a watchdog process (analogous to start_dcgm).
+    Returns a connection to the watchdog process.
+"""
+def start_power_monitor(devices, redirect_output=None):
+    parent_conn, child_conn = Pipe()
+    watchdog = Process(target=power_monitor_watchdog, args=(devices, redirect_output, child_conn))
+    watchdog.start()
+    return parent_conn
+
+"""
+    Stop power monitoring (analogous to stop_dcgm).
+    Returns collected stdout text if no redirect_output was given, else None.
+"""
+def stop_power_monitor(conn):
+    if conn is None:
+        return None
+    conn.send("stop")
+    return conn.recv()
+
+def delete_dcgm_group(dcgm_group_id):
+    os.system(f'gmanager dcgm_delg {dcgm_group_id}')
 
 """
     Stop dcgm process through process connection.
     The dcgm group is created for temporal use, so delete operation for clean up is also performed.
 """
-def stop_dcgm(conn):
+def stop_dcgm(conn, del_dcgm_group = True):
     if(conn is None):
-        return
+        return None
     conn.send("stop")
     dcgm_group_id = conn.recv()
     final_pids = conn.recv()
-    print("Final PID list:", final_pids)
-    for pid in final_pids:
-        command = "kill -9 {}".format(str(pid))
-        os.system(command)
-    os.system(f'gmanager dcgm_delg {dcgm_group_id}')
+    outputs = conn.recv()
+    if(del_dcgm_group):
+        delete_dcgm_group()
+    return outputs
 
 """
     A list of records, with record format as: (device0, data).
@@ -404,19 +532,28 @@ def get_device_monitored_data_avg(records):
     return avg_values
 
 """
-    Given a profile_filepath pointing to a file generated by dcgm, 
+    Parse output generated by dcgm and return records: (device, value)
+"""
+def parse_dcgm_output(text: str):
+    records = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#Entity") and not line.startswith("ID"):
+            try:
+                device, value = line.split("      ")
+                records.append((device, float(value)))
+            except ValueError:
+                pass
+    return records
+
+"""
+    Given a profile_filepath pointing to a file generated by dcgm,
     get the data inside and return a tuple:
         1. overall average; 2. a list containing the time series data (averaged across all devices).
 """
 def get_dcgm_data(profile_filepath):
-    records = []
     with open(profile_filepath, 'r') as profile_file:
-        lines = profile_file.readlines()
-        for line in lines:
-            line = line.strip('\n').strip(' ')
-            if line and not line.startswith("#Entity") and not line.startswith("ID"):
-                device, value = line.split("      ")
-                records.append((device, float(value)))
+        records = parse_dcgm_output(profile_file.read())
     values = get_device_monitored_data_avg(records)
     return (np.mean(values) if values else None, values)
 
