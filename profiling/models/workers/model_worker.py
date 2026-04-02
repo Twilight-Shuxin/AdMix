@@ -60,11 +60,10 @@ def _resp_get(resp_q):
 
 class _Cmd:
     """Control command sent to a context worker thread."""
-    __slots__ = ("kind", "payload", "started", "resp_q")
+    __slots__ = ("kind", "payload", "resp_q")
     def __init__(self, kind, payload=None):
         self.kind    = kind
         self.payload = payload
-        self.started = threading.Event()  # set when the worker begins executing this cmd
         self.resp_q  = queue.Queue()      # receives result when the cmd completes
 
 def _pin_model(model):
@@ -370,20 +369,19 @@ class ModelWorker(Process):
             loop_input     = None       # if set, keep inferring this input
             loop_bs        = 0
             _current_cmd   = None       # track the in-flight command for error reporting
+            alive = True
             try:
-                while True:
+                while alive:
                     # In loop mode: run one inference then check for new commands non-blocking.
                     # In idle mode: block until a command arrives.
                     if loop_input is not None:
                         t0 = time.perf_counter()
-                        # print('@@@', threading.current_thread().name, "start inf")
                         gpu_model(loop_input)
                         torch.cuda.synchronize()
-                        # print('@@@', threading.current_thread().name, "end inf")
-                        elapsed = time.perf_counter() - t0
+                        elapsed = round(time.perf_counter() - t0, 3) * 1000
                         self.runtime_data.absolute_throughput += loop_bs
                         if self.test_config.recording_action.record_statistics:
-                            self.profile_data.logs.append((loop_bs, elapsed * 1000))
+                            self.profile_data.logs.append((loop_bs, elapsed))
                             self.profile_data.absolute_throughput_records.add(
                                 time.perf_counter() - self.runtime_data.start_time_pointer, loop_bs)
                         try:
@@ -394,43 +392,26 @@ class ModelWorker(Process):
                         item = work_queue.get()
                     if isinstance(item, _Cmd):
                         _current_cmd = item
-                        item.started.set()  # signal to caller that we have picked up this cmd
+                        t0 = time.perf_counter()
                         if item.kind == 'activate':
-                            t0 = time.perf_counter()
                             gpu_model, model_pool = _load_model_to_gpu(self._model_shell, self.model, device)
-                            elapsed = time.perf_counter() - t0
-                            # print(f"[activate   {mps}%] h2d_load={elapsed*1000:.1f}ms")
-                            item.resp_q.put(elapsed)
                         elif item.kind == 'loop':
-                            print('$', threading.current_thread().name, "start loop")
                             loop_bs = item.payload
                             loop_input = self.get_input(InputConfig(batch_size=loop_bs)).to(device, copy=True)
                             torch.cuda.synchronize()
-                            item.resp_q.put(None)   # ack: loop is starting
                         elif item.kind == 'stop_loop':
-                            if loop_input is not None:
-                                print('$', threading.current_thread().name, "stop loop")
-                                del loop_input
-                                loop_input = None
+                            loop_input = None
                             torch.cuda.empty_cache()
-                            item.resp_q.put(None)   # ack
                         elif item.kind == 'deactivate':
-                            print('$', threading.current_thread().name, loop_input, "deactivate & destroy model pool")
-                            t0 = time.perf_counter()
                             _unload_model_from_gpu(gpu_model, model_pool)
                             gpu_model = None
                             model_pool = None
-                            elapsed = time.perf_counter() - t0
-                            print('$', threading.current_thread().name, "deactivate & destroy model pool end")
-                            # print(f"[deactivate {mps}%] unload={elapsed*1000:.1f}ms")
-                            item.resp_q.put(elapsed)
                         elif item.kind == 'destroy':
                             t0 = time.perf_counter()
                             _cu(lib.cuCtxDestroy_v2(ctx))
-                            elapsed = time.perf_counter() - t0
-                            # print(f"[destroy    {mps}%] ctx_destroy={elapsed*1000:.1f}ms")
-                            item.resp_q.put(elapsed)
-                            break
+                            alive = False
+                        elapsed = round(time.perf_counter() - t0, 3) * 1000
+                        item.resp_q.put(elapsed)
                         _current_cmd = None
             except Exception as exc:
                 print(f"[mps-ctx-{mps}pct] FATAL exception: {exc}\n", flush=True)
