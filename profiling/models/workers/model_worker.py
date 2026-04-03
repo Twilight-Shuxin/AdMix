@@ -309,7 +309,7 @@ class ModelWorker(Process):
         torch.cuda.empty_cache()
 
         self._ctx_device_id = device_id
-        self._ctx_lock      = threading.Lock()  # protects ctx_* dicts
+        self._mps_ctx_lock      = threading.Lock()  # protects ctx_* dicts
         self.MPS_step       = 5                 # neighbour pre-create distance
 
         # Per-context state: 'created' | 'loaded' | 'active' | 'pending_unload' | 'unloading'
@@ -321,8 +321,6 @@ class ModelWorker(Process):
         self.ctx_deact_timers        = {}   # mps → threading.Timer  (pending delayed unload)
         self.unload_delay      = 5.0  # seconds to wait before actually unloading GPU model
         self.current_ctx_pct = None
-        self._loop_lock   = threading.Lock()  # blocks start_inference_loop while stop_loop/unload is in progress
-        self._unload_lock = threading.Lock()  # ensures only one _do_unload executes at a time
 
         self._ctx_create(20)
         self._ctx_create(100)
@@ -331,7 +329,7 @@ class ModelWorker(Process):
         """Create a CUDA driver context for `mps` and start its worker thread.
         The model is NOT loaded — call _load(mps) separately.
         No-op if the context already exists."""
-        with self._ctx_lock:
+        with self._mps_ctx_lock:
             if mps in self.ctx_states:
                 return
         device_id  = self._ctx_device_id
@@ -339,7 +337,7 @@ class ModelWorker(Process):
         with _ctx_create_lock:
             ctx = _create_cuda_context(device_id=device_id, thread_pct=mps)
         work_queue = queue.Queue()
-        with self._ctx_lock:
+        with self._mps_ctx_lock:
             self.ctx_handles[mps] = ctx
             self.ctx_queues[mps]  = work_queue
             self.ctx_states[mps]  = 'created'
@@ -390,8 +388,6 @@ class ModelWorker(Process):
                             gpu_model = None
                             with _pool_op_lock:   # no use_mem_pool active while pool is destroyed
                                 model_pool = None
-                            with self._ctx_lock:
-                                self.ctx_states[mps] = 'created'
                         elif item.kind == 'destroy':
                             _cu(lib.cuCtxDestroy_v2(ctx))
                             alive = False
@@ -406,27 +402,25 @@ class ModelWorker(Process):
 
         t = threading.Thread(target=_target, name=f"mps-ctx-{mps}pct", daemon=True)
         t.start()
-        with self._ctx_lock:
+        with self._mps_ctx_lock:
             self.ctx_threads[mps] = t
 
-    def _send_cmd(self, mps, kind, payload=None):
+    def _send_cmd_mps_thread(self, mps, kind, payload=None):
         """Send a control command to the `mps` worker thread and block until it completes."""
         cmd = _Cmd(kind, payload)
         self.ctx_queues[mps].put(cmd)
         return _resp_get(cmd.resp_q)
 
     def _get_active_mps(self):
-        """Return the mps whose ctx_state is 'active', or None. Must be called under _ctx_lock."""
+        """Return the mps whose ctx_state is 'active', or None. Must be called under _mps_ctx_lock."""
         return next((p for p, s in self.ctx_states.items() if s == 'active'), None)
 
     def _set_active_loop(self, mps):
-        """Mark mps as the active looping context. Must be called under _loop_lock."""
-        with self._ctx_lock:
+        with self._mps_ctx_lock:
             self.ctx_states[mps] = 'active'
 
     def _clear_active_loop(self):
-        """Revert the active context from 'active' to 'loaded'. Must be called under _loop_lock."""
-        with self._ctx_lock:
+        with self._mps_ctx_lock:
             active = self._get_active_mps()
             if active is not None:
                 self.ctx_states[active] = 'loaded'
@@ -438,9 +432,9 @@ class ModelWorker(Process):
         and returns immediately — the model is still on GPU so no H2D transfer is needed.
         If unload is already in flight, waits for it to finish before reloading."""
         # Atomically cancel any pending unload and reclaim the 'active' state.
-        # Both this block and the timer callback (_execute in _unload) acquire
-        # self._ctx_lock before touching ctx_states, so only one wins the transition.
-        with self._ctx_lock:
+        # Both this block and the timer callback (_on_unload_timer in _unload) acquire
+        # self._mps_ctx_lock before touching ctx_states, so only one wins the transition.
+        with self._mps_ctx_lock:
             timer = self.ctx_deact_timers.pop(mps, None)
             cancelled_pending = False
             if self.ctx_states.get(mps) == 'pending_unload': # Model is still on GPU — just flip back to loaded.
@@ -450,30 +444,22 @@ class ModelWorker(Process):
                 timer.cancel()  # no-op if it already fired; state guard above handles that case
 
         if cancelled_pending:
-            # print(f"[activate   {mps}%] pending unload cancelled — model still loaded")
             return 0.0
 
-        # Wait for any already-in-flight unload before reloading.
-        with self._ctx_lock:
+        with self._mps_ctx_lock: # Wait for any already-in-flight unload before reloading.
             evt = self.ctx_unloading_events.get(mps)
         if evt is not None:
             evt.wait()
 
-        elapsed = self._send_cmd(mps, 'load')
-        with self._ctx_lock:
+        elapsed = self._send_cmd_mps_thread(mps, 'load')
+        with self._mps_ctx_lock:
             self.ctx_states[mps] = 'loaded'
         return elapsed
 
     def start_inference_loop(self, mps, batch_size):
-        """Instruct the `mps` thread to loop inference continuously until the next command.
-        Blocks until any in-flight unload finishes, then starts the loop."""
-        self._unload_lock.acquire()  # wait for any in-flight unload to finish
-        try:
-            with self._loop_lock:
-                self._send_cmd(mps, 'loop', payload=batch_size)
-                self._set_active_loop(mps)
-        finally:
-            self._unload_lock.release()
+        """Instruct the `mps` thread to loop inference continuously until the next command."""
+        self._send_cmd_mps_thread(mps, 'loop', payload=batch_size)
+        self._set_active_loop(mps)
 
     def _unload(self, mps, delay=None):
         """Schedule (or immediately execute) model unload for `mps`.
@@ -485,22 +471,24 @@ class ModelWorker(Process):
         delay == 0:
             Blocking. Unloads the model immediately (used by _destroy_ctx / teardown).
         """
+        if(mps is None):
+            return
         if delay is None:
             delay = self.unload_delay
 
         def _do_unload(done_event):
             """Send unload to the worker thread and wait for completion."""
-            with self._unload_lock:
-                self._send_cmd(mps, 'unload')
+            self._send_cmd_mps_thread(mps, 'unload')
             if done_event is not None:
                 done_event.set()
-            with self._ctx_lock:
+            with self._mps_ctx_lock:
                 self.ctx_unloading_events.pop(mps, None)
+                self.ctx_states[mps] = 'created'
 
-        def _execute():
+        def _on_unload_timer():
             """Timer callback: stop the inference loop for `mps`. Model stays on GPU.
             The actual unload happens later via _unload(delay=0) / _destroy_ctx."""
-            with self._ctx_lock:
+            with self._mps_ctx_lock:
                 # _load may have already flipped state back to 'loaded' — abort if so.
                 if self.ctx_states.get(mps) != 'pending_unload':
                     return
@@ -512,17 +500,17 @@ class ModelWorker(Process):
 
 
         # Cancel any previously scheduled timer for this context.
-        with self._ctx_lock:
+        with self._mps_ctx_lock:
             old_timer = self.ctx_deact_timers.pop(mps, None)
         if old_timer is not None:
             old_timer.cancel()
 
         if delay == 0:
             # Immediate path: atomically claim the unload slot.
-            with self._ctx_lock:
+            with self._mps_ctx_lock:
                 state = self.ctx_states.get(mps)
                 if state not in ('active', 'pending_unload', 'loaded'):
-                    return  # already unloading, inactive, or destroyed
+                    return  # not loaded, already unloading, or destoryed
                 self.ctx_states[mps] = 'unloading'
                 done_event = threading.Event()
                 self.ctx_unloading_events[mps] = done_event
@@ -530,18 +518,18 @@ class ModelWorker(Process):
             return
 
         # Delayed path: schedule and record the timer.
-        with self._ctx_lock:
+        with self._mps_ctx_lock:
             self.ctx_states[mps] = 'pending_unload'
-        self._send_cmd(mps, 'stop_loop')  # block until the worker finishes its current pass and stops looping
-        timer = threading.Timer(delay, _execute)
-        with self._ctx_lock:
+        self._send_cmd_mps_thread(mps, 'stop_loop')  # block until the worker finishes its current pass and stops looping
+        timer = threading.Timer(delay, _on_unload_timer)
+        with self._mps_ctx_lock:
             self.ctx_deact_timers[mps] = timer
         timer.start()
 
     def _destroy_ctx(self, mps):
         """unload (if active/pending/unloading) then destroy CUDA context for `mps`. Blocks until done."""
         # Cancel any pending timer first.
-        with self._ctx_lock:
+        with self._mps_ctx_lock:
             timer = self.ctx_deact_timers.pop(mps, None)
         if timer is not None:
             timer.cancel()
@@ -549,15 +537,15 @@ class ModelWorker(Process):
         self._unload(mps, delay=0)
 
         # Wait for any in-flight unload that we didn't initiate (timer race).
-        with self._ctx_lock:
+        with self._mps_ctx_lock:
             state = self.ctx_states.get(mps)
             evt   = self.ctx_unloading_events.get(mps)
         if state == 'unloading' and evt is not None:
             evt.wait()
 
-        self._send_cmd(mps, 'destroy')
+        self._send_cmd_mps_thread(mps, 'destroy')
         self.ctx_threads[mps].join()
-        with self._ctx_lock:
+        with self._mps_ctx_lock:
             del self.ctx_handles[mps]
             del self.ctx_threads[mps]
             del self.ctx_queues[mps]
@@ -565,19 +553,17 @@ class ModelWorker(Process):
 
     def context_teardown(self):
         """Stop inference loop, unload, and destroy all MPS contexts."""
-        with self._ctx_lock:
+        with self._mps_ctx_lock:
             all_mps = list(self.ctx_states.keys())
             timers = {mps: self.ctx_deact_timers.pop(mps, None) for mps in all_mps}
         for timer in timers.values():
             if timer is not None:
                 timer.cancel()
-        with self._loop_lock:
-            with self._ctx_lock:
-                active_mps = self._get_active_mps()
-            print("start context teardown", active_mps)
-            if active_mps is not None:
-                self._send_cmd(active_mps, 'stop_loop')
-                self._clear_active_loop()
+        with self._mps_ctx_lock:
+            active_mps = self._get_active_mps()
+        if active_mps is not None:
+            self._send_cmd_mps_thread(active_mps, 'stop_loop')
+            self._clear_active_loop()
         for mps in all_mps:
             self._destroy_ctx(mps)
         self.current_ctx_pct = None
@@ -594,36 +580,28 @@ class ModelWorker(Process):
           activate/unload — load / unload model weights on GPU
         """
         if self.current_ctx_pct == mps:
-            self.last_ctx_switch_ms = None
             return
 
-        t0  = time.perf_counter()
-        old = self.current_ctx_pct
-        # ── Step 1: create destination context if not yet existing ───────────
+        # ── Step 1: create destination context if not yet existing
         self._ctx_create(mps)  # no-op if already exists
-        t_create = (time.perf_counter() - t0) * 1000
 
+        # ── Step 2: schedule unload of old mps context (is None no action), then load new model.
+        # _unload is non-blocking: starts grace-period timer so that quick switch back to `old` cancels unload with no H2D reload cost.
+        self._unload(self.current_ctx_pct)
         self.current_ctx_pct = mps
-        # ── Step 2: schedule unload of old, then activate new ─────────
-        # _unload is non-blocking: it starts a grace-period timer so that a
-        # quick switch back to `old` cancels the unload with no H2D reload cost.
-        if old is not None:
-            self._unload(old)
         self._load(mps)
-        t_total = (time.perf_counter() - t0) * 1000
 
         # ── Step 3: background — pre-create neighbors, destroy far contexts ──
-        def _background(last=old, current=mps):
+        def _background(current=mps):
             if current == 100:
                 return
             keep = {current, 100} | {current + d for d in (-self.MPS_step, self.MPS_step) if 10 <= current + d <= 100}
             for n in keep - {current}:
                 self._ctx_create(n)  # no-op if already exists
-            with self._ctx_lock: # Destroy contexts outside the keep window
+            with self._mps_ctx_lock: # Destroy contexts outside the keep window
                 to_destroy = [p for p in list(self.ctx_states) if p not in keep]
             for p in to_destroy:
                 self._destroy_ctx(p)
-
         # threading.Thread(target=_background, daemon=True, name="ctx-bg").start()
 
     """
