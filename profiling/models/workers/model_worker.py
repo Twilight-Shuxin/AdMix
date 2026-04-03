@@ -322,7 +322,7 @@ class ModelWorker(Process):
         self.unload_delay      = 5.0  # seconds to wait before actually unloading GPU model
         self.current_ctx_pct = None
 
-        self._ctx_create(20)
+        self._ctx_create(10)
         self._ctx_create(100)
 
     def _ctx_create(self, mps):
@@ -345,6 +345,7 @@ class ModelWorker(Process):
         def _target(ctx=ctx, work_queue=work_queue):
             lib = _cuda_driver()
             _switch_context(ctx)        # bind CUDA context to this thread once
+            torch.set_grad_enabled(False)
             gpu_model      = None
             model_pool     = None       # MemPool owning model weights
             loop_input     = None       # if set, keep inferring this input
@@ -572,8 +573,7 @@ class ModelWorker(Process):
         """Switch to `mps` context.
 
         Phase 1 (parallel): activate new context + unload old context simultaneously.
-        Phase 2 (background): pre-create neighbor contexts (mps ± MPS_step),
-                              destroy contexts outside that range.
+        Phase 2 (background): pre-create neighbor contexts (mps ± MPS_step)
 
         Terminology:
           create/destroy  — cuCtxCreate_v2 / cuCtxDestroy_v2  (driver context lifetime)
@@ -601,8 +601,12 @@ class ModelWorker(Process):
             with self._mps_ctx_lock: # Destroy contexts outside the keep window
                 to_destroy = [p for p in list(self.ctx_states) if p not in keep]
             for p in to_destroy:
+                with self._mps_ctx_lock:
+                    state = self.ctx_states.get(p)
+                    evt = self.ctx_unloading_events.get(p)
+                    timer = self.ctx_deact_timers.get(p)
                 self._destroy_ctx(p)
-        # threading.Thread(target=_background, daemon=True, name="ctx-bg").start()
+        threading.Thread(target=_background, daemon=True, name="ctx-bg").start()
 
     """
         Wait for scheduled executions from the client, stop until None is received.
