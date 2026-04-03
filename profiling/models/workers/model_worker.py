@@ -313,16 +313,7 @@ class ModelWorker(Process):
         self.random_input = {bs: t.cpu() for bs, t in self.random_input.items()} 
         torch.cuda.empty_cache()
         snapshot = torch.cuda.memory_snapshot()
-        print("context setup")
-        for seg in snapshot:
-            inactive = [b for b in seg['blocks'] if b['state'] == 'inactive']
-            if inactive:
-                print(f"segment addr=0x{seg['address']:x} device={seg['device']}: {len(inactive)} inactive block(s)")
-                for b in inactive:
-                    print(f"  ptr=0x{b['address']:x}  size={b['size']}")
-                    break
-                break
-
+        
         self._ctx_device_id = device_id
         self._ctx_lock      = threading.Lock()  # protects ctx_* dicts
         self.MPS_step       = 5                 # neighbour pre-create distance
