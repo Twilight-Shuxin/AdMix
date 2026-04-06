@@ -380,7 +380,10 @@ class ModelWorker(Process):
                             gpu_model = _load_model_to_gpu(self._model_shell, self.model, device, model_pool)
                         elif item.kind == 'loop':
                             loop_bs = item.payload
-                            loop_input = self.get_input(InputConfig(batch_size=loop_bs)).to(device, copy=True)
+                            if(loop_bs == 0):
+                                loop_input = None # input is None but thread state remains active;
+                            else:
+                                loop_input = self.get_input(InputConfig(batch_size=loop_bs)).to(device, copy=True)
                             torch.cuda.synchronize()
                         elif item.kind == 'stop_loop':
                             loop_input = None
@@ -416,16 +419,6 @@ class ModelWorker(Process):
         """Return the mps whose ctx_state is 'active', or None. Must be called under _mps_ctx_lock."""
         return next((p for p, s in self.ctx_states.items() if s == 'active'), None)
 
-    def _set_active_loop(self, mps):
-        with self._mps_ctx_lock:
-            self.ctx_states[mps] = 'active'
-
-    def _clear_active_loop(self):
-        with self._mps_ctx_lock:
-            active = self._get_active_mps()
-            if active is not None:
-                self.ctx_states[active] = 'loaded'
-
     def _load(self, mps):
         """Load model into GPU for `mps` context. Blocks until ready. Returns elapsed seconds.
 
@@ -460,7 +453,8 @@ class ModelWorker(Process):
     def start_inference_loop(self, mps, batch_size):
         """Instruct the `mps` thread to loop inference continuously until the next command."""
         self._send_cmd_mps_thread(mps, 'loop', payload=batch_size)
-        self._set_active_loop(mps)
+        with self._mps_ctx_lock:
+            self.ctx_states[mps] = 'active'
 
     def _unload(self, mps, delay=None):
         """Schedule (or immediately execute) model unload for `mps`.
@@ -564,7 +558,8 @@ class ModelWorker(Process):
             active_mps = self._get_active_mps()
         if active_mps is not None:
             self._send_cmd_mps_thread(active_mps, 'stop_loop')
-            self._clear_active_loop()
+            with self._mps_ctx_lock:
+                self.ctx_states[active_mps] = 'loaded'
         for mps in all_mps:
             self._destroy_ctx(mps)
         self.current_ctx_pct = None
