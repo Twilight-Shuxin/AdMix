@@ -9,6 +9,7 @@ import torch
 import inspect
 import numpy as np
 from tqdm import tqdm
+from collections import defaultdict
 from torch.multiprocessing import Process
 from profiling.constants import *
 from trace.trace_utils import SimpleTimeTrace
@@ -179,7 +180,7 @@ class ModelWorker(Process):
             _warmup(batch_size)
             dcgm_monitor_conn = start_dcgm_single('sm_active', self.devices, dcgm_group_id = dcgm_group_id)
             spent_time = _profile(batch_size = batch_size, test_time = 5)
-            dcgm_records = parse_dcgm_output(stop_dcgm(dcgm_monitor_conn, del_dcgm_group = False)[0])
+            dcgm_records = parse_dcgm_output(stop_dcgm(dcgm_monitor_conn, del_dcgm_group_flag = False)[0])
             active_dcgm = [v for _, v in dcgm_records[1:] if v != 0]
             profile_data[batch_size] = {
                 'latency': np.percentile(spent_time, 99),
@@ -311,6 +312,8 @@ class ModelWorker(Process):
         self._ctx_device_id = device_id
         self._mps_ctx_lock      = threading.Lock()  # protects ctx_* dicts
         self.MPS_step       = 5                 # neighbour pre-create distance
+        self.mps_batch_size_map      = defaultdict(int)               # mps -> max confirmed valid batch size
+        self.mps_batch_size_exceeded = defaultdict(lambda: float('inf'))  # mps -> min confirmed exceeded batch size
 
         # Per-context state: 'created' | 'loaded' | 'active' | 'pending_unload' | 'unloading'
         self.ctx_handles             = {}   # mps → ctypes.c_void_p  (CUDA driver context)
@@ -366,6 +369,23 @@ class ModelWorker(Process):
                             self.profile_data.logs.append((loop_bs, elapsed))
                             self.profile_data.absolute_throughput_records.add(
                                 time.perf_counter() - self.runtime_data.start_time_pointer, loop_bs)
+                        if(self.mps_batch_size_exceeded[mps] > self.mps_batch_size_map[mps] + 1):
+                            if elapsed < 110.0:
+                                self.mps_batch_size_map[mps] = max(self.mps_batch_size_map[mps], loop_bs)
+                            else:
+                                self.mps_batch_size_exceeded[mps] = min(self.mps_batch_size_exceeded[mps], loop_bs)
+                            exceeded = self.mps_batch_size_exceeded[mps]
+                            if exceeded == float('inf'):
+                                max_bs = max(self.supported_batchsize)
+                                loop_bs = min(loop_bs * 2, max_bs)
+                                if loop_bs == max_bs and elapsed < 110.0:
+                                    self.mps_batch_size_exceeded[mps] = max_bs + 1  # all supported sizes are valid; cap exceeded
+                            else:
+                                loop_bs = (self.mps_batch_size_map[mps] + int(exceeded)) // 2
+                            loop_input = self.get_input(InputConfig(batch_size=loop_bs)).to(device, copy=True)
+                        elif(loop_bs != self.mps_batch_size_map[mps]):
+                            loop_bs = self.mps_batch_size_map[mps]
+                            loop_input = self.get_input(InputConfig(batch_size=loop_bs)).to(device, copy=True)
                         try:
                             item = work_queue.get_nowait()
                         except queue.Empty:
@@ -383,6 +403,8 @@ class ModelWorker(Process):
                             if(loop_bs == 0):
                                 loop_input = None # input is None but thread state remains active;
                             else:
+                                if(self.mps_batch_size_map[mps]):
+                                    loop_bs = self.mps_batch_size_map[mps]
                                 loop_input = self.get_input(InputConfig(batch_size=loop_bs)).to(device, copy=True)
                             torch.cuda.synchronize()
                         elif item.kind == 'stop_loop':

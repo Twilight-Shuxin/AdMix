@@ -48,7 +48,7 @@ class Scheduler():
 
     def start_serve(self):
         self.model_client.command_workers("sched_serve", [self.model_client.test_config])
-        self.llm_slo_info = llm_server_rpc("slo")
+        self.llm_slo_info = {k: v * 0.8 for k, v in llm_server_rpc("slo").items()} # {"first", "idle", "speed")
         llm_server_rpc("ready")
 
         self.model_client.runtime_data.start_time_pointer = time.perf_counter()

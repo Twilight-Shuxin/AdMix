@@ -1,5 +1,6 @@
 import random
 import time
+from tqdm import tqdm
 from profiling.models.workers.constants import SyncType
 from profiling.scheduling.monitor import get_llm_intensity_unix
 from profiling.scheduling.schedule_plan import ContextSchedulePlan
@@ -13,96 +14,83 @@ class ContextScheduler(BatchBaseScheduler):
     def __init__(self):
         super().__init__()
         self.solo_mode = False
-        self.time_interval = 0.1 # 50ms
+        self.time_interval = 0.05 # 50ms
         self.current_plan = None
-        self.start_test_plan = None
         self.normal_plan = None
-        self.pre_solo_plan = None
+        self.pre_solo_mps = None
         self.observed_percentages = []
         self.MPS_step              = 5
         self.context_switch_interval = 10  # seconds
         self.last_context_switch_time = None
-        self.last_status_print_time = time.perf_counter()
-        self.change_list = [20, 50, 100]
-        self.change_cnt = 0
+        self.pause = False
     
     def scheduler_init(self):
         self.model_client.command_workers("context_setup", sync = SyncType.ALL)
         profiled_data = self.model_client.read_profiled_data()
         self.max_batch_size = self.model_client.supported_batchsize[-1]
         for i in reversed(self.model_client.supported_batchsize):
-            if(profiled_data[str(i)]['latency'] < self.time_interval):
+            if(profiled_data[str(i)]['latency'] < 0.05):
                 self.max_batch_size = i
                 break
-        self.start_test_plan = ContextSchedulePlan(20, self.max_batch_size)
         self.normal_plan = ContextSchedulePlan(20, self.max_batch_size)
-        self.pre_solo_plan = ContextSchedulePlan(20, self.max_batch_size)
+        self.pre_solo_mps = 20
         self.last_context_switch_time = time.perf_counter()
     
     def get_scheduling_plan(self, intensity_data, pred_latency):
-        # if(intensity_data.processing):
-        #     processed_latency, processing_pred_latency = intensity_data.batch_data.pop().latency, pred_latency.pop()
-        # real_latency = [x.latency for x in intensity_data.batch_data]
-        # self.observed_percentages.extend([(r - p) / p if r - 3 > p and p > 0 else 0 for r, p in zip(real_latency, pred_latency)])
+        current_mps = self.current_plan.mps if self.current_plan else self.normal_plan.mps
 
-        # # Log predictions
-        # if intensity_data.batch_data:
-        #     self.prediction_logs.extend([
-        #         feature.copy() + [latency, pred_lat]
-        #         for feature, latency, pred_lat in zip(
-        #             intensity_data.pred_feature_data(), real_latency, pred_latency,
-        #         )
-        #     ])
+        processed_latency, processing_pred_latency = 0, 0
+        self.prefill_estimate_time = (int(intensity_data.waiting_prompt_tkns * self.max_process_speed), 0)
+        if(intensity_data.processing):
+            processed_latency, processing_pred_latency = intensity_data.batch_data.pop().latency, pred_latency.pop()
+        real_latency = [x.latency for x in intensity_data.batch_data]
+        if(self.pause == False):
+            self.observed_percentages.extend([(r - p) / p if r - 3 > p and p > 0 else 0 for r, p in zip(real_latency, pred_latency)])
+            if len(self.observed_percentages) > 20:
+                self.observed_percentages = self.observed_percentages[-20:]
+
+        # Log predictions
+        if intensity_data.batch_data:
+            self.prediction_logs.extend([
+                feature.copy() + [latency, pred_lat]
+                for feature, latency, pred_lat in zip(
+                    intensity_data.pred_feature_data(), real_latency, pred_latency,
+                )
+            ])
         
-        # if intensity_data.NQ == 0: # No running queries — run solo
-        #     if not self.solo_mode:
-        #         self.pre_solo_plan = self.current_plan if self.current_plan is not None else self.normal_plan
-        #         self.solo_mode = True
-        #     return ContextSchedulePlan(100, self.max_batch_size)
+        if intensity_data.NQ == 0: # No running queries — run solo
+            if not self.solo_mode:
+                self.pre_solo_mps = current_mps
+                self.solo_mode = True
+            self.pause = False
+            return ContextSchedulePlan(100, self.max_batch_size)
+           
+        avg = sum(self.observed_percentages) / len(self.observed_percentages) if self.observed_percentages else 0
+        self.prefill_estimate_time = (int(self.prefill_estimate_time[0] * (1 + avg + 0.2)), round(avg,2))
+        self.pause = (self.prefill_estimate_time[0] > self.llm_slo_info['first'] or
+            processing_pred_latency * (1 + avg + 0.1) > self.llm_slo_info['speed']
+        )
+        
+        if self.solo_mode: # First round back from solo_mode;
+            self.solo_mode = False
+            return ContextSchedulePlan(self.pre_solo_mps, self.max_batch_size if self.pause != True else 0)
+
+        if(self.pause or not self.current_plan):
+            return ContextSchedulePlan(current_mps, self.max_batch_size if self.pause != True else 0)
             
-        # if self.solo_mode: # First round back from solo_mode;
-        #     self.solo_mode = False
-        #     return self.pre_solo_plan
-
-        # # Normal mode: check if interval has elapsed for MPS adjustment
-        # if time.perf_counter() - self.last_context_switch_time > self.context_switch_interval:
-        #     avg = sum(self.observed_percentages) / len(self.observed_percentages) if self.observed_percentages else 0
-        #     new_mps = self.normal_plan.mps
-        #     if avg < 0.15:
-        #         new_mps = min(100, new_mps + self.MPS_step)
-        #     elif avg > 0.25:
-        #         new_mps = max(10, new_mps - self.MPS_step)
-        #     if new_mps != self.normal_plan.mps:
-        #         print('--------------------------->', self.normal_plan.mps, new_mps)
-        #         self.normal_plan = ContextSchedulePlan(new_mps, self.max_batch_size)
-        #         self.last_status_print_time = time.perf_counter()
-        #     elif time.perf_counter() - self.last_status_print_time > 30:
-        #         print('--------------------------->', self.normal_plan.mps, '(no change, avg:', round(avg, 3), ')')
-        #         self.last_status_print_time = time.perf_counter()
-        #     self.observed_percentages.clear()
-        #     self.last_context_switch_time = time.perf_counter()
-
-        # if (time.perf_counter() - self.model_client.runtime_data.start_time_pointer > 10):
-        #     return ContextSchedulePlan(100, self.max_batch_size)
-        # else:
-        #     ContextSchedulePlan(10, self.max_batch_size)
-
+        # Normal mode: check if interval has elapsed for MPS adjustment
         if time.perf_counter() - self.last_context_switch_time > self.context_switch_interval:
-            avg = sum(self.observed_percentages) / len(self.observed_percentages) if self.observed_percentages else 0
-            new_mps = self.normal_plan.mps
-            delta = random.choice([-self.MPS_step, self.MPS_step])
-            new_mps = max(10, min(50, new_mps + delta))
-            if new_mps != self.normal_plan.mps:
-                print('--------------------------->', self.normal_plan.mps, new_mps)
-                self.normal_plan = ContextSchedulePlan(new_mps, self.max_batch_size)
-                self.last_status_print_time = time.perf_counter()
-            elif time.perf_counter() - self.last_status_print_time > 30:
-                print('--------------------------->', self.normal_plan.mps, '(no change, avg:', round(avg, 3), ')')
-                self.last_status_print_time = time.perf_counter()
-            self.observed_percentages.clear()
-            self.last_context_switch_time = time.perf_counter()
-
-        return self.normal_plan
+            new_mps = current_mps
+            if avg < 0.15:
+                new_mps = min(100, new_mps + self.MPS_step)
+            elif avg > 0.25:
+                new_mps = max(10, new_mps - self.MPS_step)
+            if new_mps != self.current_plan.mps:
+                plan = ContextSchedulePlan(new_mps, self.max_batch_size)
+                self.last_context_switch_time = time.perf_counter()
+                self.observed_percentages.clear()
+                return plan
+        return ContextSchedulePlan(current_mps, self.max_batch_size)
 
     def schedule(self, intensity_data):
         self.start_round_time = time.perf_counter()
@@ -115,27 +103,34 @@ class ContextScheduler(BatchBaseScheduler):
         plan = self.get_scheduling_plan(intensity_data, pred_latency)
 
         current_timestamp = round(time.perf_counter() - self.model_client.runtime_data.start_time_pointer, 3)
-        self.execution_logs.append([current_timestamp, plan.batch_size, plan.mps,
+        self.execution_logs.append([current_timestamp, 'max' if plan.batch_size else 0, plan.mps,
             list(zip([x.latency for x in intensity_data.batch_data], pred_latency)),
-            log_processing, (intensity_data.NQ, intensity_data.waiting_prompt_tkns)])
+            log_processing, (intensity_data.NQ, intensity_data.waiting_prompt_tkns, self.prefill_estimate_time)])
         self.execute(plan)
 
     def execute(self, plan):
         if self.current_plan is None or plan.mps != self.current_plan.mps or plan.batch_size != self.current_plan.batch_size:
             self.model_client.broadcast_workers(plan, sync=SyncType.ALL)
             self.current_plan = plan
-        time.sleep(0.1)
+        time.sleep(self.time_interval)
 
     def _serve(self):
         self.scheduler_init()
+        print("Execution speed", self.max_process_speed)
         # May have remaining data in intensity server; fetch once to clear buffer
         current_intensity = get_llm_intensity_unix(self.data_format)
         self.start_serve()
 
-        while(time.perf_counter() < self.model_client.runtime_data.time_limit):
-            current_intensity = get_llm_intensity_unix(self.data_format)
-            self.schedule(current_intensity)
-        print("??ending")
+        time_limit = self.model_client.runtime_data.time_limit
+        test_time = time_limit - time.perf_counter()
+        with tqdm(total=test_time, unit="s", bar_format="{l_bar}{bar}| {n:.1f}/{total:.1f}s [{elapsed}<{remaining}]", disable = True) as pbar:
+            last = time.perf_counter()
+            while time.perf_counter() < time_limit:
+                current_intensity = get_llm_intensity_unix(self.data_format)
+                self.schedule(current_intensity)
+                now = time.perf_counter()
+                pbar.update(now - last)
+                last = now
         self.model_client.broadcast_workers(ContextSchedulePlan(-1, -1, True), sync = SyncType.ALL)
         
         self.model_client.write_csv("batch_predicted.csv",

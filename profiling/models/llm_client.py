@@ -12,6 +12,7 @@ class LLMClient(ModelClient):
         self.first_token_slo = 1
         self.idle_time_slo = 0
         self.SPEED_CONST = 0.2
+        self.slo_info = (self.first_token_slo, self.idle_time_slo, self.SPEED_CONST)
         self.initial_time = self.SPEED_CONST
         self.model_worker = LLMWorker
         super().__init__("llm", devices, mps, pipe, barrier, log_path, profile_path)
@@ -21,7 +22,7 @@ class LLMClient(ModelClient):
         pipe_parent, pipe_child = mp.Pipe()
         worker = self.model_worker(self.model_name, devices, pipe_child, self.worker_barrier, self.single_worker_barrier,
             self.log_path, self.profile_path,
-            (self.first_token_slo, self.idle_time_slo, self.SPEED_CONST))
+            self.slo_info)
         worker.start()
         self.worker_pipes.append(pipe_parent)
 
@@ -118,12 +119,12 @@ class LLMClient(ModelClient):
         So collection of worker data does not have combining functionality, only retrieving data from the single worker.
     """
     def collect_worker_data(self):
-        for idx, pipe in enumerate(self.worker_pipes):
+        for pipe in self.worker_pipes:
             self.command_worker(pipe, "collect_performance_data")
             self.runtime_data = pipe.recv()
 
         if(self.test_config.recording_action.record_statistics):
-            for idx, pipe in enumerate(self.worker_pipes):
+            for pipe in self.worker_pipes:
                 self.command_worker(pipe, "collect_profiled_data")
                 self.profile_data = pipe.recv()
     
@@ -137,7 +138,7 @@ class LLMClient(ModelClient):
         passed_flag = self.runtime_data.total_submitted * 0.01 >= self.runtime_data.failed
         passed_count = self.runtime_data.total_submitted - self.runtime_data.failed
         return (passed_flag, self.runtime_data.completed, passed_count, self.runtime_data.total_submitted, 
-            (self.first_token_slo, self.idle_time_slo, self.SPEED_CONST, self.initial_time))
+            self.slo_info)
     
     def _test(self):
         self.command_workers("test", sync = SyncType.ALL, wait = False)

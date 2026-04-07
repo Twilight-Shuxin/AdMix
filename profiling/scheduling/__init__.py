@@ -2,9 +2,11 @@ __all__ = [
     "ConstantScheduler",
     "AIMDScheduler",
     "PredictiveScheduler",
+    "BatchBaseScheduler",
     "BatchScheduler",
     "AIMDSchedulingDataFormat",
-    "PredictiveSchedulingDataFormat"
+    "PredictiveSchedulingDataFormat",
+    "ContextScheduler"
 ]
 
 def __getattr__(name):
@@ -18,9 +20,15 @@ def __getattr__(name):
         case "PredictiveScheduler":
             from .predictive_scheduler import PredictiveScheduler
             return PredictiveScheduler
+        case "BatchBaseScheduler":
+            from .batch_base_scheduler import BatchBaseScheduler
+            return BatchBaseScheduler
         case "BatchScheduler":
             from .batch_scheduler import BatchScheduler
             return BatchScheduler
+        case "ContextScheduler":
+            from .context_scheduler import ContextScheduler
+            return ContextScheduler
         case "AIMDSchedulingDataFormat":
             from .AIMD_scheduler import AIMDSchedulingDataFormat
             return AIMDSchedulingDataFormat

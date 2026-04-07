@@ -224,10 +224,13 @@ def shuxin_unix_server(socket_path, scheduler, shared_buffer, buffer_lock):
         with buffer_lock:
             batch = shared_buffer.copy()
             shared_buffer.clear()
+            processing = scheduler.shuxin_processing.copy() if scheduler.shuxin_processing else None
+            if processing:
+                processing[-1] = round(time.perf_counter() - processing[-1], 3) * 1000
         num_running = len(scheduler.running_batch.reqs) if scheduler.running_batch else 0
         num_waiting = len(scheduler.waiting_queue)
-        additional_data = num_running + num_waiting
-        payload = json.dumps([additional_data, batch]).encode("utf-8")
+        additional_data = (num_running + num_waiting, scheduler.shuxin_waiting_prompt_tkn_max)
+        payload = json.dumps([additional_data, processing, batch]).encode("utf-8")
         chunk_size = 64 * 1024
         
         if payload:
@@ -606,6 +609,8 @@ class Scheduler(
         )
 
         self.shuxin_log_data = []
+        self.shuxin_processing = None
+        self.shuxin_waiting_prompt_tkn_max = 0
         self.shuxin_buffer_lock = threading.Lock()
         shuxin_thread = threading.Thread(
             target=shuxin_unix_server,
@@ -1468,6 +1473,14 @@ class Scheduler(
             if self._abort_on_queued_limit(req):
                 return
             self._prefetch_kvcache(req)
+            # Track cumulative unprocessed prompt tokens ahead of this request
+            waiting_tkns = sum(len(r.origin_input_ids) for r in self.waiting_queue)
+            if self.running_batch:
+                waiting_tkns += sum(
+                    r.extend_input_len for r in self.running_batch.reqs
+                    if r.extend_input_len > 0
+                )
+            req.shuxin_waiting_prompt_tkn = waiting_tkns
             self.waiting_queue.append(req)
             req.time_stats.wait_queue_entry_time = time.perf_counter()
             trace_slice_end(RequestStage.REQUEST_PROCESS, req.rid, auto_next_anon=True)
@@ -2001,6 +2014,14 @@ class Scheduler(
             shuxin_total_num_scheduled_tokens = sum(req.extend_input_len for req in batch.reqs)
             shuxin_cached_tokens = sum(len(req.fill_ids) - req.extend_input_len for req in batch.reqs)
         shuxin_log = [shuxin_total_num_scheduled_tokens, shuxin_cached_tokens]
+        shuxin_start = time.perf_counter()
+        self.shuxin_waiting_prompt_tkn_max = max(
+            (getattr(req, "shuxin_waiting_prompt_tkn", 0) for req in self.waiting_queue),
+            default=0,
+        )
+        if shuxin_total_num_scheduled_tokens > 0:
+            with self.shuxin_buffer_lock:
+                self.shuxin_processing = shuxin_log + [shuxin_start]
         shuxin_start_event = torch.cuda.Event(enable_timing=True)
         shuxin_end_event = torch.cuda.Event(enable_timing=True)
         shuxin_start_event.record()
@@ -2125,8 +2146,9 @@ class Scheduler(
         shuxin_end_event.record()
         shuxin_end_event.synchronize()
         with self.shuxin_buffer_lock:
-            if(shuxin_total_num_scheduled_tokens > 0):
+            if shuxin_total_num_scheduled_tokens > 0:
                 self.shuxin_log_data.append(shuxin_log + [int(shuxin_start_event.elapsed_time(shuxin_end_event))])
+                self.shuxin_processing = None
         return ret
 
     def launch_batch_sample_if_needed(

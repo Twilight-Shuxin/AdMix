@@ -41,12 +41,10 @@ def main():
     trace_config_id = sys.argv[1]
     trace = get_trace(trace_config_id, test_time)
     loop.run_until_complete(test_trace(trace))
-    # additional_data, processed, data = get_data_from_llm()
-    # print(additional_data, processed, data)
-    # data.sort(key=lambda x: (x[0] * x[1]))
-    # data.sort()
-    # write_list_to_csv(f"./batch_predict/inputs/{trace_config_id}.csv",["Cached Tkns", "Scheduled Tkns", "Decode Tkn","Decode Len","Prefill Cnt","Prefill Tkn", "Latency"], data)
-    # write_list_to_csv(f"./batch_predict/inputs/sglang_{trace_config_id}.csv",["Scheduled Tkns", "Cached Tkns", "Latency"], data)
+    additional_data, processed, data = get_data_from_llm()
+    data.sort(key=lambda x: (x[0] * x[1]))
+    data.sort()
+    write_list_to_csv(f"./batch_predict/inputs/sglang_{trace_config_id}.csv",["Scheduled Tkns", "Cached Tkns", "Latency"], data)
 
 if __name__ == "__main__":
     main()

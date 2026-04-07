@@ -96,7 +96,6 @@ class LLMWorker(ModelWorker):
         self._wait_for_server(f"http://localhost:{self.server_config['port']}/health")
 
     def start_server(self):
-        return
         use_modified = os.environ.get('ADMIX_LLM_MODIFIED', 'False').lower() == 'true'
         system_setup_cmd = "bash llm_platform_setup.sh"
         if use_modified:
@@ -400,7 +399,7 @@ class LLMWorker(ModelWorker):
                         {
                             "first": self.first_token_slo * 1000,
                             "idle": self.idle_time_slo * 1000,
-                            "speed": self.SPEED_CONST
+                            "speed": self.SPEED_CONST * 1000
                         }).encode("utf-8")
                     writer.write(len(data).to_bytes(4, "big") + data)
                     await writer.drain()
@@ -420,7 +419,7 @@ class LLMWorker(ModelWorker):
 
         print("Starting Unix servers")
         self.scheduler_data.general_server = await asyncio.start_unix_server(server_unix_handler, LLM_SERVER_SOCKET_PATH)
-        if(not issubclass(self.scheduler_data.scheduler_type, BatchBaseScheduler)):
+        if(self.scheduler_data.scheduler_type is not None and not issubclass(self.scheduler_data.scheduler_type, BatchBaseScheduler)):
             self.scheduler_data.intensity_server = await asyncio.start_unix_server(intensity_unix_handler, LLM_INTENSITY_SOCKET_PATH)
     
     async def _test(self):
@@ -441,7 +440,7 @@ class LLMWorker(ModelWorker):
         self.runtime_data.time_limit = self.runtime_data.start_time_pointer + self.test_config.test_time
         task_list = []
 
-        time.sleep(self.test_config.test_time + 1)       
+        # time.sleep(self.test_config.test_time + 1)       
         while(time.perf_counter() < self.runtime_data.time_limit):
             if(self.test_config.trace_path):
                 req_time, sample_in_length, sample_out_length = self.test_config.trace.next()

@@ -12,3 +12,5 @@ python run.py --model resnet50 --batch_size 1 --device 1 --test_time 50 --mode P
 python run.py --model llm --trace 1 --scheduler predictive --device 1 --test_time 50
 python run.py --model llm,resnet50 --trace 1 --scheduler predictive --device 1 --test_time 50
 python run.py --model llm --seq_len 10,10 --device 1 --test_time 50
+
+plugins/sglang_env/.venv/bin/python -m sglang.launch_server --model-path meta-llama/Llama-2-7b-chat-hf --chunked-prefill-size 2048 --enable-mixed-chunk --tp 1 --mem-fraction-static 0.7 --port 8000 --disable-radix-cache --log-level warning --disable-overlap-schedule

@@ -458,6 +458,7 @@ def power_monitor_watchdog(devices, redirect_output, conn):
             monitor_proc.terminate()
             if redirect_output:
                 monitor_proc.wait()
+                stdout_target.close()
                 conn.send(None)
             else:
                 stdout, _ = monitor_proc.communicate()
@@ -466,6 +467,7 @@ def power_monitor_watchdog(devices, redirect_output, conn):
             break
         if monitor_proc.poll() is not None:
             if redirect_output:
+                stdout_target.close()
                 stdout_target = open(redirect_output, 'a')
             else:
                 stdout, _ = monitor_proc.communicate()
@@ -499,15 +501,15 @@ def delete_dcgm_group(dcgm_group_id):
     Stop dcgm process through process connection.
     The dcgm group is created for temporal use, so delete operation for clean up is also performed.
 """
-def stop_dcgm(conn, del_dcgm_group = True):
+def stop_dcgm(conn, del_dcgm_group_flag = True):
     if(conn is None):
         return None
     conn.send("stop")
     dcgm_group_id = conn.recv()
     final_pids = conn.recv()
     outputs = conn.recv()
-    if(del_dcgm_group):
-        delete_dcgm_group()
+    if(del_dcgm_group_flag):
+        delete_dcgm_group(dcgm_group_id)
     return outputs
 
 """
@@ -529,6 +531,8 @@ def get_device_monitored_data_avg(records):
         value_tmp += float(value)
         value_cnt += 1
         device_records[device] = True
+    if value_cnt:
+        avg_values.append(value_tmp / value_cnt)
     return avg_values
 
 """

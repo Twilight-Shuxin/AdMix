@@ -36,8 +36,6 @@ class ContextSchedulePlan(SchedulePlan):
         if self.stop:
             model_worker.context_teardown()
             return
-        if self.batch_size == 0:
-            return
         # context_switch is a no-op if already on this mps; otherwise switches context.
         model_worker.context_switch(self.mps)
         # Instruct the thread to loop inference continuously until the next plan arrives.

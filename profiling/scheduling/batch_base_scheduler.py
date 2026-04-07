@@ -149,4 +149,3 @@ class BatchBaseScheduler(Scheduler):
         )
         batch_size_data = TraceAxisData(TracePlotData('Batch Size', [(x[0], x[1]) for x in self.execution_logs]))
         plot_trace_graph(self.model_client.get_file_path('batch_size.png'), batch_size_data)
-        print("Solo running time: ", self.solo_time_sum)
