@@ -138,22 +138,6 @@
         "prefix-caching": false,
         "model": "qwen14b",
         "tp": 2
-    },
-    {
-        "id": "Azure_npref_7b_d2_2",
-        "trace": "Azure",
-        "trace_id": 1,
-        "chunk_size": 100,
-        "start_id": 4000,
-        "max_prompt_cnt": 200000,
-        "scale": 0.2,
-        "time": 3600,
-        "last_true": 0.1,
-        "last_true_submitted": 8659,
-        "tuned": true,
-        "prefix-caching": false,
-        "model": "qwen14b",
-        "tp": 2
     }
     ,
     {
