@@ -4,6 +4,16 @@
 
 The uv environment can be built with the following commands (but with lock file can be reproduced directly using `uv sync`, only as a note for myself in case necessary to build environment from scratch again).
 
+### Trace & Dataset
+
+The prompt generation utilizes ShareGPT prompt set available at: 
+```
+wget https://raw.githubusercontent.com/HPMLL/BurstGPT/main/example/preprocess_data/shareGPT.jso
+```
+Please download this into folder `./dataset/`.
+
+The BurstGPT and Azure traces download & setup scripts are available at `download_traces.sh` under `./trace/`
+
 #### VLLM
 
 The environment needed for using vllm as backend:
