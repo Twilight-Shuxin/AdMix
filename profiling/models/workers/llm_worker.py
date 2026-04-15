@@ -31,7 +31,7 @@ def modify_prompt(prompt):
 
 
 class LLMWorker(ModelWorker):
-    def __init__(self, model_name, devices, pipe, worker_barrier, single_worker_barrier, log_path, profile_path, slo_info):
+    def __init__(self, model_name, devices, pipe, worker_barrier, single_worker_barrier, log_path, profile_path, slo_info, llm_model=None, scheduler=None):
         super().__init__(model_name, devices, pipe, worker_barrier, single_worker_barrier, log_path, profile_path)
         self.server_config = {
             'host': "localhost",
@@ -43,6 +43,9 @@ class LLMWorker(ModelWorker):
         self.server_proc = None
         self.first_token_slo, self.idle_time_slo, self.SPEED_CONST = slo_info
         self.initial_time = self.SPEED_CONST
+        self.llm_model = llm_model if llm_model is not None else "meta-llama/Llama-2-7b-hf"
+        self.memory_util = os.environ.get('ADMIX_LLM_KV_MEM', "0.7")
+        self.scheduler = scheduler
     
     def init_start(self):
         self.start_server()
@@ -67,27 +70,25 @@ class LLMWorker(ModelWorker):
 
     def start_vllm_server(self):
         os.environ['VLLM_LOGGING_LEVEL'] = 'ERROR'
-        memory_util = os.environ.get('ADMIX_LLM_KV_MEM', "0.7")
         self.server_proc = subprocess.Popen([
             "python", "-m", "vllm.entrypoints.api_server",
-            "--model", "meta-llama/Llama-2-7b-chat-hf",
+            "--model", self.llm_model,
             "--tensor-parallel-size", str(torch.cuda.device_count()),
-            "--gpu-memory-utilization", memory_util,
+            "--gpu-memory-utilization", self.memory_util,
             "--no-enable-prefix-caching",
         ])
         self._wait_for_server(f"http://localhost:{self.server_config['port']}/health")
 
     def start_sglang_server(self):
-        memory_util = os.environ.get('ADMIX_LLM_KV_MEM', "0.7")
         env = os.environ.copy()
         env.update({"NO_PROXY": "0.0.0.0,localhost,127.0.0.1", "no_proxy": "0.0.0.0,localhost,127.0.0.1"})
         self.server_proc = subprocess.Popen([
             "plugins/sglang_env/.venv/bin/python", "-m", "sglang.launch_server",
-            "--model-path", "meta-llama/Llama-2-7b-chat-hf",
+            "--model-path", self.llm_model,
             "--chunked-prefill-size", "2048",
             "--enable-mixed-chunk",
             "--tp", str(torch.cuda.device_count()),
-            "--mem-fraction-static", memory_util,
+            "--mem-fraction-static", self.memory_util,
             "--port", str(self.server_config['port']),
             "--disable-radix-cache",
             "--log-level", "warning",
@@ -96,7 +97,10 @@ class LLMWorker(ModelWorker):
         self._wait_for_server(f"http://localhost:{self.server_config['port']}/health")
 
     def start_server(self):
-        use_modified = os.environ.get('ADMIX_LLM_MODIFIED', 'False').lower() == 'true'
+        from profiling.scheduling.utils import get_scheduler_class
+        from profiling.scheduling.batch_base_scheduler import BatchBaseScheduler
+        scheduler_class = get_scheduler_class(self.scheduler)
+        use_modified = scheduler_class is not None and issubclass(scheduler_class, BatchBaseScheduler)
         system_setup_cmd = "bash llm_platform_setup.sh"
         if use_modified:
             system_setup_cmd += " modified"

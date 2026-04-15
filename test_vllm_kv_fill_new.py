@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 from llm_utils import get_data_from_llm, async_inference
 from profiling.constants import write_list_to_csv
 
-KV_CACHE_TKN_SPACE = 86400
+# 7b: 86400
+KV_CACHE_TKN_SPACE = 172800
 MAX_PROMPT_LENGTH = 3000
 TKN_BUDGET = 2000
 
@@ -69,10 +70,10 @@ async def test():
 
 
 def main():
-    additional_data, data = get_data_from_llm()
+    additional_data, processing, data = get_data_from_llm()
     output_file = sys.argv[1] if len(sys.argv) > 1 else "kv_cache_fill_new.csv"
     asyncio.run(test())
-    additional_data, data = get_data_from_llm()
+    additional_data, processing, data = get_data_from_llm()
 
     # Plot Cached Tkns over time (request order)
     cached_tkns = [row[1] for row in data]

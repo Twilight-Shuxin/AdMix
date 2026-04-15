@@ -5,45 +5,94 @@ source ./script_utils.sh
 source .venv/bin/activate
 
 trace_list=("Azure_npref_7b_d1_1" "BurstGPT_npref_7b_d1_1" "Azure_npref_7b_d1_2" "BurstGPT_npref_7b_d1_2")
-mps_list=(20 10 20 10)
+trace_list=("Azure_npref_7b_d2_1" "BurstGPT_npref_7b_d2_1")
+mps_list=(10 20 10 20)
+mps_list=(10 20)
 models=("resnet50" "vgg19" "unet3d" "deeplabv3")
-model_batch_sizes=(128 128 16 32)
-time_model_batch_sizes=(4 4 1 2)
-devices=1
+declare -A model_mps_bs_map
+model_mps_bs_map["resnet50"]=128
+model_mps_bs_map["vgg19"]=128
+model_mps_bs_map["unet3d"]=16
+model_mps_bs_map["deeplabv3"]=32
 
-# gmanager stopmps $devices
-# export ADMIX_LLM_MODIFIED=false
-# for t_id in "${!trace_list[@]}"; do
-#     t="${trace_list[$t_id]}"
-#     run_cmd "python run.py --model llm --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/utils" "out.out"
-# done
+declare -A model_time_bs_map
+model_time_bs_map["resnet50"]=4
+model_time_bs_map["vgg19"]=4
+model_time_bs_map["unet3d"]=1
+model_time_bs_map["deeplabv3"]=2
 
-trace_list=("Azure_npref_7b_d1_1" "BurstGPT_npref_7b_d1_1" "Azure_npref_7b_d1_2" "BurstGPT_npref_7b_d1_2")
-models=("resnet50" "unet3d" "deeplabv3")
+declare -A llm_model_map
+llm_model_map["llama7b"]="meta-llama/Llama-2-7b-hf"
+llm_model_map["qwen14b"]="Qwen/Qwen2.5-14B-Instruct"
+
+declare -A llm_devices_map
+llm_devices_map["llama7b"]="1"
+llm_devices_map["qwen14b"]="0,1"
+
+llm_model_tag="qwen14b"
+llm_model="${llm_model_map[$llm_model_tag]}"
+devices="${llm_devices_map[$llm_model_tag]}"
+
+gmanager stopmps $devices
+trace_list=("BurstGPT_npref_7b_d2_1")
+for t_id in "${!trace_list[@]}"; do
+    t="${trace_list[$t_id]}"
+    run_cmd "python run.py --model llm --llm_model $llm_model --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/$llm_model_tag/utils" "out.out"
+done
+
 # ./batch_version.sh 3
+gmanager startmps $devices
+
+
 export ADMIX_LLM_SERVING_PLATFORM=vllm
 for t_id in "${!trace_list[@]}"; do
     t="${trace_list[$t_id]}"
     mps="${mps_list[$t_id]}"
-    for m_id in "${!models[@]}"; do
-        m="${models[$m_id]}"
-        bs="${model_batch_sizes[$m_id]}"
-
-        [[ "$t" == "BurstGPT_npref_7b_d1_2" && "$m" == "resnet50" ]] && continue
+    for m in "${models[@]}"; do
+        bs="${model_mps_bs_map[$m]}"
 
         gmanager startmps $devices
-        # export ADMIX_LLM_MODIFIED=false
-        # run_cmd "python run.py --model llm,$m --scheduler constant[$bs] --mps 100,$mps --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/mps" "out.out"
-        export ADMIX_LLM_MODIFIED=true
-        # run_cmd "python run.py --model llm,$m --scheduler batch --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data/mod" "out.out"
-        
-        run_cmd "python run.py --model llm,$m --scheduler context --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/context" "out2.out"
-        
-        # gmanager stopmps $devices
-        # t_bs="${time_model_batch_sizes[$m_id]}"
-        # run_cmd "python run.py --model llm,$m --scheduler constant[$t_bs] --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/llama7b/time" "out.out"
+        run_cmd "python run.py --model llm,$m --llm_model $llm_model --scheduler constant[$bs] --mps 100,$mps --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/$llm_model_tag/mps" "out_mps.out"
     done
 done
+
+# export ADMIX_LLM_SERVING_PLATFORM=vllm
+# for t_id in "${!trace_list[@]}"; do
+#     t="${trace_list[$t_id]}"
+#     for m in "${models[@]}"; do
+#         export ADMIX_LLM_MODIFIED=true
+#         run_cmd "python run.py --model llm,$m --scheduler context --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data/tp1" "out_context.out"
+#     done
+# done
+
+# trace_list=("BurstGPT_npref_7b_d1_2")
+# gmanager stopmps $devices
+# for t_id in "${!trace_list[@]}"; do
+#     t="${trace_list[$t_id]}"
+#     for m in "${models[@]}"; do
+#         t_bs="${model_time_bs_map[$m]}"
+#         run_cmd "python run.py --model llm,$m --llm_model $llm_model --scheduler constant[$t_bs] --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/$llm_model_tag/time" "out_time.out"
+#     done
+# done
+
+# export ADMIX_LLM_SERVING_PLATFORM=vllm
+# for t_id in "${!trace_list[@]}"; do
+#     t="${trace_list[$t_id]}"
+#     mps="${mps_list[$t_id]}"
+#     for m in "${models[@]}"; do
+#         bs="${model_mps_bs_map[$m]}"
+#
+#         gmanager startmps $devices
+#         run_cmd "python run.py --model llm,$m --llm_model $llm_model --scheduler constant[$bs] --mps 100,$mps --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/$llm_model_tag/mps" "out_mps.out"
+#         # run_cmd "python run.py --model llm,$m --llm_model $llm_model --scheduler batch --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data/mod" "out.out"
+#
+#         # run_cmd "python run.py --model llm,$m --llm_model $llm_model --scheduler context --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/$llm_model_tag/context" "out3.out"
+#
+#         gmanager stopmps $devices
+#         t_bs="${model_time_bs_map[$m]}"
+#         run_cmd "python run.py --model llm,$m --llm_model $llm_model --scheduler constant[$t_bs] --dcgm_group 0 --trace $t --devices $devices --rec-pw --path data_staged/$llm_model_tag/time" "out_time.out"
+#     done
+# done
 
 
 # tag="vllm_non_prefix_caching_generated"

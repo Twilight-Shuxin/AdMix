@@ -8,13 +8,15 @@ from profiling.scheduling.monitor import llm_server_rpc_retry
 from plotting.trace_plot import TracePlotData, TraceAxisData, plot_trace_graph
 
 class LLMClient(ModelClient):
-    def __init__(self, devices, mps, pipe, barrier, log_path, profile_path):
+    def __init__(self, devices, mps, pipe, barrier, log_path, profile_path, llm_model=None, scheduler=None):
         self.first_token_slo = 1
         self.idle_time_slo = 0
         self.SPEED_CONST = 0.2
         self.slo_info = (self.first_token_slo, self.idle_time_slo, self.SPEED_CONST)
         self.initial_time = self.SPEED_CONST
         self.model_worker = LLMWorker
+        self.llm_model = llm_model
+        self.scheduler = scheduler
         super().__init__("llm", devices, mps, pipe, barrier, log_path, profile_path)
 
     def start_worker(self, devices):
@@ -22,7 +24,7 @@ class LLMClient(ModelClient):
         pipe_parent, pipe_child = mp.Pipe()
         worker = self.model_worker(self.model_name, devices, pipe_child, self.worker_barrier, self.single_worker_barrier,
             self.log_path, self.profile_path,
-            self.slo_info)
+            self.slo_info, self.llm_model, self.scheduler)
         worker.start()
         self.worker_pipes.append(pipe_parent)
 

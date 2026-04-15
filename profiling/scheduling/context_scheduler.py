@@ -32,8 +32,12 @@ class ContextScheduler(BatchBaseScheduler):
             if(profiled_data[str(i)]['latency'] < 0.05):
                 self.max_batch_size = i
                 break
-        self.normal_plan = ContextSchedulePlan(20, self.max_batch_size)
+        for i in reversed(self.model_client.supported_batchsize):
+            if(profiled_data[str(i)]['latency'] < 0.1):
+                self.max_batch_size_full = i
+                break
         self.pre_solo_mps = 20
+        self.normal_plan = ContextSchedulePlan(self.pre_solo_mps, self.max_batch_size)
         self.last_context_switch_time = time.perf_counter()
     
     def get_scheduling_plan(self, intensity_data, pred_latency):
@@ -63,7 +67,7 @@ class ContextScheduler(BatchBaseScheduler):
                 self.pre_solo_mps = current_mps
                 self.solo_mode = True
             self.pause = False
-            return ContextSchedulePlan(100, self.max_batch_size)
+            return ContextSchedulePlan(100, self.max_batch_size_full)
            
         avg = sum(self.observed_percentages) / len(self.observed_percentages) if self.observed_percentages else 0
         self.prefill_estimate_time = (int(self.prefill_estimate_time[0] * (1 + avg + 0.2)), round(avg,2))

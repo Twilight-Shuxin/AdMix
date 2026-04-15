@@ -32,6 +32,7 @@ class ProfileConfig:
         # Default runtime mode: TEST
         self.mode = RuntimeMode(args.mode)
         self.scheduler = args.scheduler
+        self.llm_model = args.llm_model
 
 def parse_profile_options():
     parser = argparse.ArgumentParser(description = "TestMPS")
@@ -93,6 +94,9 @@ def parse_profile_options():
     )
     parser.add_argument(
         "--scheduler", type = str, default = None
+    )
+    parser.add_argument(
+        "--llm_model", type = str, default = "meta-llama/Llama-2-7b-hf"
     )
     # if args.rec_pw is set, record energy usage.
     parser.add_argument("--rec-pw", action="store_true", default=False)

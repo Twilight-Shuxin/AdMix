@@ -1,12 +1,13 @@
-import copy
 import os
 import sys
 import time
-import ctypes
+import copy
 import queue
-import threading
 import torch
+import ctypes
 import inspect
+import contextlib
+import threading
 import numpy as np
 from tqdm import tqdm
 from collections import defaultdict
@@ -47,10 +48,34 @@ def _switch_context(ctx):
     _cu(_cuda_driver().cuCtxSetCurrent(ctx))
 
 _ctx_create_lock = threading.Lock()  # serialises cuCtxCreate_v2 calls (env-var race)
-_pool_op_lock    = threading.Lock()  # serialises use_mem_pool contexts and pool destruction
-                                     # (captures_underway is global per-device, so concurrent
-                                     # use_mem_pool + MemPool.__del__ across threads triggers
-                                     # the captures_underway.empty() assert in PyTorch)
+class _RWLock:
+    """Readers-writer lock: multiple shared holders OR one exclusive holder.
+    Use shared() around use_mem_pool(...) calls so load and inference can overlap.
+    Use exclusive() around pool = None so destruction waits for all active use_mem_pool to finish."""
+    def __init__(self):
+        self._cv      = threading.Condition(threading.Lock())
+        self._readers = 0
+
+    @contextlib.contextmanager
+    def shared(self):
+        with self._cv:
+            self._readers += 1
+        try:
+            yield
+        finally:
+            with self._cv:
+                self._readers -= 1
+                if self._readers == 0:
+                    self._cv.notify_all()
+
+    @contextlib.contextmanager
+    def exclusive(self):
+        with self._cv:
+            while self._readers > 0:
+                self._cv.wait()
+            yield  # _cv held: no new shared() can increment _readers
+
+_pool_op_lock = _RWLock()  # shared for use_mem_pool, exclusive for pool destruction
 
 def _resp_get(resp_q):
     """Get a response from a worker thread's resp_q, re-raising if the thread crashed."""
@@ -80,8 +105,8 @@ def _load_model_to_gpu(model_shell, model_pinned, device, model_pool):
     """Allocate an empty GPU shell from the pre-built meta shell (no H2D data copy),
     then stream weights directly from pinned CPU memory via DMA (non_blocking=True).
     Caller must pass a freshly created model_pool. Weights are allocated into it.
-    use_mem_pool is held under _pool_op_lock; sync runs outside to avoid blocking others."""
-    with _pool_op_lock:
+    use_mem_pool is held under _pool_op_lock.shared(); sync runs outside to avoid blocking others."""
+    with _pool_op_lock.shared():
         with torch.cuda.memory.use_mem_pool(model_pool):
             gpu_model = copy.deepcopy(model_shell).to_empty(device=device)
             for gp, cp in zip(gpu_model.parameters(), model_pinned.parameters()):
@@ -322,10 +347,10 @@ class ModelWorker(Process):
         self.ctx_states              = {}   # mps → str
         self.ctx_unloading_events = {}   # mps → Event  (set when unload completes)
         self.ctx_deact_timers        = {}   # mps → threading.Timer  (pending delayed unload)
-        self.unload_delay      = 5.0  # seconds to wait before actually unloading GPU model
+        self.unload_delay      = 5  # seconds to wait before actually unloading GPU model
         self.current_ctx_pct = None
 
-        self._ctx_create(10)
+        self._ctx_create(20)
         self._ctx_create(100)
 
     def _ctx_create(self, mps):
@@ -351,6 +376,7 @@ class ModelWorker(Process):
             torch.set_grad_enabled(False)
             gpu_model      = None
             model_pool     = None       # MemPool owning model weights
+            inference_pool = None       # MemPool for inference activations (keeps them off the default free list)
             loop_input     = None       # if set, keep inferring this input
             loop_bs        = 0
             _current_cmd   = None       # track the in-flight command for error reporting
@@ -361,7 +387,9 @@ class ModelWorker(Process):
                     # In idle mode: block until a command arrives.
                     if loop_input is not None:
                         t0 = time.perf_counter()
-                        gpu_model(loop_input)
+                        with _pool_op_lock.shared():
+                            with torch.cuda.memory.use_mem_pool(inference_pool):
+                                gpu_model(loop_input)
                         torch.cuda.synchronize()
                         elapsed = round(time.perf_counter() - t0, 3) * 1000
                         self.runtime_data.absolute_throughput += loop_bs
@@ -369,23 +397,28 @@ class ModelWorker(Process):
                             self.profile_data.logs.append((loop_bs, elapsed))
                             self.profile_data.absolute_throughput_records.add(
                                 time.perf_counter() - self.runtime_data.start_time_pointer, loop_bs)
-                        if(self.mps_batch_size_exceeded[mps] > self.mps_batch_size_map[mps] + 1):
-                            if elapsed < 110.0:
-                                self.mps_batch_size_map[mps] = max(self.mps_batch_size_map[mps], loop_bs)
-                            else:
-                                self.mps_batch_size_exceeded[mps] = min(self.mps_batch_size_exceeded[mps], loop_bs)
-                            exceeded = self.mps_batch_size_exceeded[mps]
-                            if exceeded == float('inf'):
-                                max_bs = max(self.supported_batchsize)
-                                loop_bs = min(loop_bs * 2, max_bs)
-                                if loop_bs == max_bs and elapsed < 110.0:
-                                    self.mps_batch_size_exceeded[mps] = max_bs + 1  # all supported sizes are valid; cap exceeded
-                            else:
-                                loop_bs = (self.mps_batch_size_map[mps] + int(exceeded)) // 2
-                            loop_input = self.get_input(InputConfig(batch_size=loop_bs)).to(device, copy=True)
-                        elif(loop_bs != self.mps_batch_size_map[mps]):
-                            loop_bs = self.mps_batch_size_map[mps]
-                            loop_input = self.get_input(InputConfig(batch_size=loop_bs)).to(device, copy=True)
+                        if(mps != 100):
+                            if(self.mps_batch_size_exceeded[mps] > self.mps_batch_size_map[mps] + 1):
+                                if elapsed < 110.0:
+                                    self.mps_batch_size_map[mps] = max(self.mps_batch_size_map[mps], loop_bs)
+                                else:
+                                    self.mps_batch_size_exceeded[mps] = min(self.mps_batch_size_exceeded[mps], loop_bs)
+                                exceeded = self.mps_batch_size_exceeded[mps]
+                                if exceeded == float('inf'):
+                                    max_bs = max(self.supported_batchsize)
+                                    loop_bs = min(loop_bs * 2, max_bs)
+                                    if loop_bs == max_bs and elapsed < 110.0:
+                                        self.mps_batch_size_exceeded[mps] = max_bs + 1  # all supported sizes are valid; cap exceeded
+                                else:
+                                    loop_bs = (self.mps_batch_size_map[mps] + int(exceeded)) // 2
+                                with _pool_op_lock.shared():
+                                    with torch.cuda.memory.use_mem_pool(inference_pool):
+                                        loop_input = self.get_input(InputConfig(batch_size=loop_bs)).to(device, copy=True)
+                            elif(loop_bs != self.mps_batch_size_map[mps]):
+                                loop_bs = self.mps_batch_size_map[mps]
+                                with _pool_op_lock.shared():
+                                    with torch.cuda.memory.use_mem_pool(inference_pool):
+                                        loop_input = self.get_input(InputConfig(batch_size=loop_bs)).to(device, copy=True)
                         try:
                             item = work_queue.get_nowait()
                         except queue.Empty:
@@ -400,20 +433,29 @@ class ModelWorker(Process):
                             gpu_model = _load_model_to_gpu(self._model_shell, self.model, device, model_pool)
                         elif item.kind == 'loop':
                             loop_bs = item.payload
+                            if(not inference_pool):
+                                inference_pool = torch.cuda.memory.MemPool()
                             if(loop_bs == 0):
-                                loop_input = None # input is None but thread state remains active;
+                                with _pool_op_lock.shared():
+                                    with torch.cuda.memory.use_mem_pool(inference_pool):
+                                        loop_input = None # input is None but thread state remains active;
                             else:
                                 if(self.mps_batch_size_map[mps]):
                                     loop_bs = self.mps_batch_size_map[mps]
-                                loop_input = self.get_input(InputConfig(batch_size=loop_bs)).to(device, copy=True)
+                                with _pool_op_lock.shared():
+                                    with torch.cuda.memory.use_mem_pool(inference_pool):
+                                        loop_input = self.get_input(InputConfig(batch_size=loop_bs)).to(device, copy=True)
                             torch.cuda.synchronize()
                         elif item.kind == 'stop_loop':
                             loop_input = None
-                            torch.cuda.empty_cache()
+                            with _pool_op_lock.exclusive():
+                                inference_pool = None  # release inference blocks to the default free list
+                            torch.cuda.empty_cache()  # free them now (only this ctx's blocks are in the default pool at this point)
                         elif item.kind == 'unload':
                             gpu_model = None
-                            with _pool_op_lock:   # no use_mem_pool active while pool is destroyed
+                            with _pool_op_lock.exclusive():   # no use_mem_pool active while pool is destroyed
                                 model_pool = None
+                            torch.cuda.empty_cache()  # free just-released model blocks; safe because the active ctx's inference blocks are in its live inference_pool, not the default pool
                         elif item.kind == 'destroy':
                             _cu(lib.cuCtxDestroy_v2(ctx))
                             alive = False
@@ -421,7 +463,7 @@ class ModelWorker(Process):
                         item.resp_q.put(elapsed)
                         _current_cmd = None
             except Exception as exc:
-                print(f"[mps-ctx-{mps}pct] FATAL exception: {exc}\n", flush=True)
+                print(f"[mps-ctx-{mps}pct] FATAL exception: {exc} \n", flush=True)
                 if _current_cmd is not None:
                     _current_cmd.resp_q.put(exc)
                 raise

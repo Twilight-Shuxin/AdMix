@@ -30,6 +30,7 @@ class ProfileServer():
         self.global_tag = profile_config.global_tag
         self.mode = profile_config.mode
         self.scheduler = profile_config.scheduler
+        self.llm_model = profile_config.llm_model
         self.pipe_map = {}
 
     # Currently, within a main run each client's test config mainly remains the same.
@@ -117,13 +118,15 @@ class ProfileServer():
         self.double_barrier = mp.Barrier(2)
         for id, model_name in enumerate(self.model_names):
             pipe_parent, pipe_child = mp.Pipe()
+            extra_kwargs = {"llm_model": self.llm_model, "scheduler": self.scheduler} if model_name == "llm" else {}
             client = model_clients[model_name](
                 self.devices,
                 self.mps_list[id],
                 pipe_child,
                 (self.double_barrier, self.barrier),
                 self.log_path,
-                self.profile_path
+                self.profile_path,
+                **extra_kwargs
             )
             client.start()
             self.pipe_map[model_name] = pipe_parent

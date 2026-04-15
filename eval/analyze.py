@@ -1,17 +1,68 @@
 import json
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.legend_handler import HandlerBase
+from matplotlib.patches import Rectangle
+from matplotlib.lines import Line2D as MplLine2D
+from matplotlib.container import BarContainer
+
+
+class HandlerBarLine(HandlerBase):
+    """Legend key that stacks the bar patch (top) over the line+marker (bottom)."""
+
+    def create_artists(self, legend, orig_handle, xdescent, ydescent,
+                       width, height, fontsize, trans):
+        bar_h, line_h = orig_handle
+
+        # BarContainer — pull style from its first patch
+        patch = bar_h.patches[0]
+
+        # All coords must stay within [0, height].
+        # Text baseline is at ydescent (≈5.95); below that is "below text."
+        # Line goes below the text baseline; bar occupies the upper half.
+        line_y     = height * 0.005           # ≈2.7, below text baseline (ydescent≈5.95)
+        bar_bottom = height * 0.3           # ≈9.4, comfortably above the line
+        bar_h_size = height * 0.38           # ≈6.9, bar_top≈16.3 (within height≈18)
+        bar_y      = bar_bottom
+
+        # Top — bar rectangle
+        rect = Rectangle(
+            (xdescent, bar_y),
+            width, bar_h_size,
+            facecolor=patch.get_facecolor(),
+            edgecolor=patch.get_edgecolor(),
+            hatch=patch.get_hatch(),
+            linewidth=patch.get_linewidth(),
+            transform=trans,
+            clip_on=True,
+        )
+
+        # Bottom — line with a single center marker (matches default HandlerLine2D behavior)
+        mid_x = xdescent + width / 2
+        line = MplLine2D(
+            [xdescent, mid_x, xdescent + width], [line_y, line_y, line_y],
+            color=line_h.get_color(),
+            linestyle=line_h.get_linestyle(),
+            linewidth=line_h.get_linewidth(),
+            marker=line_h.get_marker(),
+            markersize=max(line_h.get_markersize() * 0.8, 4),
+            markevery=[1],
+            transform=trans,
+        )
+
+        return [rect, line]
 
 ROOT_FOLDER = "../data_staged/llama7b"
 PROFILE_DATA_FOLDER = "../profile_data"
 OUTPUT_FOLDER = "./outputs"
 DIMENSION = "d1"
 
-scheduler_map = {
-    "batch": "batch",
-    "mps": "constant",
-    "time": "constant",
-    "utils": None
+config_map = {
+    "time":    {"name": "Time Slicing", "scheduler": "constant"},
+    "batch":   {"name": "batch",        "scheduler": "batch"},
+    "mps":     {"name": "MPS",          "scheduler": "constant"},
+    "utils":   {"name": "LLM only",     "scheduler": None},
+    "context": {"name": "context",      "scheduler": "context"},
 }
 
 max_batch_size = {
@@ -28,12 +79,6 @@ time_batch_size = {
     "deeplabv3": 2
 }
 
-map_subpath = {
-    "time": "Time Slicing",
-    "batch": "batch",
-    "mps": "MPS",
-    "utils": "LLM only",
-}
 
 transform_percentage_list = ['sm_active']
 
@@ -43,7 +88,6 @@ def load_profile_data(model):
 
 def read_final_summary(path, side_model = True):
     result = {}
-
     with open(path, "r") as f:
         lines = [line.strip() for line in f if line.strip()]
 
@@ -80,7 +124,7 @@ def read_final_summary(path, side_model = True):
         for line in lines[sep_indices[1] + 1:]:
             parts = line.split()
             result["energy"] = float(parts[0].replace("(kJ)", ""))
-        
+
     return result
 
 """
@@ -104,18 +148,17 @@ def read_stats(file_path, tag):
     return result
 
 
-def get_data(model, trace_tag, sub_path, percentage = None):
+def get_data(model, trace_tag, config, sub_path, percentage=None):
     data = {}
-    scheduler = scheduler_map[sub_path]
-    if(scheduler != None):
-        if(scheduler == "constant"):
-            scheduler += f"[{max_batch_size[model]}]" if sub_path == "mps" else f"[{time_batch_size[model]}]"
+    scheduler = config_map[config]["scheduler"]
+    if scheduler is not None:
+        if scheduler == "constant":
+            scheduler += f"[{max_batch_size[model]}]" if config == "mps" else f"[{time_batch_size[model]}]"
         set_tag = f'llm[{trace_tag}]+{model}'
-        if(sub_path == "mps"):
+        if config == "mps":
             set_tag += f"(m{percentage})"
         set_tag += "-" + scheduler
         path_prefix = f"llm-{set_tag}"
-        offline_path_prefix = f'{model}-{set_tag}'
         data.update(read_final_summary(f'{ROOT_FOLDER}/{sub_path}/{set_tag}-{DIMENSION}-final_summary.log'))
     else:
         path_prefix = "llm[" + trace_tag + "]"
@@ -124,7 +167,7 @@ def get_data(model, trace_tag, sub_path, percentage = None):
     data.update(read_stats(f'{ROOT_FOLDER}/{sub_path}/{path_prefix}-{DIMENSION}-btsummary.log', "bt"))
     return data
 
-def plot_bar_chart(models, sub_paths, values, ylabel, ax = None, xtitle = None, ymax = None, ymin = None): 
+def plot_bar_chart(models, sub_paths, values, ylabel, ax=None, xtitle=None, ymax=None, ymin=None, show_legend=True):
     idx = None
     if(not ax):
         fig, ax = plt.subplots()
@@ -141,39 +184,40 @@ def plot_bar_chart(models, sub_paths, values, ylabel, ax = None, xtitle = None, 
     y_range = ymax_current - ymin_current
     offset = 0.06 * y_range
 
-    hatches = ['///', 'xx', '-', '+']
+    hatches = ['///', 'xx', '-', '\\\\', '+']
     x = np.arange(len(models))  # model positions
     bar_width = 0.8 / len(sub_paths)  # divide bar width by number of bars per group
-    
-    for i, sub_path in enumerate(sub_paths):
+
+    for i, config in enumerate(sub_paths):
         y = values[:, i]
         y_plot = np.clip(y,
             ymin if ymin is not None else -np.inf,
             ymax if ymax is not None else np.inf
         )
-        ax.bar(x + i * bar_width, y_plot, hatch=hatches[i], edgecolor='white', width=bar_width, label=map_subpath[sub_path])
+        ax.bar(x + i * bar_width, y_plot, hatch=hatches[i], edgecolor='white', width=bar_width, label=config_map[config]["name"])
         for xi, yi in zip(x, y):
             if ymax and (yi > ymax):
-                ax.text(xi, ymax - offset, f"{yi:.1f}", ha='center', va='bottom', fontsize=8)   
+                ax.text(xi, ymax - offset, f"{yi:.1f}", ha='center', va='bottom', fontsize=8)
             if ymin and (yi < ymin):
-                ax.text(xi, ymin + offset, f"{yi:.1f}",ha='center', va='top', fontsize=8) 
+                ax.text(xi, ymin + offset, f"{yi:.1f}",ha='center', va='top', fontsize=8)
 
     ax.set_xticks(x + bar_width * (len(sub_paths) / 2 - 0.5))
     ax.set_xticklabels(models)
     ax.set_ylabel(ylabel)
     if(xtitle):
         ax.set_xlabel(xtitle)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), columnspacing = 1, ncol=len(sub_paths), frameon=True)
+    if show_legend:
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), columnspacing=1, ncol=len(sub_paths), frameon=True)
 
-def plot_line_chart(models, sub_paths, values, ylabel, ax = None, xtitle = None, ymax = None, ymin = None):
+def plot_line_chart(models, sub_paths, values, ylabel, ax=None, xtitle=None, ymax=None, ymin=None, show_legend=True):
     x = np.arange(len(models))  # model positions
-    styles = ['--x', ':s', '-o', '-.^']
+    styles = ['--x', ':s', '-o', '-.^',  '-d']
     if(ax == None):
         fig, ax = plt.subplots()
     else:
         plt.sca(ax)
         idx = ax.figure.axes.index(ax)
-    
+
     if ymin or ymax:
         ax.set_ylim(
             ymin if ymin else ax.get_ylim()[0],
@@ -183,136 +227,187 @@ def plot_line_chart(models, sub_paths, values, ylabel, ax = None, xtitle = None,
     y_range = ymax_current - ymin_current
     offset = 0.06 * y_range
 
-    # Plot a line for each sub_path
-    for i, sub_path in enumerate(sub_paths):
+    for i, config in enumerate(sub_paths):
         y = values[:, i]
         y_plot = np.clip(y,
             ymin if ymin is not None else -np.inf,
             ymax if ymax is not None else np.inf
         )
-        ax.plot(x, y_plot, styles[i], label=map_subpath[sub_path])
+        ax.plot(x, y_plot, styles[i], label=config_map[config]["name"])
         for xi, yi in zip(x, y):
             if ymax and (yi > ymax):
-                ax.text(xi, ymax - offset, f"{yi:.1f}", ha='center', va='bottom', fontsize=8)   
+                ax.text(xi, ymax - offset, f"{yi:.2f}", ha='center', va='bottom', fontsize=8)
             if ymin and (yi < ymin):
-                ax.text(xi, ymin + offset, f"{yi:.1f}",ha='center', va='top', fontsize=8) 
+                ax.text(xi, ymin + offset, f"{yi:.2f}",ha='center', va='top', fontsize=8)
 
     ax.set_xticks(x)
     ax.set_xticklabels(models)
     ax.set_ylabel(ylabel)
     if(xtitle):
         ax.set_xlabel(xtitle)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), columnspacing = 1, ncol=len(sub_paths), frameon=True)
-    plt.tight_layout()
+    if show_legend:
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), columnspacing=1, ncol=len(sub_paths), frameon=True)
 
-def plot_base_mps(data, ylabel, attr, ax = None, xtitle = None):
+def plot_base_mps(data, ylabel, attr, ax=None, xtitle=None, show_legend=True):
     models = list(data.keys())
-    sub_paths = list(next(iter(data.values())).keys())  # get keys from first model
-    # Extract throughput matrix
+    configs = list(next(iter(data.values())).keys())
     values = np.array([
-        [data[model][sub_path][attr] / data[model]["mps"][attr] for sub_path in sub_paths]
+        [data[model][config][attr] / data[model]["mps"][attr] for config in configs]
         for model in models
     ])
-    plot_bar_chart(models, sub_paths, values, ylabel, ax, xtitle)
+    plot_bar_chart(models, configs, values, ylabel, ax, xtitle, show_legend=show_legend)
 
-def plot_base_utils(data, ylabel, attr, ax = None, xtitle = None):
+def plot_base_utils(data, ylabel, attr, ax=None, xtitle=None, show_legend=True):
     models = list(data.keys())
-    sub_paths = list(next(iter(data.values())).keys())  # get keys from first model
-    # Extract throughput matrix
+    configs = list(next(iter(data.values())).keys())
     values = np.array([
-        [data[model][sub_path][attr] / data[model]['utils'][attr] for sub_path in sub_paths]
+        [data[model][config][attr] / data[model]['utils'][attr] for config in configs]
         for model in models
     ])
-    plot_bar_chart(models, sub_paths, values, ylabel, ax, xtitle)
+    plot_bar_chart(models, configs, values, ylabel, ax, xtitle, show_legend=show_legend)
 
-def plot_normal(data, ylabel, attr, ax = None, xtitle = None):
+def plot_normal(data, ylabel, attr, ax=None, xtitle=None, show_legend=True):
     models = list(data.keys())
-    sub_paths = list(next(iter(data.values())).keys())  # get keys from first model
-    # Extract throughput matrix
+    configs = list(next(iter(data.values())).keys())
     values = np.array([
-        [data[model][sub_path][attr] for sub_path in sub_paths]
+        [data[model][config][attr] for config in configs]
         for model in models
     ])
-    plot_bar_chart(models, sub_paths, values, ylabel, ax, xtitle)
+    plot_bar_chart(models, configs, values, ylabel, ax, xtitle, show_legend=show_legend)
 
-def plot_normal_line(data, ylabel, attr, ax = None, xtitle = None):
+def plot_normal_line(data, ylabel, attr, ax=None, xtitle=None, show_legend=True):
     models = list(data.keys())
-    sub_paths = list(next(iter(data.values())).keys())  # get keys from first model
-    # Extract throughput matrix
+    configs = list(next(iter(data.values())).keys())
     values = np.array([
-        [data[model][sub_path][attr] for sub_path in sub_paths]
+        [data[model][config][attr] for config in configs]
         for model in models
     ])
-    ymax = max(data[model][sub_path][attr] for model in models for sub_path in sub_paths if sub_path != "time")
-    ymin = min(data[model][sub_path][attr] for model in models for sub_path in sub_paths if sub_path != "time")
+    ymax = max(data[model][config][attr] for model in models for config in configs if config != "time")
+    ymin = min(data[model][config][attr] for model in models for config in configs if config != "time")
     margin = 0.1 * (ymax - ymin)
-    
-    plot_line_chart(models, sub_paths, values, ylabel, ax, xtitle, ymax + margin, ymin - margin)
+
+    plot_line_chart(models, configs, values, ylabel, ax, xtitle, ymax + margin, ymin - margin, show_legend=show_legend)
+
+
+def _add_figure_legend(fig, axes):
+    """Build a single figure-level legend that combines bar patches and line markers.
+
+    For series that appear in both a bar subplot and a line subplot (e.g. MPS,
+    Time Slicing, batch, context), each legend entry shows the bar patch and the
+    line marker side-by-side via HandlerTuple.  Series that only appear in the
+    line subplots (e.g. LLM only) are shown as a plain line marker.
+    """
+    # Collect handles keyed by label, preserving insertion order
+    bar_map = {}   # label -> bar handle  (from first bar axes found)
+    line_map = {}  # label -> line handle (from first line axes found, preserving series order)
+
+    for ax in axes:
+        h_list, l_list = ax.get_legend_handles_labels()
+        for h, l in zip(h_list, l_list):
+            if isinstance(h, BarContainer):
+                if l not in bar_map:
+                    bar_map[l] = h
+            elif isinstance(h, MplLine2D):
+                if l not in line_map:
+                    line_map[l] = h
+
+    # Build combined entries in the order they appear in the line charts
+    # (which contains all series, including LLM only)
+    combined_handles = []
+    combined_labels = []
+    handler_map = {}
+
+    for label in line_map:
+        if label in bar_map:
+            pair = (bar_map[label], line_map[label])
+            combined_handles.append(pair)
+            handler_map[pair] = HandlerBarLine()
+        else:
+            combined_handles.append(line_map[label])
+        combined_labels.append(label)
+
+    fig.legend(combined_handles, combined_labels,
+               handler_map=handler_map,
+               loc='center', ncol=len(combined_labels),
+               bbox_to_anchor=(0.5, 0.94), frameon=True, columnspacing=1,
+               handleheight=2.4, handlelength=2.5, borderpad=0.6)
 
 
 def main():
-    # trace_list = ["BurstGPT1,301,100,3600,2.8", "Azure1,0,100,3600,0.1"]
-    trace_list = ["BurstGPT2,200,100,3600,9"]
-    tag_list = ["BurstGPT2", "Azure"]
-    mps_list = [20, 10]
-    mps_list = [10]
+    trace_list = {
+        "BurstGPT1,301,100,3600,2.8": {"tag": "BurstGPT",  "mps": 20},
+        "Azure1,0,100,3600,0.1":       {"tag": "Azure",     "mps": 10},
+        "BurstGPT2,200,100,3600,9":    {"tag": "BurstGPT2", "mps": 10},
+        "Azure2,0,100,3600,0.5":       {"tag": "Azure2",    "mps": 20},
+    }
     model_list = ["resnet50", "vgg19", "unet3d", "deeplabv3"]
-    batch_size_list = [128, 128, 16, 32]
-    # sub_paths = ["mps", "time", "batch"]
-    sub_paths = ["mps", "batch"]
+    sub_paths = {
+        "mps":     "mps",
+        "time":    "time",
+        "batch":   "batch",
+        "context": "context",
+    }
 
     data = {}
-    for id, trace in enumerate(trace_list):
-        fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-        fig.subplots_adjust(wspace=-0.1)  
+    for trace, meta in trace_list.items():
+        tag = meta["tag"]
+        fig, axes = plt.subplots(1, 5, figsize=(24, 4))
         data[trace] = {}
         for model in model_list:
             data[trace][model] = {}
-            for sub_path in sub_paths:
-                if(sub_path == "mps"):
-                    d = get_data(model, trace, sub_path, mps_list[id])
+            for config, sub_path in sub_paths.items():
+                if config == "mps":
+                    d = get_data(model, trace, config, sub_path, meta["mps"])
                 else:
-                    d = get_data(model, trace, sub_path)
-                data[trace][model][sub_path] = d
-        plot_base_mps(data[trace], 'Normalized Offline WL Throughput', 'absolute throughput', axes[0])
-        d = get_data(model, trace, 'utils')
+                    d = get_data(model, trace, config, sub_path)
+                data[trace][model][config] = d
+        plot_base_mps(data[trace], 'Normalized Offline WL Throughput', 'absolute throughput', axes[0], show_legend=False)
+        d = get_data(model, trace, 'utils', 'utils')
         for model in model_list:
             data[trace][model]['utils'] = d
-        plot_normal_line(data[trace], 'SLO Attainment Rate (%)', 'satisfaction rate', axes[1])
-        plot_normal_line(data[trace], 'SM Activity (%)', 'sm_active', axes[2])
-        fig.tight_layout()
-        plt.savefig(f'{OUTPUT_FOLDER}/{tag_list[id]}.pdf')
-        plt.clf()
-    
-    for id, trace in enumerate(trace_list):
-        fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-        fig.subplots_adjust(wspace=-0.1)
-        plot_normal_line(data[trace], 'Average TTFT (s)', 'ft_mean', axes[0])
-        plot_normal_line(data[trace], 'Average TBT (s)', 'bt_mean', axes[1])
-        plt.savefig(f'{OUTPUT_FOLDER}/{tag_list[id]}_latency.pdf')
+        plot_normal_line(data[trace], 'SLO Attainment Rate (%)', 'satisfaction rate', axes[1], show_legend=False)
+        plot_normal_line(data[trace], 'SM Activity (%)', 'sm_active', axes[2], show_legend=False)
+        plot_normal_line(data[trace], 'Average TTFT (s)', 'ft_mean', axes[3], show_legend=False)
+        plot_normal_line(data[trace], 'Average TBT (s)', 'bt_mean', axes[4], show_legend=False)
+        _add_figure_legend(fig, axes)
+        fig.tight_layout(rect=[0, 0, 1, 0.88])
+        plt.savefig(f'{OUTPUT_FOLDER}/{tag}.pdf')
         plt.clf()
 
+    # for trace, meta in trace_list.items():
+    #     tag = meta["tag"]
+    #     fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+    #     plot_normal_line(data[trace], 'Average TTFT (s)', 'ft_mean', axes[0], show_legend=False)
+    #     plot_normal_line(data[trace], 'Average TBT (s)', 'bt_mean', axes[1], show_legend=False)
+    #     _add_figure_legend(fig, axes)
+    #     fig.tight_layout(rect=[0, 0, 1, 0.88])
+    #     plt.savefig(f'{OUTPUT_FOLDER}/{tag}_latency.pdf')
+    #     plt.clf()
+
     profile_data = {model: load_profile_data(model) for model in model_list}
-    for id, trace in enumerate(trace_list):
+    for trace, meta in trace_list.items():
+        tag = meta["tag"]
         # Compute normalized energy: actual / (llm_only + side_model_separate)
         norm_energy = {}
-        for model, batch_size in zip(model_list, batch_size_list):
+        for model in model_list:
+            batch_size = max_batch_size[model]
             llm_energy = data[trace][model]['utils']['energy']
             side_energy_per_output = profile_data[model][str(batch_size)]['avg_energy'] / 1000 # Energy in profile is J
             norm_energy[model] = {}
-            for sub_path in sub_paths:
-                d = data[trace][model][sub_path]
+            for config in sub_paths:
+                d = data[trace][model][config]
                 separate_energy = llm_energy + d['absolute throughput'] * side_energy_per_output
-                norm_energy[model][sub_path] = round((d['energy'] / separate_energy) * 100, 1)
+                norm_energy[model][config] = round((d['energy'] / separate_energy) * 100, 1)
 
+        configs = list(sub_paths.keys())
         values = np.array([
-            [norm_energy[model][sub_path] for sub_path in sub_paths]
+            [norm_energy[model][config] for config in configs]
             for model in model_list
         ])
         fig, ax = plt.subplots(figsize=(6, 4))
-        plot_line_chart(model_list, sub_paths, values, 'Normalized Energy (%)', ax)
+        plot_line_chart(model_list, configs, values, 'Normalized Energy (%)', ax)
         fig.tight_layout()
-        plt.savefig(f'{OUTPUT_FOLDER}/{tag_list[id]}_energy.pdf')
+        plt.savefig(f'{OUTPUT_FOLDER}/{tag}_energy.pdf')
         plt.clf()
 
 

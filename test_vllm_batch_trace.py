@@ -44,7 +44,7 @@ def main():
     additional_data, processed, data = get_data_from_llm()
     data.sort(key=lambda x: (x[0] * x[1]))
     data.sort()
-    write_list_to_csv(f"./batch_predict/inputs/sglang_{trace_config_id}.csv",["Scheduled Tkns", "Cached Tkns", "Latency"], data)
+    write_list_to_csv(f"./batch_predict/inputs/vllm_tp2_{trace_config_id}.csv",["Scheduled Tkns", "Cached Tkns", "Latency"], data)
 
 if __name__ == "__main__":
     main()
