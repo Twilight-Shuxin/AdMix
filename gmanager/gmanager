@@ -1,0 +1,97 @@
+#!/home/k43015/MPSTest/.venv/bin/python3
+
+import sys 
+import subprocess, signal
+import os
+import logging
+import json
+from MIG_Operator import *
+from MPS_Operator import *
+from DCGM_operator import *
+from utils import *
+
+logger = logging.getLogger(__name__)
+gmanager_home = os.environ["GM_HOME"]
+if(gmanager_home.endswith("/")):
+    gmanager_home = gmanager_home[:-1]
+logging.basicConfig(filename=gmanager_home + '/' + 'gmanager.log', level=logging.INFO)
+
+def background(cmd, dir, log):
+    logger.info(" ".join(cmd))
+    log = gmanager_home + "/" + log
+    open(log, 'w').close() 
+    return subprocess.Popen(cmd,
+                 stdin=subprocess.DEVNULL,
+                 stdout=open(log, 'a'),
+                 stderr=subprocess.STDOUT,
+                 start_new_session=True,
+                 preexec_fn=lambda: (signal.signal(signal.SIGHUP, signal.SIG_IGN)),
+                 cwd=dir)
+
+def run_cmd(cmd, dir):
+    cmd_str = str(cmd[0])
+    for cmd_part in cmd[1:]:
+        cmd_str += " " + str(cmd_part)
+    logger.info(cmd_str)
+    return subprocess.run(cmd, cwd = dir, stdout=subprocess.PIPE)
+
+def write_log(file_name, content):
+    file_name = gmanager_home + "/" + file_name
+    log_file = open(file_name, "w")
+    log_file.write(content)
+    log_file.close()
+
+def main():
+    module = sys.argv[1]
+    cur_dir = os.getcwd()
+    match module:
+        case "startmps":
+            if(len(sys.argv) < 3):
+                OpenMPS()
+            else:
+                OpenMPS(get_gpu_uuids(list(map(int, sys.argv[2].split(',')))))
+        case "stopmps":
+            if(len(sys.argv) < 3):
+                CloseMPS()
+            else:
+                CloseMPS(get_gpu_uuids(list(map(int, sys.argv[2].split(',')))))
+        case "getp":
+            if(len(sys.argv) < 3):
+                print(GetPercentage())
+            else:
+                print(GetPercentage(get_gpu_uuids(list(map(int, sys.argv[2].split(','))))))
+        case "setp":
+            if(len(sys.argv) < 4):
+                SetPercentage(None, sys.argv[2])
+            else:
+                SetPercentage(get_gpu_uuids(list(map(int, sys.argv[2].split(',')))), sys.argv[3])
+        case "getuuid":
+            print(get_gpu_uuid(int(sys.argv[2])))
+        case "getuuid_hash":
+            print(get_hash(get_gpu_uuids(list(map(int, sys.argv[2].split(','))))))
+        case "checkmps":
+            print(GetServerStarted(get_gpu_uuids(list(map(int, sys.argv[2].split(','))))))
+        case "start_mig":
+            init_mig(get_gpu_uuid(int(sys.argv[2])))
+        case "stop_mig":
+            init_mig(disable_mig(int(sys.argv[2])))
+        case "reset_mig":
+            reset_mig(int(sys.argv[2]))
+        case "create_mig_inst":
+            create_ins(int(sys.argv[2]), sys.argv[3])
+        case "start_dcgm":
+            start_dcgm()
+        case "stop_dcgm":
+            stop_dcgm()
+        case "dcgm_addg":
+            print(add_dcgm_group(sys.argv[2]))
+        case "dcgm_add2g":
+            add_devices_to_dcgm_group(int(sys.argv[2]), sys.argv[3:])
+        case "dcgm_delg":
+            delete_dcgm_group(int(sys.argv[2]))
+        case "dcgm_list":
+            list_dcgm_group()
+            
+
+if __name__ == "__main__":
+    main()
