@@ -85,7 +85,7 @@
         "tp": 1
     },
     {
-        "id": "BurstGPT_npref_7b_d2_1",
+        "id": "BurstGPT_npref_14b_d2_1",
         "trace": "BurstGPT",
         "trace_id": 2,
         "chunk_size": 100,
@@ -102,7 +102,7 @@
         "tp": 2
     },
     {
-        "id": "Azure_npref_7b_d2_1",
+        "id": "Azure_npref_14b_d2_1",
         "trace": "Azure",
         "trace_id": 1,
         "chunk_size": 100,
