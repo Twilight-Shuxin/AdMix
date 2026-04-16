@@ -1,5 +1,6 @@
 import argparse
 import os
+from pathlib import Path
 from profiling.constants import *
 
 class ProfileConfig:
@@ -18,7 +19,9 @@ class ProfileConfig:
         # Save profile data (data collected under running mode 'PROFILE') to under MPSTest/args.profile_path (default: MPSTest/profile_data)
         dirname, filename = os.path.split(os.path.abspath(__file__))
         self.path = dirname + "/../" + args.path
-        self.profile_path = dirname+"/../" + args.profile_path
+        self.profile_path = dirname + "/../" + args.profile_path
+        Path(self.path).mkdir(parents=True, exist_ok=True)
+        Path(self.profile_path).mkdir(parents=True, exist_ok=True)
 
         self.trace_path = get_comma_list(args.trace, ArgsType.STRING, self.model_cnt, default = None)
         # Only a list [input_seq_len, output_seq_len] can be specified for llm worker.

@@ -602,6 +602,11 @@ class ModelWorker(Process):
         if state == 'unloading' and evt is not None:
             evt.wait()
 
+        # Guard: _background may have concurrently destroyed this context already.
+        with self._mps_ctx_lock:
+            if mps not in self.ctx_states:
+                return
+
         self._send_cmd_mps_thread(mps, 'destroy')
         self.ctx_threads[mps].join()
         with self._mps_ctx_lock:

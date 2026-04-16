@@ -16,17 +16,18 @@ class LLMTraceConfig():
         self.chunk_size = kwargs["chunk_size"]
         self.start_id = kwargs["start_id"]
         self.max_prompt_cnt = kwargs["max_prompt_cnt"]
-        self.scale = kwargs["scale"]
+        self.time_compression = kwargs["time_compression"]
+        self.load_factor = kwargs["load_factor"]
         self.test_time = 100
-    
+
     """
         Get LLM trace tag.
-            [trace_name&id, startid, chunksize, test_time, scale]
+            [trace_name&id, startid, chunksize, test_time, time_compression, load_factor]
         FIXME: Now changed to new naming convention, but example follows old convention.
         E.g.[BurstGPT1,100,331,400000,1]
     """
     def get_trace_tag(self):
-        trace_arg = [self.trace_name + str(self.trace_id), self.start_id, self.chunk_size, self.test_time, self.scale]
+        trace_arg = [self.trace_name + str(self.trace_id), self.start_id, self.chunk_size, self.test_time, self.time_compression, self.load_factor]
         trace_tag = ",".join([str(x) for x in trace_arg])
         return trace_tag
 
@@ -43,7 +44,8 @@ def read_LLM_trace_config():
             chunk_size = data["chunk_size"],
             start_id = data["start_id"],
             max_prompt_cnt = data["max_prompt_cnt"],
-            scale = data["scale"]
+            time_compression = data["time_compression"],
+            load_factor = data["load_factor"]
         )
     if("time" in data):
         llm_trace_config.test_time = data["time"]
@@ -118,13 +120,19 @@ class LLMTrace(Trace):
             if(start_time is None):
                 start_time = chunk['Timestamp'].iloc[0]
             chunk['Timestamp'] = chunk['Timestamp'] - start_time
-            chunk['Timestamp'] = chunk['Timestamp'] / self.trace_config.scale
+            chunk['Timestamp'] = chunk['Timestamp'] / self.trace_config.time_compression
             chunks.append(chunk)
             last_timestamp = chunk['Timestamp'].iloc[-1]
             if(last_timestamp > self.trace_config.test_time):
                 break
-       
+
         trace = pd.concat(chunks)
+        if self.trace_config.load_factor != 1.0:
+            trace = trace.sample(
+                frac=self.trace_config.load_factor,
+                replace=self.trace_config.load_factor > 1.0,
+                random_state=42
+            ).sort_values('Timestamp')
         trace.reset_index(drop=True, inplace=True)
         time_length = trace['Timestamp'].iloc[-1]
         print("Total trace prompt count:", len(trace), 'Trace time length:', time_length, 'Average intensity:', len(trace) / time_length)
