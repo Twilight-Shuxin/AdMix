@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from plotting.constants import average_chunks
+from profiling.constants import get_dcgm_data
 
 def plot_monitored(records, data_path_prefix, tag):
     if len(records) > 20:
@@ -11,7 +12,7 @@ def plot_monitored(records, data_path_prefix, tag):
         print("Warning: plot_monitored: Not enough records for trimming.")
 
     plt.figure(figsize=(10, 5))
-    chunk_size = 30
+    chunk_size = 15
     records = average_chunks(records, chunk_size)
     df = pd.DataFrame({tag: records})
 
@@ -53,5 +54,5 @@ def plot_monitored(records, data_path_prefix, tag):
     plt.savefig(output_path)
 
 def plot_monitored_from_file(data_prefix, tag):
-    records = get_dcgm_data(data_prefix + tag + '.log')
+    _, records = get_dcgm_data(data_prefix + tag + '.log')
     plot_monitored(records, data_prefix, tag)

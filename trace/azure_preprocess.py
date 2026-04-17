@@ -5,7 +5,7 @@ import sys
 # python azure_preprocess.py $raw_filename $output_filename
 
 def main():
-    df = pd.read_csv('./raw_data/' + sys.argv[1])
+    df = pd.read_csv(sys.argv[1])
     df['TIMESTAMP'] = pd.to_datetime(df['TIMESTAMP'], format='mixed')
     start_time = df['TIMESTAMP'].iloc[0]
     df['Timestamp'] = (df['TIMESTAMP'] - start_time).dt.total_seconds()

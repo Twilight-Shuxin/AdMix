@@ -1,4 +1,6 @@
 import json
+import os
+import re
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.legend_handler import HandlerBase
@@ -52,10 +54,16 @@ class HandlerBarLine(HandlerBase):
 
         return [rect, line]
 
-ROOT_FOLDER = "../data_staged/llama7b"
+MODEL_DIMENSION = {
+    "llama7b": "d1",
+    "qwen14b": "d2",
+    "qwen32b": "d4",
+}
+MODEL = "llama7b"
+ROOT_FOLDER = f"data_staged/{MODEL}"
 PROFILE_DATA_FOLDER = "../profile_data"
 OUTPUT_FOLDER = "./outputs"
-DIMENSION = "d1"
+DIMENSION = MODEL_DIMENSION[MODEL]
 
 config_map = {
     "time":    {"name": "Time Slicing", "scheduler": "constant"},
@@ -333,12 +341,48 @@ def _add_figure_legend(fig, axes):
                handleheight=2.4, handlelength=2.5, borderpad=0.6)
 
 
+def find_best_mps(trace_tag, model, slo_threshold=99.0):
+    """Return the highest MPS % for (trace_tag, model) with >= slo_threshold% LLM SLO satisfaction.
+    Falls back to the smallest available MPS % if none qualifies."""
+    mps_dir = f"{ROOT_FOLDER}/mps"
+    if not os.path.isdir(mps_dir):
+        return None
+
+    batch_size = max_batch_size[model]
+    pattern = re.compile(
+        r'^llm\[' + re.escape(trace_tag) + r'\]\+' + re.escape(model) +
+        r'\(m(\d+(?:\.\d+)?)\)-constant\[' + str(batch_size) + r'\]-' +
+        re.escape(DIMENSION) + r'-final_summary\.log$'
+    )
+    mps_satisfaction = {}
+    for filename in os.listdir(mps_dir):
+        m = pattern.match(filename)
+        if not m:
+            continue
+        pct = int(float(m.group(1)))
+        try:
+            d = read_final_summary(os.path.join(mps_dir, filename))
+            mps_satisfaction[pct] = d["satisfaction rate"]
+        except Exception:
+            pass
+
+    if not mps_satisfaction:
+        return None
+
+    qualifying = [pct for pct, sat in mps_satisfaction.items() if sat >= slo_threshold]
+    return max(qualifying) if qualifying else min(mps_satisfaction)
+
+
 def main():
-    trace_list = {
-        "BurstGPT1,301,100,3600,2.8": {"tag": "BurstGPT",  "mps": 20},
-        "Azure1,0,100,3600,0.1":       {"tag": "Azure",     "mps": 10},
-        "BurstGPT2,200,100,3600,9":    {"tag": "BurstGPT2", "mps": 10},
-        "Azure2,0,100,3600,0.5":       {"tag": "Azure2",    "mps": 20},
+    global ROOT_FOLDER, DIMENSION
+    trace_lists = {
+        "llama7b": {
+            "BurstGPT1,301,100,3600,2.8": {"tag": "BurstGPT"},
+            "Azure1,0,100,3600,0.1":       {"tag": "Azure"},
+            "BurstGPT2,200,100,3600,9":    {"tag": "BurstGPT2"},
+            "Azure2,0,100,3600,0.5":       {"tag": "Azure2"},
+        },
+        # "qwen14b": { ... },
     }
     model_list = ["resnet50", "vgg19", "unet3d", "deeplabv3"]
     sub_paths = {
@@ -348,6 +392,7 @@ def main():
         "context": "context",
     }
 
+    trace_list = trace_lists[MODEL]
     data = {}
     for trace, meta in trace_list.items():
         tag = meta["tag"]
@@ -355,9 +400,11 @@ def main():
         data[trace] = {}
         for model in model_list:
             data[trace][model] = {}
+            best_mps = find_best_mps(trace, model)
+            print(f"[mps] {tag}/{model}: selected mps={best_mps}")
             for config, sub_path in sub_paths.items():
                 if config == "mps":
-                    d = get_data(model, trace, config, sub_path, meta["mps"])
+                    d = get_data(model, trace, config, sub_path, best_mps)
                 else:
                     d = get_data(model, trace, config, sub_path)
                 data[trace][model][config] = d

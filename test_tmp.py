@@ -7,9 +7,7 @@ llm_configs = {
     "qwen14b": {"devices": "0,1"},
 }
 
-llm_model_tag = "qwen14b"
-devices       = llm_configs[llm_model_tag]["devices"]
-data_path     = f"data_staged/{llm_model_tag}"
+llm_model_tag_list = ["llama7b", "qwen14b"]
 
 # ── Side-model config ──────────────────────────────────────────────────────────
 models = {
@@ -20,83 +18,91 @@ models = {
 }
 
 # ── Traces (each entry binds a trace to its MPS value) ───────────────────────
-traces = [
-    {"trace": "BurstGPT_npref_7b_d2_1", "mps": 20},
-    {"trace": "Azure_npref_7b_d2_1", "mps": 10}
-]
+traces_map = {
+    "llama7b": [
+        # {"trace": "BurstGPT_npref_7b_d1_1", "mps": 20},
+        {"trace": "BurstGPT_npref_7b_d1_2", "mps": 20},
+        {"trace": "Azure_npref_7b_d1_1",    "mps": 20},
+        {"trace": "Azure_npref_7b_d1_2",    "mps": 20},
+    ],
+    "qwen14b": [
+        {"trace": "BurstGPT_npref_14b_d2_1", "mps": 20},
+        {"trace": "Azure_npref_14b_d2_1",    "mps": 20},
+    ],
+}
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-def run_cmd(cmd, outfile=None):
-    print(cmd)
-    if outfile:
-        with open(outfile, "a") as f:
-            f.write(cmd + "\n")
-            f.flush()
-            subprocess.run(cmd, shell=True, stdout=f, stderr=subprocess.STDOUT)
-    else:
-        subprocess.run(cmd, shell=True)
+def run_exp(cmd, data_path, subdir):
+    # full_cmd = f"{cmd}  --dcgm_group 0 --rec-pw --path {data_path}/{subdir}"
+    full_cmd = f"{cmd} --dcgm_group 0 --path {data_path}/{subdir}"
+    outfile = f"{data_path}/{subdir}/summary/out.out"
+    os.makedirs(os.path.dirname(outfile), exist_ok=True)
+    print(full_cmd)
+    with open(outfile, "a") as f:
+        f.write(full_cmd + "\n")
+        f.flush()
+        subprocess.run(full_cmd, shell=True, stdout=f, stderr=subprocess.STDOUT)
 
-def gmanager(action):
+def gmanager(action, devices):
     subprocess.run(f"gmanager {action} {devices}", shell=True)
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 os.environ["ADMIX_LLM_SERVING_PLATFORM"] = "vllm"
 
-# # Utils run: LLM only
-# gmanager("stopmps")
-# for tc in traces:
-#     if(tc['trace'].startswith("BurstGPT")):
-#         run_cmd(
-#             f"python run.py --model llm --llm_model {llm_model_tag}"
-#             f" --dcgm_group 0 --trace {tc['trace']} --devices {devices}"
-#             f" --rec-pw --path {data_path}/utils",
-#             "out.out",
-#         )
+for llm_model_tag in llm_model_tag_list:
+    devices   = llm_configs[llm_model_tag]["devices"]
+    data_path = f"data_new/{llm_model_tag}"
+    traces    = traces_map[llm_model_tag]
 
-# # MPS run: LLM + side model
-# for tc in traces:
-#     for m, cfg in models.items():
-#         gmanager("startmps")
-#         run_cmd(
-#             f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
-#             f" --scheduler constant[{cfg['mps_bs']}] --mps 100,{tc['mps']}"
-#             f" --dcgm_group 0 --trace {tc['trace']} --devices {devices}"
-#             f" --rec-pw --path {data_path}/mps",
-#             "out_mps.out",
-#         )
-
-# Context run: LLM + side model, modified vllm
-for tc in traces:
-    for m in models:
-        gmanager("startmps")
-        run_cmd(
-            f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
-            f" --scheduler context"
-            f" --dcgm_group 0 --trace {tc['trace']} --devices {devices}"
-            f" --rec-pw --path {data_path}/context",
-            "out_context.out",
+    # Utils run: LLM only
+    gmanager("stopmps", devices)
+    for tc in traces:
+        run_exp(
+            f"python run.py --model llm --llm_model {llm_model_tag}"
+            f" --trace {tc['trace']} --devices {devices}",
+            data_path, "utils",
         )
 
-# Batch run: LLM + side model, modified vllm
-for tc in traces:
-    for m in models:
-        gmanager("startmps")
-        run_cmd(
-            f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
-            f" --scheduler batch"
-            f" --dcgm_group 0 --trace {tc['trace']} --devices {devices}"
-            f" --rec-pw --path {data_path}/batch",
-            "out_batch.out",
-        )
+    # # MPS run: LLM + side model
+    # for tc in traces:
+    #     for m, cfg in models.items():
+    #         gmanager("startmps", devices)
+    #         run_exp(
+    #             f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
+    #             f" --scheduler constant[{cfg['mps_bs']}] --mps 100,{tc['mps']}"
+    #             f" --trace {tc['trace']} --devices {devices}",
+    #             data_path, "mps",
+    #         )
 
-# Time run: LLM + side model, no MPS
-gmanager("stopmps")
-for tc in traces:
-    for m, cfg in models.items():
-        run_cmd(
-            f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
-            f" --scheduler constant[{cfg['time_bs']}]"
-            f" --dcgm_group 0 --trace {tc['trace']} --devices {devices}"
-            f" --rec-pw --path {data_path}/time",
-            "out_time.out",
-        )
+    # # Context run: LLM + side model, modified vllm
+    # for tc in traces:
+    #     for m in models:
+    #         gmanager("startmps", devices)
+    #         run_exp(
+    #             f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
+    #             f" --scheduler context"
+    #             f" --trace {tc['trace']} --devices {devices} ",
+    #             data_path, "context",
+    #         )
+
+    # # Batch run: LLM + side model, modified vllm
+    # for tc in traces:
+    #     for m in models:
+    #         gmanager("startmps", devices)
+    #         run_exp(
+    #             f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
+    #             f" --scheduler batch"
+    #             f" --trace {tc['trace']} --devices {devices}",
+    #             data_path, "batch",
+    #         )
+
+    # # Time run: LLM + side model, no MPS
+    # gmanager("stopmps", devices)
+    # for tc in traces:
+    #     for m, cfg in models.items():
+    #         run_exp(
+    #             f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
+    #             f" --scheduler constant[{cfg['time_bs']}]"
+    #             f" --trace {tc['trace']} --devices {devices}",
+    #             data_path, "time",
+    #         )
