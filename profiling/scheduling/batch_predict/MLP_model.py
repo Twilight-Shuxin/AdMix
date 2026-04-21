@@ -19,10 +19,10 @@ class MLPRegressor(nn.Module):
         return self.model(x)
 
 class MLPPredictModel(PytorchPredictModel):
-    def __init__(self, input_dim, device):
+    def __init__(self, input_dim, device, llm_model):
         self.model = MLPRegressor(input_dim, device)
         self.model_name = "MLP"
         self.device = device
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
-        super().__init__()
+        super().__init__(llm_model)
