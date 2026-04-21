@@ -60,7 +60,7 @@ MODEL_DIMENSION = {
     "qwen32b": "d4",
 }
 MODEL = "llama7b"
-ROOT_FOLDER = f"data_staged/{MODEL}"
+ROOT_FOLDER = f"../data_final/{MODEL}"
 PROFILE_DATA_FOLDER = "../profile_data"
 OUTPUT_FOLDER = "./outputs"
 DIMENSION = MODEL_DIMENSION[MODEL]
@@ -70,7 +70,7 @@ config_map = {
     "batch":   {"name": "batch",        "scheduler": "batch"},
     "mps":     {"name": "MPS",          "scheduler": "constant"},
     "utils":   {"name": "LLM only",     "scheduler": None},
-    "context": {"name": "context",      "scheduler": "context"},
+    "context": {"name": "AdMix",      "scheduler": "context"},
 }
 
 max_batch_size = {
@@ -370,25 +370,28 @@ def find_best_mps(trace_tag, model, slo_threshold=99.0):
         return None
 
     qualifying = [pct for pct, sat in mps_satisfaction.items() if sat >= slo_threshold]
-    return max(qualifying) if qualifying else min(mps_satisfaction)
+    not_qualifying = [pct for pct, sat in mps_satisfaction.items() if sat < slo_threshold]
+    best = max(qualifying) if qualifying else min(mps_satisfaction)
+    min_not_qualifying = min(not_qualifying) if not_qualifying else None
+    return best, min_not_qualifying
 
 
 def main():
     global ROOT_FOLDER, DIMENSION
     trace_lists = {
         "llama7b": {
-            "BurstGPT1,301,100,3600,2.8": {"tag": "BurstGPT"},
-            "Azure1,0,100,3600,0.1":       {"tag": "Azure"},
-            "BurstGPT2,200,100,3600,9":    {"tag": "BurstGPT2"},
-            "Azure2,0,100,3600,0.5":       {"tag": "Azure2"},
+            "BurstGPT2,200,100,3600,5,1.5": {"tag": "llama7b_BurstGPT"},
+            "Azure1,500,100,3600,5,0.022":       {"tag": "llama7b_Azure"},
         },
-        # "qwen14b": { ... },
+        "qwen14b": { 
+            "Azure1,2000,100,3600,5,0.05": {"tag": "qwen14b_Azure"},
+        },
     }
     model_list = ["resnet50", "vgg19", "unet3d", "deeplabv3"]
     sub_paths = {
         "mps":     "mps",
-        "time":    "time",
-        "batch":   "batch",
+        # "time":    "time",
+        # "batch":   "batch",
         "context": "context",
     }
 
@@ -400,8 +403,8 @@ def main():
         data[trace] = {}
         for model in model_list:
             data[trace][model] = {}
-            best_mps = find_best_mps(trace, model)
-            print(f"[mps] {tag}/{model}: selected mps={best_mps}")
+            best_mps, min_not_qualifying = find_best_mps(trace, model)
+            print(f"[mps] {tag}/{model}: selected mps={best_mps}, min non-qualifying mps={min_not_qualifying}")
             for config, sub_path in sub_paths.items():
                 if config == "mps":
                     d = get_data(model, trace, config, sub_path, best_mps)

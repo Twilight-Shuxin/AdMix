@@ -47,7 +47,8 @@ class LLMWorker(ModelWorker):
             "llama7b":  "meta-llama/Llama-2-7b-chat-hf",
             "qwen14b":  "Qwen/Qwen2.5-14B-Instruct",
         }
-        self.llm_model = _llm_model_map.get(llm_model, llm_model) if llm_model is not None else "meta-llama/Llama-2-7b-hf"
+        print(f"Using model {llm_model} {_llm_model_map.get(llm_model, llm_model)}")
+        self.llm_model = _llm_model_map.get(llm_model, llm_model) if llm_model is not None else "meta-llama/Llama-2-7b-chat-hf"
         self.memory_util = os.environ.get('ADMIX_LLM_KV_MEM', "0.7")
         self.scheduler = scheduler
     

@@ -12,7 +12,7 @@ def plot_monitored(records, data_path_prefix, tag):
         print("Warning: plot_monitored: Not enough records for trimming.")
 
     plt.figure(figsize=(10, 5))
-    chunk_size = 15
+    chunk_size = 20
     records = average_chunks(records, chunk_size)
     df = pd.DataFrame({tag: records})
 
