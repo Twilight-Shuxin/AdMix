@@ -40,10 +40,27 @@ else:
     ax = fig.add_subplot(111, projection='3d')
     print(z.max())
     sc = ax.scatter(df["Cached Tkns"], df["Scheduled Tkns"], z, c=z, cmap="viridis", s=0.5, alpha=0.3, rasterized=True)
-    plt.colorbar(sc, ax=ax, label="Latency (ms)")
-    ax.set_xlabel("Cached Tkns")
-    ax.set_ylabel("Scheduled Tkns")
-    ax.set_title("3D Scatter: Latency vs Token Dims")
+    fs = 8
+    cbar = plt.colorbar(sc, ax=ax, label="Latency (ms)", shrink=0.5, pad=0.03)
+    cbar.set_label("Latency (ms)", fontsize=fs)
+    cbar.ax.tick_params(labelsize=fs)
+
+    # Skip the tick at 0: in 3D, the label at the origin corner renders
+    # displaced far from the axis, so start ticks from the first non-zero step.
+    x_max = df["Cached Tkns"].max()
+    x_ticks = range(20000, int(x_max) + 1, 20000)
+    ax.set_xticks(list(x_ticks))
+    ax.set_xticklabels([f"{x // 1000}k" for x in x_ticks], fontsize=fs)
+
+    y_max = df["Scheduled Tkns"].max()
+    y_ticks = range(500, int(y_max) + 1, 500)
+    ax.set_yticks(list(y_ticks))
+    ax.set_yticklabels([str(y) for y in y_ticks], fontsize=fs)
+    ax.set_xlabel("Cached Tkns", fontsize=fs, labelpad=-8)
+    ax.set_ylabel("Scheduled Tkns", fontsize=fs, labelpad=-4)
+    ax.tick_params(axis='x', pad=-4)
+    ax.tick_params(axis='y', pad=-2)
+    ax.tick_params(axis='z', pad=-1, labelsize=fs)
     ax.set_xlim(left=0)
     ax.set_ylim(bottom=0)
 

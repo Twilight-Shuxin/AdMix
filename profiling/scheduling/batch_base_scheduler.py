@@ -67,13 +67,15 @@ class BatchBaseScheduler(Scheduler):
         self.max_batch_size = 32
         self.last_execution_time = 0
         self.time_interval = 0.1 # 100ms
-
-        device = "cuda"
-        input_dim = ObservationSingleBatchData().get_pred_feature_len()
-        self.predictor = MLPPredictModel(input_dim, device)
         self.prediction_logs = []
         self.execution_logs = []
         self.llm_token_budget = 2048
+        self.solo_time_sum = 0
+
+    def scheduler_init(self):
+        device = "cuda"
+        input_dim = ObservationSingleBatchData().get_pred_feature_len()
+        self.predictor = MLPPredictModel(input_dim, device, self.model_client.llm_model)
         self.max_process_speed = self.get_prediction(
             ObservationData(
                 batch_data = [
@@ -84,9 +86,7 @@ class BatchBaseScheduler(Scheduler):
                 ]
             )
         )[0] / self.llm_token_budget # process speed in milliseconds
-        self.solo_time_sum = 0
 
-    def scheduler_init(self):
         profiled_data = self.model_client.read_profiled_data()
         self.max_batch_size = self.model_client.supported_batchsize[-1]
         for i in reversed(self.model_client.supported_batchsize):

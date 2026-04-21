@@ -14,7 +14,7 @@ from profiling.models.workers.constants import SyncType
 from profiling.scheduling.monitor import llm_server_rpc_retry
 
 class ModelClient(Process):
-    def __init__(self, model_name, devices, mps, pipe, barrier, log_path, profile_path):
+    def __init__(self, model_name, devices, mps, pipe, barrier, log_path, profile_path, llm_model=None):
         super().__init__()
         self.model_name = model_name
         self.mps = mps
@@ -23,6 +23,7 @@ class ModelClient(Process):
         self.log_path = log_path
         self.profile_path = profile_path
         self.devices = devices
+        self.llm_model = llm_model
         self.dirname, filename = os.path.split(os.path.abspath(__file__))
         self.worker_pipes = []
         self.beta = 2

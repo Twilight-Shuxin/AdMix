@@ -17,7 +17,7 @@ class LLMClient(ModelClient):
         self.model_worker = LLMWorker
         self.llm_model = llm_model
         self.scheduler = scheduler
-        super().__init__("llm", devices, mps, pipe, barrier, log_path, profile_path)
+        super().__init__("llm", devices, mps, pipe, barrier, log_path, profile_path, llm_model=llm_model)
 
     def start_worker(self, devices):
         device_init(self.devices, devices, self.mps)

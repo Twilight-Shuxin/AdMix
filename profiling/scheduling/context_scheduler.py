@@ -5,7 +5,8 @@ from profiling.models.workers.constants import SyncType
 from profiling.scheduling.monitor import get_llm_intensity_unix
 from profiling.scheduling.schedule_plan import ContextSchedulePlan
 from plotting.trace_plot import TracePlotData, TraceAxisData, plot_trace_graph
-from profiling.scheduling.batch_base_scheduler import BatchBaseScheduler, BatchSchedulingDataFormat
+from profiling.scheduling.batch_base_scheduler import BatchBaseScheduler, BatchSchedulingDataFormat, ObservationData, ObservationSingleBatchData
+from profiling.scheduling.batch_predict.MLP_model import MLPPredictModel
 
 class ContextScheduler(BatchBaseScheduler):
     data_format = BatchSchedulingDataFormat
@@ -25,6 +26,19 @@ class ContextScheduler(BatchBaseScheduler):
         self.pause = False
     
     def scheduler_init(self):
+        device = "cuda"
+        input_dim = ObservationSingleBatchData().get_pred_feature_len()
+        self.predictor = MLPPredictModel(input_dim, device, self.model_client.llm_model)
+        self.max_process_speed = self.get_prediction(
+            ObservationData(
+                batch_data = [
+                    ObservationSingleBatchData(
+                        scheduled_tokens = self.llm_token_budget,
+                        cached_tokens = 0
+                    )
+                ]
+            )
+        )[0] / self.llm_token_budget # process speed in milliseconds
         self.model_client.command_workers("context_setup", sync = SyncType.ALL)
         profiled_data = self.model_client.read_profiled_data()
         self.max_batch_size = self.model_client.supported_batchsize[-1]

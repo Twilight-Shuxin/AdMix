@@ -651,13 +651,14 @@ class ModelWorker(Process):
 
         # ── Step 2: schedule unload of old mps context (is None no action), then load new model.
         # _unload is non-blocking: starts grace-period timer so that quick switch back to `old` cancels unload with no H2D reload cost.
+        old = self.current_ctx_pct
         self._unload(self.current_ctx_pct)
         self.current_ctx_pct = mps
         self._load(mps)
 
         # ── Step 3: background — pre-create neighbors, destroy far contexts ──
-        def _background(current=mps):
-            if current == 100:
+        def _background(old = old, current = mps):
+            if old == 100 or current == 100:
                 return
             keep = {current, 100} | {current + d for d in (-self.MPS_step, self.MPS_step) if 10 <= current + d <= 100}
             for n in keep - {current}:

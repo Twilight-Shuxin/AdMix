@@ -2,8 +2,8 @@ from profiling.models.workers import ResnetWorker
 from profiling.models.model_client import ModelClient
 
 class ResnetClient(ModelClient):
-    def __init__(self, devices, mps, pipe, barrier, log_path, profile_path):
-        super().__init__("resnet50", devices, mps, pipe, barrier, log_path, profile_path)
+    def __init__(self, devices, mps, pipe, barrier, log_path, profile_path, llm_model=None):
+        super().__init__("resnet50", devices, mps, pipe, barrier, log_path, profile_path, llm_model=llm_model)
         self.supported_batchsize = [x for x in range(1,129)]
         self.alpha = 8
     

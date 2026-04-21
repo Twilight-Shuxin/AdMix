@@ -118,7 +118,7 @@ class ProfileServer():
         self.double_barrier = mp.Barrier(2)
         for id, model_name in enumerate(self.model_names):
             pipe_parent, pipe_child = mp.Pipe()
-            extra_kwargs = {"llm_model": self.llm_model, "scheduler": self.scheduler} if model_name == "llm" else {}
+            extra_kwargs = {"llm_model": self.llm_model, "scheduler": self.scheduler} if model_name == "llm" else {"llm_model": self.llm_model}
             client = model_clients[model_name](
                 self.devices,
                 self.mps_list[id],
