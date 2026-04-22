@@ -612,12 +612,13 @@ class Scheduler(
         self.shuxin_processing = None
         self.shuxin_waiting_prompt_tkn_max = 0
         self.shuxin_buffer_lock = threading.Lock()
-        shuxin_thread = threading.Thread(
-            target=shuxin_unix_server,
-            args=(SHUXIN_LLM_SOCKET_PATH, self, self.shuxin_log_data, self.shuxin_buffer_lock),
-            daemon=True,
-        )
-        shuxin_thread.start()
+        if self.tp_rank == 0:
+            shuxin_thread = threading.Thread(
+                target=shuxin_unix_server,
+                args=(SHUXIN_LLM_SOCKET_PATH, self, self.shuxin_log_data, self.shuxin_buffer_lock),
+                daemon=True,
+            )
+            shuxin_thread.start()
 
     def init_sockets(self, server_args: ServerArgs, port_args: PortArgs):
         context = zmq.Context(2)
