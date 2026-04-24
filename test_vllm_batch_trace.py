@@ -37,14 +37,15 @@ def get_trace(trace_config_id, test_time = None):
 def main():
     additional_data, processed, data = get_data_from_llm()
     loop = asyncio.new_event_loop()
-    test_time = int(sys.argv[2]) if len(sys.argv) > 2 else None
+    test_time = int(sys.argv[3]) if len(sys.argv) > 3 else None
     trace_config_id = sys.argv[1]
+    output_file = sys.argv[2]
     trace = get_trace(trace_config_id, test_time)
     loop.run_until_complete(test_trace(trace))
     additional_data, processed, data = get_data_from_llm()
     data.sort(key=lambda x: (x[0] * x[1]))
     data.sort()
-    write_list_to_csv(f"./batch_predict/inputs/vllm_tp2_{trace_config_id}.csv",["Scheduled Tkns", "Cached Tkns", "Latency"], data)
+    write_list_to_csv(f"./batch_predict/inputs/{output_file}",["Scheduled Tkns", "Cached Tkns", "Latency"], data)
 
 if __name__ == "__main__":
     main()

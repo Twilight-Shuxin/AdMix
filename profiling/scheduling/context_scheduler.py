@@ -51,18 +51,19 @@ class ContextScheduler(BatchBaseScheduler):
                 self.max_batch_size_full = i
                 break
         self.pre_solo_mps = 20
+        self.prefill_estimate_time = 0
         self.normal_plan = ContextSchedulePlan(self.pre_solo_mps, self.max_batch_size)
         self.last_context_switch_time = time.perf_counter()
     
     def get_scheduling_plan(self, intensity_data, pred_latency):
         current_mps = self.current_plan.mps if self.current_plan else self.normal_plan.mps
 
-        processed_latency, processing_pred_latency = 0, 0
         self.prefill_estimate_time = (int(intensity_data.waiting_prompt_tkns * self.max_process_speed), 0)
+        processed_latency, processing_pred_latency = 0, 0
         if(intensity_data.processing):
             processed_latency, processing_pred_latency = intensity_data.batch_data.pop().latency, pred_latency.pop()
         real_latency = [x.latency for x in intensity_data.batch_data]
-        if(self.pause == False):
+        if(self.pause == False and not self.solo_mode):
             self.observed_percentages.extend([(r - p) / p if r - 3 > p and p > 0 else 0 for r, p in zip(real_latency, pred_latency)])
             if len(self.observed_percentages) > 20:
                 self.observed_percentages = self.observed_percentages[-20:]

@@ -65,10 +65,12 @@ PROFILE_DATA_FOLDER = "../profile_data"
 OUTPUT_FOLDER = "./outputs"
 DIMENSION = MODEL_DIMENSION[MODEL]
 
+MPS_LOWER_LIMIT = 10  # ignore MPS percentage files below this value (0 = no limit)
+
 config_map = {
-    "time":    {"name": "Time Slicing", "scheduler": "constant"},
+    "time":    {"name": "Temporal Sharing", "scheduler": "constant"},
     "batch":   {"name": "batch",        "scheduler": "batch"},
-    "mps":     {"name": "MPS",          "scheduler": "constant"},
+    "mps":     {"name": "Static MPS",          "scheduler": "constant"},
     "utils":   {"name": "LLM only",     "scheduler": None},
     "context": {"name": "AdMix",      "scheduler": "context"},
 }
@@ -337,16 +339,18 @@ def _add_figure_legend(fig, axes):
     fig.legend(combined_handles, combined_labels,
                handler_map=handler_map,
                loc='center', ncol=len(combined_labels),
-               bbox_to_anchor=(0.5, 0.94), frameon=True, columnspacing=1,
+               bbox_to_anchor=(0.5, 0.97), frameon=True, columnspacing=1,
                handleheight=2.4, handlelength=2.5, borderpad=0.6)
 
 
-def find_best_mps(trace_tag, model, slo_threshold=99.0):
+def find_best_mps(trace_tag, model, slo_threshold=99.0, min_mps=0):
     """Return the highest MPS % for (trace_tag, model) with >= slo_threshold% LLM SLO satisfaction.
-    Falls back to the smallest available MPS % if none qualifies."""
+    Falls back to the smallest available MPS % if none qualifies.
+    MPS percentages below min_mps are ignored, unless no files exist at all — in that case
+    min_mps is ignored and all available files are considered."""
     mps_dir = f"{ROOT_FOLDER}/mps"
     if not os.path.isdir(mps_dir):
-        return None
+        return None, None
 
     batch_size = max_batch_size[model]
     pattern = re.compile(
@@ -354,7 +358,7 @@ def find_best_mps(trace_tag, model, slo_threshold=99.0):
         r'\(m(\d+(?:\.\d+)?)\)-constant\[' + str(batch_size) + r'\]-' +
         re.escape(DIMENSION) + r'-final_summary\.log$'
     )
-    mps_satisfaction = {}
+    all_satisfaction = {}
     for filename in os.listdir(mps_dir):
         m = pattern.match(filename)
         if not m:
@@ -362,16 +366,29 @@ def find_best_mps(trace_tag, model, slo_threshold=99.0):
         pct = int(float(m.group(1)))
         try:
             d = read_final_summary(os.path.join(mps_dir, filename))
-            mps_satisfaction[pct] = d["satisfaction rate"]
+            all_satisfaction[pct] = d["satisfaction rate"]
         except Exception:
             pass
 
+    # Apply lower limit, but ignore it if no files exist at all
+    mps_satisfaction = {pct: sat for pct, sat in all_satisfaction.items() if pct >= min_mps}
     if not mps_satisfaction:
-        return None
+        mps_satisfaction = all_satisfaction
+
+    if not mps_satisfaction:
+        # Broader fallback: find smallest pct from any file matching model/trace in mps dir
+        loose = re.compile(
+            r'^llm\[' + re.escape(trace_tag) + r'\]\+' + re.escape(model) +
+            r'\(m(\d+(?:\.\d+)?)\)-.*-final_summary\.log$'
+        )
+        pcts = [int(float(m.group(1))) for f in os.listdir(mps_dir) if (m := loose.match(f))]
+        if not pcts:
+            return None, None
+        return min(pcts), None
 
     qualifying = [pct for pct, sat in mps_satisfaction.items() if sat >= slo_threshold]
     not_qualifying = [pct for pct, sat in mps_satisfaction.items() if sat < slo_threshold]
-    best = max(qualifying) if qualifying else min(mps_satisfaction)
+    best = max(qualifying) if qualifying else min(mps_satisfaction)  # fall back to smallest
     min_not_qualifying = min(not_qualifying) if not_qualifying else None
     return best, min_not_qualifying
 
@@ -380,30 +397,38 @@ def main():
     global ROOT_FOLDER, DIMENSION
     trace_lists = {
         "llama7b": {
-            "BurstGPT2,200,100,3600,5,1.5": {"tag": "llama7b_BurstGPT"},
-            "Azure1,500,100,3600,5,0.022":       {"tag": "llama7b_Azure"},
+            "Azure1,500,100,3600,5,0.022":       {"tag": "Azure"},
+            "BurstGPT2,200,100,3600,5,1.5": {"tag": "BurstGPT"},
         },
         "qwen14b": { 
-            "Azure1,2000,100,3600,5,0.05": {"tag": "qwen14b_Azure"},
+            "Azure1,2000,100,3600,5,0.045": {"tag": "Azure"},
+            "BurstGPT2,1000,100,3600,5,1.8": {"tag": "BurstGPT"},
         },
     }
     model_list = ["resnet50", "vgg19", "unet3d", "deeplabv3"]
     sub_paths = {
         "mps":     "mps",
-        # "time":    "time",
+        "time":    "time",
         # "batch":   "batch",
         "context": "context",
     }
+    print(f"Generating report for {MODEL}")
 
     trace_list = trace_lists[MODEL]
     data = {}
-    for trace, meta in trace_list.items():
+    n_traces = len(trace_list)
+    fig, all_axes = plt.subplots(n_traces, 5, figsize=(24, 4 * n_traces))
+    if n_traces == 1:
+        all_axes = [all_axes]  # ensure 2-D indexing works
+
+    row_labels = list('abcdefghijklmnopqrstuvwxyz')
+    for row_idx, (trace, meta) in enumerate(trace_list.items()):
         tag = meta["tag"]
-        fig, axes = plt.subplots(1, 5, figsize=(24, 4))
+        axes = all_axes[row_idx]
         data[trace] = {}
         for model in model_list:
             data[trace][model] = {}
-            best_mps, min_not_qualifying = find_best_mps(trace, model)
+            best_mps, min_not_qualifying = find_best_mps(trace, model, min_mps=MPS_LOWER_LIMIT)
             print(f"[mps] {tag}/{model}: selected mps={best_mps}, min non-qualifying mps={min_not_qualifying}")
             for config, sub_path in sub_paths.items():
                 if config == "mps":
@@ -411,18 +436,45 @@ def main():
                 else:
                     d = get_data(model, trace, config, sub_path)
                 data[trace][model][config] = d
-        plot_base_mps(data[trace], 'Normalized Offline WL Throughput', 'absolute throughput', axes[0], show_legend=False)
+        plot_base_mps(data[trace], 'Normalized Opp. WL Throughput', 'absolute throughput', axes[0], show_legend=False)
         d = get_data(model, trace, 'utils', 'utils')
         for model in model_list:
             data[trace][model]['utils'] = d
+
+        print(f"\n[{tag}] TTFT / TBT degradation vs LLM-only baseline:")
+        configs = [c for c in sub_paths if c != 'utils']
+        header = f"  {'model':<12}" + "".join(f"  {config_map[c]['name']:>18}" for c in configs)
+        print(header)
+        for model in model_list:
+            utils_ft = data[trace][model]['utils']['ft_mean']
+            utils_bt = data[trace][model]['utils']['bt_mean']
+            row = f"  {model:<12}"
+            for c in configs:
+                ft_deg = (data[trace][model][c]['ft_mean'] - utils_ft) / utils_ft * 100
+                bt_deg = (data[trace][model][c]['bt_mean'] - utils_bt) / utils_bt * 100
+                row += f"  TTFT {ft_deg:+.1f}%  TBT {bt_deg:+.1f}%"
+            print(row)
+        print()
         plot_normal_line(data[trace], 'SLO Attainment Rate (%)', 'satisfaction rate', axes[1], show_legend=False)
         plot_normal_line(data[trace], 'SM Activity (%)', 'sm_active', axes[2], show_legend=False)
         plot_normal_line(data[trace], 'Average TTFT (s)', 'ft_mean', axes[3], show_legend=False)
         plot_normal_line(data[trace], 'Average TBT (s)', 'bt_mean', axes[4], show_legend=False)
-        _add_figure_legend(fig, axes)
-        fig.tight_layout(rect=[0, 0, 1, 0.88])
-        plt.savefig(f'{OUTPUT_FOLDER}/{tag}.pdf')
-        plt.clf()
+
+    _add_figure_legend(fig, all_axes[0])
+    # Reserve space at top for legend and at bottom for per-row captions
+    fig.tight_layout(rect=[0, 0.04 / n_traces * n_traces, 1, 0.94])
+    fig.subplots_adjust(hspace=0.3)
+
+    # Add row captions after layout so positions are final
+    for row_idx, (trace, meta) in enumerate(trace_list.items()):
+        axes = all_axes[row_idx]
+        label = f'({row_labels[row_idx]}) {meta["tag"]}'
+        mid_x = (axes[0].get_position().x0 + axes[4].get_position().x1) / 2
+        row_bottom = min(ax.get_position().y0 for ax in axes)
+        fig.text(mid_x, row_bottom - 0.05, label, ha='center', va='top', fontsize=12)
+
+    plt.savefig(f'{OUTPUT_FOLDER}/{MODEL}_combined.pdf', bbox_inches='tight')
+    plt.clf()
 
     # for trace, meta in trace_list.items():
     #     tag = meta["tag"]

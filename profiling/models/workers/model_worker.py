@@ -394,7 +394,7 @@ class ModelWorker(Process):
                         elapsed = round(time.perf_counter() - t0, 3) * 1000
                         self.runtime_data.absolute_throughput += loop_bs
                         if self.test_config.recording_action.record_statistics:
-                            self.profile_data.logs.append((loop_bs, elapsed))
+                            self.profile_data.logs.append((loop_bs, elapsed, mps))
                             self.profile_data.absolute_throughput_records.add(
                                 time.perf_counter() - self.runtime_data.start_time_pointer, loop_bs)
                         if(mps != 100):
