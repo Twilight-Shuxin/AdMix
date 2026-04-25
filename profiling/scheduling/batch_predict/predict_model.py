@@ -12,8 +12,11 @@ GBATCH_PREDICT_MODEL_FOLDER = Path(os.getenv("GBATCH_PREDICT_MODEL_PATH", os.pat
 class WrappedStandardScaler():
     def __init__(self, model_folder):
         self.save_path = model_folder / "std_scaler.bin"
+        self.sc = None
 
     def transform(self, x):
+        if self.sc is None:
+            raise RuntimeError(f"Scaler not loaded — file not found: {self.save_path}")
         return self.sc.transform(x)
 
     def load(self):
@@ -23,7 +26,8 @@ class WrappedStandardScaler():
 
 class PredictModel():
     def __init__(self, llm_model):
-        self.model_folder = GBATCH_PREDICT_MODEL_FOLDER / "models" / llm_model
+        llm_platform = os.environ.get('ADMIX_LLM_SERVING_PLATFORM', "vllm").lower()
+        self.model_folder = GBATCH_PREDICT_MODEL_FOLDER / "models" / llm_platform / llm_model
         self.set_model_path()
         self.sc = WrappedStandardScaler(self.model_folder)
         self.load()
