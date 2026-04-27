@@ -26,7 +26,7 @@ def data_prep(data_path, all_test):
     X = df.drop(columns=[PredHeaders.latency])
     y = df[PredHeaders.latency]
 
-    # Split into train + validation (80%) and test (20%) without shuffling
+    # Split into train + validation (80%) and test (20%) with shuffling
     X_train_all, X_test, y_train_all, y_test = train_test_split(
         X.values, y.values, test_size=0.2, random_state=42
     )

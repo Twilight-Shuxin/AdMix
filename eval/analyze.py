@@ -59,11 +59,12 @@ MODEL_DIMENSION = {
     "qwen14b": "d2",
     "qwen32b": "d4",
 }
-MODEL = "llama7b"
-ROOT_FOLDER = f"../data_final/{MODEL}"
+# MODELS = ["llama7b", "qwen14b"]
+MODELS = ["llama7b"]
+ROOT_FOLDER = f"../data_final/{MODELS[0]}"
 PROFILE_DATA_FOLDER = "../profile_data"
 OUTPUT_FOLDER = "./outputs"
-DIMENSION = MODEL_DIMENSION[MODEL]
+DIMENSION = MODEL_DIMENSION[MODELS[0]]
 
 MPS_LOWER_LIMIT = 10  # ignore MPS percentage files below this value (0 = no limit)
 
@@ -71,6 +72,8 @@ config_map = {
     "time":    {"name": "Temporal Sharing", "scheduler": "constant"},
     "batch":   {"name": "batch",        "scheduler": "batch"},
     "mps":     {"name": "Static MPS",          "scheduler": "constant"},
+    "pmps":     {"name": "Static MPS +",   "scheduler": "pconstant"},
+    "contextminus": {"name": "AdMix -", "scheduler": "contextminus"},
     "utils":   {"name": "LLM only",     "scheduler": None},
     "context": {"name": "AdMix",      "scheduler": "context"},
 }
@@ -162,10 +165,10 @@ def get_data(model, trace_tag, config, sub_path, percentage=None):
     data = {}
     scheduler = config_map[config]["scheduler"]
     if scheduler is not None:
-        if scheduler == "constant":
-            scheduler += f"[{max_batch_size[model]}]" if config == "mps" else f"[{time_batch_size[model]}]"
+        if scheduler in ("constant", "pconstant"):
+            scheduler += f"[{max_batch_size[model]}]" if config in ("mps", "pmps") else f"[{time_batch_size[model]}]"
         set_tag = f'llm[{trace_tag}]+{model}'
-        if config == "mps":
+        if config in ("mps", "pmps"):
             set_tag += f"(m{percentage})"
         set_tag += "-" + scheduler
         path_prefix = f"llm-{set_tag}"
@@ -221,7 +224,7 @@ def plot_bar_chart(models, sub_paths, values, ylabel, ax=None, xtitle=None, ymax
 
 def plot_line_chart(models, sub_paths, values, ylabel, ax=None, xtitle=None, ymax=None, ymin=None, show_legend=True):
     x = np.arange(len(models))  # model positions
-    styles = ['--x', ':s', '-o', '-.^',  '-d']
+    styles = ['--x', ':s', '-o', '-.^',  '-d', '-*']  # different line styles and markers for each config
     if(ax == None):
         fig, ax = plt.subplots()
     else:
@@ -343,19 +346,19 @@ def _add_figure_legend(fig, axes):
                handleheight=2.4, handlelength=2.5, borderpad=0.6)
 
 
-def find_best_mps(trace_tag, model, slo_threshold=99.0, min_mps=0):
+def find_best_mps(trace_tag, model, slo_threshold=99.0, min_mps=0, sub_dir="mps", scheduler_name="constant"):
     """Return the highest MPS % for (trace_tag, model) with >= slo_threshold% LLM SLO satisfaction.
     Falls back to the smallest available MPS % if none qualifies.
     MPS percentages below min_mps are ignored, unless no files exist at all — in that case
     min_mps is ignored and all available files are considered."""
-    mps_dir = f"{ROOT_FOLDER}/mps"
+    mps_dir = f"{ROOT_FOLDER}/{sub_dir}"
     if not os.path.isdir(mps_dir):
         return None, None
 
     batch_size = max_batch_size[model]
     pattern = re.compile(
         r'^llm\[' + re.escape(trace_tag) + r'\]\+' + re.escape(model) +
-        r'\(m(\d+(?:\.\d+)?)\)-constant\[' + str(batch_size) + r'\]-' +
+        r'\(m(\d+(?:\.\d+)?)\)-' + re.escape(scheduler_name) + r'\[' + str(batch_size) + r'\]-' +
         re.escape(DIMENSION) + r'-final_summary\.log$'
     )
     all_satisfaction = {}
@@ -376,7 +379,7 @@ def find_best_mps(trace_tag, model, slo_threshold=99.0, min_mps=0):
         mps_satisfaction = all_satisfaction
 
     if not mps_satisfaction:
-        # Broader fallback: find smallest pct from any file matching model/trace in mps dir
+        # Broader fallback: find smallest pct from any file matching model/trace in dir
         loose = re.compile(
             r'^llm\[' + re.escape(trace_tag) + r'\]\+' + re.escape(model) +
             r'\(m(\d+(?:\.\d+)?)\)-.*-final_summary\.log$'
@@ -394,15 +397,15 @@ def find_best_mps(trace_tag, model, slo_threshold=99.0, min_mps=0):
 
 
 def main():
-    global ROOT_FOLDER, DIMENSION
+    global MODEL, ROOT_FOLDER, DIMENSION
     trace_lists = {
         "llama7b": {
-            "Azure1,500,100,3600,5,0.022":       {"tag": "Azure"},
-            "BurstGPT2,200,100,3600,5,1.5": {"tag": "BurstGPT"},
+            "Azure1,500,100,3600,5,0.022":       {"tag": "LLaMA-7B - Azure"},
+            "BurstGPT2,200,100,3600,5,1.5": {"tag": "LLaMA-7B - BurstGPT"},
         },
-        "qwen14b": { 
-            "Azure1,2000,100,3600,5,0.045": {"tag": "Azure"},
-            "BurstGPT2,1000,100,3600,5,1.8": {"tag": "BurstGPT"},
+        "qwen14b": {
+            "Azure1,2000,100,3600,5,0.045": {"tag": "Qwen-14B - Azure"},
+            "BurstGPT2,1000,100,3600,5,1.8": {"tag": "Qwen-14B - BurstGPT"},
         },
     }
     model_list = ["resnet50", "vgg19", "unet3d", "deeplabv3"]
@@ -410,107 +413,117 @@ def main():
         "mps":     "mps",
         "time":    "time",
         # "batch":   "batch",
+        "pmps": "pmps",
+        "contextminus": "contextminus",
         "context": "context",
     }
-    print(f"Generating report for {MODEL}")
 
-    trace_list = trace_lists[MODEL]
-    data = {}
-    n_traces = len(trace_list)
-    fig, all_axes = plt.subplots(n_traces, 5, figsize=(24, 4 * n_traces))
-    if n_traces == 1:
-        all_axes = [all_axes]  # ensure 2-D indexing works
+    for MODEL in MODELS:
+        ROOT_FOLDER = f"../data_final/{MODEL}"
+        DIMENSION = MODEL_DIMENSION[MODEL]
+        print(f"Generating report for {MODEL}")
 
-    row_labels = list('abcdefghijklmnopqrstuvwxyz')
-    for row_idx, (trace, meta) in enumerate(trace_list.items()):
-        tag = meta["tag"]
-        axes = all_axes[row_idx]
-        data[trace] = {}
-        for model in model_list:
-            data[trace][model] = {}
-            best_mps, min_not_qualifying = find_best_mps(trace, model, min_mps=MPS_LOWER_LIMIT)
-            print(f"[mps] {tag}/{model}: selected mps={best_mps}, min non-qualifying mps={min_not_qualifying}")
-            for config, sub_path in sub_paths.items():
-                if config == "mps":
-                    d = get_data(model, trace, config, sub_path, best_mps)
-                else:
-                    d = get_data(model, trace, config, sub_path)
-                data[trace][model][config] = d
-        plot_base_mps(data[trace], 'Normalized Opp. WL Throughput', 'absolute throughput', axes[0], show_legend=False)
-        d = get_data(model, trace, 'utils', 'utils')
-        for model in model_list:
-            data[trace][model]['utils'] = d
+        trace_list = trace_lists[MODEL]
+        data = {}
+        n_traces = len(trace_list)
+        fig, all_axes = plt.subplots(n_traces, 5, figsize=(24, 3 * n_traces))
+        if n_traces == 1:
+            all_axes = [all_axes]  # ensure 2-D indexing works
 
-        print(f"\n[{tag}] TTFT / TBT degradation vs LLM-only baseline:")
-        configs = [c for c in sub_paths if c != 'utils']
-        header = f"  {'model':<12}" + "".join(f"  {config_map[c]['name']:>18}" for c in configs)
-        print(header)
-        for model in model_list:
-            utils_ft = data[trace][model]['utils']['ft_mean']
-            utils_bt = data[trace][model]['utils']['bt_mean']
-            row = f"  {model:<12}"
-            for c in configs:
-                ft_deg = (data[trace][model][c]['ft_mean'] - utils_ft) / utils_ft * 100
-                bt_deg = (data[trace][model][c]['bt_mean'] - utils_bt) / utils_bt * 100
-                row += f"  TTFT {ft_deg:+.1f}%  TBT {bt_deg:+.1f}%"
-            print(row)
-        print()
-        plot_normal_line(data[trace], 'SLO Attainment Rate (%)', 'satisfaction rate', axes[1], show_legend=False)
-        plot_normal_line(data[trace], 'SM Activity (%)', 'sm_active', axes[2], show_legend=False)
-        plot_normal_line(data[trace], 'Average TTFT (s)', 'ft_mean', axes[3], show_legend=False)
-        plot_normal_line(data[trace], 'Average TBT (s)', 'bt_mean', axes[4], show_legend=False)
+        row_labels = list('abcdefghijklmnopqrstuvwxyz')
+        for row_idx, (trace, meta) in enumerate(trace_list.items()):
+            tag = meta["tag"]
+            axes = all_axes[row_idx]
+            data[trace] = {}
+            for model in model_list:
+                data[trace][model] = {}
+                best_mps, min_not_qualifying = find_best_mps(trace, model, min_mps=MPS_LOWER_LIMIT)
+                print(f"[mps] {tag}/{model}: selected mps={best_mps}, min non-qualifying mps={min_not_qualifying}")
+                best_pmps, min_not_qualifying_pmps = find_best_mps(trace, model, min_mps=MPS_LOWER_LIMIT, sub_dir="pmps", scheduler_name="pconstant")
+                print(f"[pmps] {tag}/{model}: selected mps={best_pmps}, min non-qualifying mps={min_not_qualifying_pmps}")
+                for config, sub_path in sub_paths.items():
+                    if config == "mps":
+                        d = get_data(model, trace, config, sub_path, best_mps)
+                    elif config == "pmps":
+                        d = get_data(model, trace, config, sub_path, best_pmps)
+                    else:
+                        d = get_data(model, trace, config, sub_path)
+                    data[trace][model][config] = d
+            plot_base_mps(data[trace], 'Normalized Opp. WL Throughput', 'absolute throughput', axes[0], show_legend=False)
+            d = get_data(model, trace, 'utils', 'utils')
+            for model in model_list:
+                data[trace][model]['utils'] = d
 
-    _add_figure_legend(fig, all_axes[0])
-    # Reserve space at top for legend and at bottom for per-row captions
-    fig.tight_layout(rect=[0, 0.04 / n_traces * n_traces, 1, 0.94])
-    fig.subplots_adjust(hspace=0.3)
+            print(f"\n[{tag}] TTFT / TBT degradation vs LLM-only baseline:")
+            configs = [c for c in sub_paths if c != 'utils']
+            header = f"  {'model':<12}" + "".join(f"  {config_map[c]['name']:>18}" for c in configs)
+            print(header)
+            for model in model_list:
+                utils_ft = data[trace][model]['utils']['ft_mean']
+                utils_bt = data[trace][model]['utils']['bt_mean']
+                row = f"  {model:<12}"
+                for c in configs:
+                    ft_deg = (data[trace][model][c]['ft_mean'] - utils_ft) / utils_ft * 100
+                    bt_deg = (data[trace][model][c]['bt_mean'] - utils_bt) / utils_bt * 100
+                    row += f"  TTFT {ft_deg:+.1f}%  TBT {bt_deg:+.1f}%"
+                print(row)
+            print()
+            plot_normal_line(data[trace], 'SLO Attainment Rate (%)', 'satisfaction rate', axes[1], show_legend=False)
+            plot_normal_line(data[trace], 'SM Activity (%)', 'sm_active', axes[2], show_legend=False)
+            plot_normal_line(data[trace], 'Average TTFT (s)', 'ft_mean', axes[3], show_legend=False)
+            plot_normal_line(data[trace], 'Average TBT (s)', 'bt_mean', axes[4], show_legend=False)
 
-    # Add row captions after layout so positions are final
-    for row_idx, (trace, meta) in enumerate(trace_list.items()):
-        axes = all_axes[row_idx]
-        label = f'({row_labels[row_idx]}) {meta["tag"]}'
-        mid_x = (axes[0].get_position().x0 + axes[4].get_position().x1) / 2
-        row_bottom = min(ax.get_position().y0 for ax in axes)
-        fig.text(mid_x, row_bottom - 0.05, label, ha='center', va='top', fontsize=12)
+        _add_figure_legend(fig, all_axes[0])
+        # Reserve space at top for legend and left margin for row labels
+        fig.tight_layout(rect=[0.04, 0, 1, 0.94])
+        fig.subplots_adjust(hspace=0.15)
 
-    plt.savefig(f'{OUTPUT_FOLDER}/{MODEL}_combined.pdf', bbox_inches='tight')
-    plt.clf()
+        # Add row labels on the left side of each row
+        for row_idx, (trace, meta) in enumerate(trace_list.items()):
+            axes = all_axes[row_idx]
+            label = meta["tag"]
+            row_mid_y = (min(ax.get_position().y0 for ax in axes) + max(ax.get_position().y1 for ax in axes)) / 2
+            left_x = axes[0].get_position().x0 - 0.03
+            fig.text(left_x, row_mid_y, label, ha='center', va='center', fontsize=12, rotation=90)
 
-    # for trace, meta in trace_list.items():
-    #     tag = meta["tag"]
-    #     fig, axes = plt.subplots(1, 2, figsize=(11, 4))
-    #     plot_normal_line(data[trace], 'Average TTFT (s)', 'ft_mean', axes[0], show_legend=False)
-    #     plot_normal_line(data[trace], 'Average TBT (s)', 'bt_mean', axes[1], show_legend=False)
-    #     _add_figure_legend(fig, axes)
-    #     fig.tight_layout(rect=[0, 0, 1, 0.88])
-    #     plt.savefig(f'{OUTPUT_FOLDER}/{tag}_latency.pdf')
-    #     plt.clf()
-
-    profile_data = {model: load_profile_data(model) for model in model_list}
-    for trace, meta in trace_list.items():
-        tag = meta["tag"]
-        # Compute normalized energy: actual / (llm_only + side_model_separate)
-        norm_energy = {}
-        for model in model_list:
-            batch_size = max_batch_size[model]
-            llm_energy = data[trace][model]['utils']['energy']
-            side_energy_per_output = profile_data[model][str(batch_size)]['avg_energy'] / 1000 # Energy in profile is J
-            norm_energy[model] = {}
-            for config in sub_paths:
-                d = data[trace][model][config]
-                separate_energy = llm_energy + d['absolute throughput'] * side_energy_per_output
-                norm_energy[model][config] = round((d['energy'] / separate_energy) * 100, 1)
-
-        configs = list(sub_paths.keys())
-        values = np.array([
-            [norm_energy[model][config] for config in configs]
-            for model in model_list
-        ])
-        fig, ax = plt.subplots(figsize=(6, 4))
-        plot_line_chart(model_list, configs, values, 'Normalized Energy (%)', ax)
-        fig.tight_layout()
-        plt.savefig(f'{OUTPUT_FOLDER}/{tag}_energy.pdf')
+        plt.savefig(f'{OUTPUT_FOLDER}/{MODEL}_combined.pdf', bbox_inches='tight')
         plt.clf()
+
+        # for trace, meta in trace_list.items():
+        #     tag = meta["tag"]
+        #     fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+        #     plot_normal_line(data[trace], 'Average TTFT (s)', 'ft_mean', axes[0], show_legend=False)
+        #     plot_normal_line(data[trace], 'Average TBT (s)', 'bt_mean', axes[1], show_legend=False)
+        #     _add_figure_legend(fig, axes)
+        #     fig.tight_layout(rect=[0, 0, 1, 0.88])
+        #     plt.savefig(f'{OUTPUT_FOLDER}/{tag}_latency.pdf')
+        #     plt.clf()
+
+        profile_data = {model: load_profile_data(model) for model in model_list}
+        for trace, meta in trace_list.items():
+            tag = meta["tag"]
+            # Compute normalized energy: actual / (llm_only + side_model_separate)
+            norm_energy = {}
+            for model in model_list:
+                batch_size = max_batch_size[model]
+                llm_energy = data[trace][model]['utils']['energy']
+                side_energy_per_output = profile_data[model][str(batch_size)]['avg_energy'] / 1000 # Energy in profile is J
+                norm_energy[model] = {}
+                for config in sub_paths:
+                    d = data[trace][model][config]
+                    separate_energy = llm_energy + d['absolute throughput'] * side_energy_per_output
+                    norm_energy[model][config] = round((d['energy'] / separate_energy) * 100, 1)
+
+            configs = list(sub_paths.keys())
+            values = np.array([
+                [norm_energy[model][config] for config in configs]
+                for model in model_list
+            ])
+            fig, ax = plt.subplots(figsize=(6, 4))
+            plot_line_chart(model_list, configs, values, 'Normalized Energy (%)', ax)
+            fig.tight_layout()
+            plt.savefig(f'{OUTPUT_FOLDER}/{tag}_energy.pdf')
+            plt.clf()
 
 
 if __name__ == "__main__":
