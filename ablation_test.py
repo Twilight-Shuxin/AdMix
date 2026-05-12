@@ -11,6 +11,7 @@ dry_run = args.dry_run
 llm_configs = {
     "llama7b": {"devices": "1"},
     "qwen14b": {"devices": "0,1"},
+    "qwen32b": {"devices": "0,1,2,3"},
 }
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -35,7 +36,7 @@ def gmanager(action, devices = None):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 os.environ["ADMIX_LLM_SERVING_PLATFORM"] = "vllm"
-llm_model_tag_list = ["llama7b", "qwen14b"]
+llm_model_tag_list = ["llama7b", "qwen14b", "qwen32b"]
 
 # ── Side-model config ──────────────────────────────────────────────────────────
 models = {
@@ -54,7 +55,11 @@ traces_map = {
     "qwen14b": [
         # {"trace": "BurstGPT_npref_14b_d2_1", "mps": [30]},#10,15
         {"trace": "Azure_npref_14b_d2_1", "mps": [10]},#5
-    ]
+    ],
+    "qwen32b": [
+        # {"trace": "BurstGPT_npref_32b_d4_1", "mps": [20]},#10,15
+        {"trace": "Azure_npref_32b_d4_1", "mps": [10]},#5
+    ],
 }
 
 for llm_model_tag in llm_model_tag_list:
