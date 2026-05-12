@@ -41,9 +41,9 @@ llm_model_tag_list = ["llama7b", "qwen14b", "qwen32b"]
 # ── Side-model config ──────────────────────────────────────────────────────────
 models = {
     "resnet50":  {"mps_bs": 128, "time_bs": 4},
-    # "vgg19":     {"mps_bs": 128, "time_bs": 4},
-    # "unet3d":    {"mps_bs": 16,  "time_bs": 1},
-    # "deeplabv3": {"mps_bs": 32,  "time_bs": 2},
+    "vgg19":     {"mps_bs": 128, "time_bs": 4},
+    "unet3d":    {"mps_bs": 16,  "time_bs": 1},
+    "deeplabv3": {"mps_bs": 32,  "time_bs": 2},
 }
 
 # ── Traces (each entry binds a trace to its MPS value) ───────────────────────

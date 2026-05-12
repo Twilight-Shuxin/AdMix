@@ -53,12 +53,12 @@ traces_map = {
         # {"trace": "Azure2_pattern",    "mps": [20]},
     # ],
     "llama7b": [
-        {"trace": "BurstGPT_npref_7b_d1_2", "mps": [30]}, #15
+        # {"trace": "BurstGPT_npref_7b_d1_2", "mps": [30]}, #15
         {"trace": "Azure_npref_7b_d1_1",    "mps": [15]}, #10
     ],
     "qwen14b": [
-        {"trace": "BurstGPT_npref_14b_d2_1", "mps": [10]},
-        {"trace": "Azure_npref_14b_d2_1", "mps": [5]},
+        # {"trace": "BurstGPT_npref_14b_d2_1", "mps": [10]},
+        # {"trace": "Azure_npref_14b_d2_1", "mps": [5]},
     ]
 }
 
@@ -68,18 +68,18 @@ for llm_model_tag in llm_model_tag_list:
     traces    = traces_map[llm_model_tag]
 
     # Time run: LLM + side model, no MPS
-    if(llm_model_tag == "llama7b"):
-        gmanager("stopmps")
-        gmanager("stopmps", devices)
-        for tc in traces:
-            for m, cfg in models.items():
-                if(m == "deeplabv3"):
-                    run_exp(
-                        f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
-                        f" --scheduler constant[{cfg['time_bs']}]"
-                        f" --trace {tc['trace']} --devices {devices}",
-                        data_path, "time",
-                    )
+    # if(llm_model_tag == "llama7b"):
+    #     gmanager("stopmps")
+    #     gmanager("stopmps", devices)
+    #     for tc in traces:
+    #         for m, cfg in models.items():
+    #             if(m == "deeplabv3"):
+    #                 run_exp(
+    #                     f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
+    #                     f" --scheduler constant[{cfg['time_bs']}]"
+    #                     f" --trace {tc['trace']} --devices {devices}",
+    #                     data_path, "time",
+    #                 )
 
 
     # # # Utils run: LLM only
@@ -92,30 +92,30 @@ for llm_model_tag in llm_model_tag_list:
     #     )
 
     # MPS run: LLM + side model
-    if(llm_model_tag == "qwen14b"):
-        gmanager("startmps", devices)
-        for tc in traces:
-            for m, cfg in models.items():
-                for mps_val in tc['mps']:
-                    run_exp(
-                        f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
-                        f" --scheduler constant[{cfg['mps_bs']}] --mps 100,{mps_val}"
-                        f" --trace {tc['trace']} --devices {devices}",
-                        data_path, "mps",
-                    )
-    gmanager("stopmps", devices)
+    # if(llm_model_tag == "qwen14b"):
+    #     gmanager("startmps", devices)
+    #     for tc in traces:
+    #         for m, cfg in models.items():
+    #             for mps_val in tc['mps']:
+    #                 run_exp(
+    #                     f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
+    #                     f" --scheduler constant[{cfg['mps_bs']}] --mps 100,{mps_val}"
+    #                     f" --trace {tc['trace']} --devices {devices}",
+    #                     data_path, "mps",
+    #                 )
+    # gmanager("stopmps", devices)
 
     # Context run: LLM + side model, modified vllm
-    # gmanager("startmps", devices)
-    # for tc in traces:
-    #     for m in models:
-    #         run_exp(
-    #             f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
-    #             f" --scheduler context"
-    #             f" --trace {tc['trace']} --devices {devices} ",
-    #             data_path, "context",
-    #         )
-    # gmanager("stopmps", devices)
+    gmanager("startmps", devices)
+    for tc in traces:
+        for m in models:
+            run_exp(
+                f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
+                f" --scheduler context"
+                f" --trace {tc['trace']} --devices {devices} ",
+                data_path, "context",
+            )
+    gmanager("stopmps", devices)
 
     # # Batch run: LLM + side model, modified vllm
     # for tc in traces:
