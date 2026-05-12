@@ -4,16 +4,17 @@ import math
 import time
 import random
 import asyncio
+import argparse
 from tqdm import tqdm
 from itertools import chain, cycle
 import matplotlib.pyplot as plt
-from llm_utils import get_data_from_llm, async_inference
+from llm_utils import get_data_from_llm, async_inference, _LLM_MODEL_MAP, start_server, stop_server
 from profiling.constants import write_list_to_csv
 
 # 7b: 86400
-KV_CACHE_TKN_SPACE = 172800
+KV_CACHE_TKN_SPACE = 152800
 MAX_PROMPT_LENGTH = 3000
-TKN_BUDGET = 2000
+TKN_BUDGET = 2020
 
 MIN_OUTPUT_LEN = 50
 MAX_OUTPUT_LEN = 3000
@@ -69,30 +70,44 @@ async def test():
                 pbar.update(1)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("output_file", nargs="?", default="kv_cache_fill_new.csv")
+    parser.add_argument("--platform", required=True, choices=["vllm", "sglang"], help="LLM serving platform")
+    parser.add_argument("--model", required=True, help="Model name or shorthand (llama7b, qwen14b, qwen32b, or full HF path)")
+    return parser.parse_args()
+
 def main():
-    additional_data, processing, data = get_data_from_llm()
-    output_file = sys.argv[1] if len(sys.argv) > 1 else "kv_cache_fill_new.csv"
-    asyncio.run(test())
-    additional_data, processing, data = get_data_from_llm()
+    args = parse_args()
+    llm_model = _LLM_MODEL_MAP.get(args.model, args.model)
+    os.environ['ADMIX_LLM_SERVING_PLATFORM'] = args.platform
 
-    # Plot Cached Tkns over time (request order)
-    cached_tkns = [row[1] for row in data]
-    plt.figure(figsize=(12, 5))
-    plt.plot(cached_tkns)
-    plt.xlabel("Request Index")
-    plt.ylabel("Cached Tkns")
-    plt.title("Cached Tkns over Time")
-    plt.tight_layout()
-    plot_name = os.path.splitext(output_file)[0] + "_cached_tkns.png"
-    plt.savefig(f"./batch_predict/plot/outputs/{plot_name}", dpi=150, bbox_inches="tight")
-    plt.close()
+    server_proc = start_server(args.platform, args.model, llm_model)
+    try:
+        additional_data, processing, data = get_data_from_llm()
+        asyncio.run(test())
+        additional_data, processing, data = get_data_from_llm()
 
-    data.sort()
-    write_list_to_csv(
-        f"./batch_predict/inputs/{output_file}",
-        ["Scheduled Tkns", "Cached Tkns", "Latency"],
-        data,
-    )
+        # Plot Cached Tkns over time (request order)
+        cached_tkns = [row[1] for row in data]
+        plt.figure(figsize=(12, 5))
+        plt.plot(cached_tkns)
+        plt.xlabel("Request Index")
+        plt.ylabel("Cached Tkns")
+        plt.title("Cached Tkns over Time")
+        plt.tight_layout()
+        plot_name = os.path.splitext(args.output_file)[0] + "_cached_tkns.png"
+        plt.savefig(f"./batch_predict/plot/outputs/{plot_name}", dpi=150, bbox_inches="tight")
+        plt.close()
+
+        data.sort()
+        write_list_to_csv(
+            f"./batch_predict/inputs/{args.output_file}",
+            ["Scheduled Tkns", "Cached Tkns", "Latency"],
+            data,
+        )
+    finally:
+        stop_server(server_proc)
 
 
 if __name__ == "__main__":

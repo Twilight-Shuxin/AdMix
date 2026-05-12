@@ -47,18 +47,13 @@ models = {
 
 # ── Traces (each entry binds a trace to its MPS value) ───────────────────────
 traces_map = {
-    # "llama7b": [
-        # {"trace": "BurstGPT_pattern", "mps": [20]},
-        # {"trace": "Azure1_pattern",    "mps": [20]},
-        # {"trace": "Azure2_pattern",    "mps": [20]},
-    # ],
     "llama7b": [
-        {"trace": "BurstGPT_npref_7b_d1_2", "mps": [30]},#15
-        {"trace": "Azure_npref_7b_d1_1",    "mps": [20]},#10
+        {"trace": "BurstGPT_npref_7b_d1_2", "mps": [45]},#15,35
+        {"trace": "Azure_npref_7b_d1_1",    "mps": [15]},#10,25
     ],
     "qwen14b": [
-        {"trace": "BurstGPT_npref_14b_d2_1", "mps": [10]},#10
-        {"trace": "Azure_npref_14b_d2_1", "mps": [5]},#5
+        # {"trace": "BurstGPT_npref_14b_d2_1", "mps": [30]},#10,15
+        {"trace": "Azure_npref_14b_d2_1", "mps": [10]},#5
     ]
 }
 
@@ -80,14 +75,14 @@ for llm_model_tag in llm_model_tag_list:
                 )
     gmanager("stopmps", devices)
 
-    # Context run: LLM + side model, modified vllm
-    # gmanager("startmps", devices)
-    # for tc in traces:
-    #     for m in models:
-    #         run_exp(
-    #             f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
-    #             f" --scheduler context"
-    #             f" --trace {tc['trace']} --devices {devices} ",
-    #             data_path, "context",
-    #         )
-    # gmanager("stopmps", devices)
+    # Context-withoutproactive run: LLM + side model, modified vllm
+    gmanager("startmps", devices)
+    for tc in traces:
+        for m in models:
+            run_exp(
+                f"python run.py --model llm,{m} --llm_model {llm_model_tag}"
+                f" --scheduler contextminus"
+                f" --trace {tc['trace']} --devices {devices} ",
+                data_path, "contextminus",
+            )
+    gmanager("stopmps", devices)
