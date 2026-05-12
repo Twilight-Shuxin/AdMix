@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+plt.rcParams.update({'font.size': 12})
+
 data_root = "/home/k43015/MPSTest/data_final"
 profile_root = "/home/k43015/MPSTest/profile_data"
 output_dir = "./outputs"
@@ -46,6 +48,13 @@ max_batch_size = {
     "vgg19": 128,
     "unet3d": 16,
     "deeplabv3": 32,
+}
+
+model_display_names = {
+    "resnet50":   "Resnet50",
+    "vgg19":      "Vgg19",
+    "unet3d":     "UNet3d",
+    "deeplabv3":  "DeeplabV3",
 }
 
 
@@ -189,7 +198,7 @@ def collect_results():
 def plot_results(results):
     active_models = [m for m in model_order if m in models]
     x = np.arange(len(active_models))
-    bar_width = 0.28
+    bar_width = 0.35
     offset = bar_width / 2 + 0.04
 
     color_mps100        = 'steelblue'
@@ -199,7 +208,7 @@ def plot_results(results):
 
     for llm_model, traces in results.items():
         n_traces = len(traces)
-        fig, axes = plt.subplots(1, n_traces, figsize=(4 * n_traces, 3.5), sharey=True)
+        fig, axes = plt.subplots(1, n_traces, figsize=(5 * n_traces, 4.8), sharey=True)
         if n_traces == 1:
             axes = [axes]
 
@@ -246,23 +255,23 @@ def plot_results(results):
             for xi, val in zip(x, time_vals):
                 if not np.isnan(val):
                     ax.text(xi, val + 2, f"{val:.1f}%", ha='center', va='bottom',
-                            fontsize=7.5, color='tomato')
+                            fontsize=12, color='tomato')
 
             ax.axhline(100, color='grey', linewidth=0.8, linestyle='--', alpha=0.7)
             ax.set_xticks(x)
-            ax.set_xticklabels(active_models, fontsize=9)
-            ax.set_xlabel(f"{sp_label} {trace_labels.get(trace_tag, trace_tag)}", fontsize=10)
+            ax.set_xticklabels([model_display_names.get(m, m) for m in active_models], fontsize=12)
+            ax.set_xlabel(f"{sp_label} {trace_labels.get(trace_tag, trace_tag)}", fontsize=12, labelpad=12)
             ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.0f}%"))
             ax.grid(axis='y', linestyle=':', linewidth=0.6, alpha=0.6)
 
-        axes[0].set_ylabel("Normalized (%)", fontsize=9)
+        axes[0].set_ylabel("Normalized (%)", fontsize=12)
         axes[0].legend(
             handles=[bar_mps_other_h, bar_mps_est_h, bar_ctx_other_h, bar_ctx_mps_h, line_handle],
-            loc='upper left', ncol=1, frameon=True, fontsize=8,
+            loc='upper left', ncol=1, frameon=True, fontsize=12,
         )
         fig.tight_layout()
         out_path = os.path.join(output_dir, f"{llm_model}_gap.pdf")
-        fig.savefig(out_path, bbox_inches='tight')
+        fig.savefig(out_path, bbox_inches='tight', pad_inches=0.2)
         plt.close(fig)
         print(f"Saved: {out_path}")
 

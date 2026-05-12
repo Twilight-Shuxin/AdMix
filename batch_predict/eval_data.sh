@@ -8,4 +8,4 @@ MODEL=${3:-MLP}
 
 run_cmd "python prep_data.py $1 True"
 run_cmd "python eval_model.py $MODEL $2"
-run_cmd "python ./plot/plot_3d_scatter.py ./outputs/${2}_pred.csv ${2}_scatter"
+run_cmd "python ./plot/plot_3d_scatter.py ./outputs/eval/${2}_pred.csv ${2}_scatter"

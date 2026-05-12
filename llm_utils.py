@@ -8,10 +8,10 @@ import aiohttp
 import requests
 import subprocess
 import torch
-from profiling.constants import *
-from dataset.sharegpt_dataset import ShareGPTDataset
-from profiling.scheduling.monitor import LLM_INTENSITY_SOCKET_PATH
-from profiling.scheduling.scheduler import get_data_length, conn_get_data_chunked
+from admix.profiling.constants import *
+from admix.dataset.sharegpt_dataset import ShareGPTDataset
+from admix.profiling.scheduling.monitor import LLM_INTENSITY_SOCKET_PATH
+from admix.profiling.scheduling.scheduler import get_data_length, conn_get_data_chunked
 
 _LLM_MODEL_MAP = {
     "llama7b": "meta-llama/Llama-2-7b-chat-hf",

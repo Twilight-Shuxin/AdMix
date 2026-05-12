@@ -8,6 +8,8 @@ from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D as MplLine2D
 from matplotlib.container import BarContainer
 
+plt.rcParams.update({'font.size': 15})
+
 
 class HandlerBarLine(HandlerBase):
     """Legend key that stacks the bar patch (top) over the line+marker (bottom)."""
@@ -59,23 +61,22 @@ MODEL_DIMENSION = {
     "qwen14b": "d2",
     "qwen32b": "d4",
 }
-# MODELS = ["llama7b", "qwen14b"]
-MODELS = ["llama7b"]
+MODELS = ["llama7b", "qwen14b", "qwen32b"]
 ROOT_FOLDER = f"../data_final/{MODELS[0]}"
 PROFILE_DATA_FOLDER = "../profile_data"
 OUTPUT_FOLDER = "./outputs"
 DIMENSION = MODEL_DIMENSION[MODELS[0]]
 
-MPS_LOWER_LIMIT = 10  # ignore MPS percentage files below this value (0 = no limit)
+MPS_LOWER_LIMIT = 5  # ignore MPS percentage files below this value (0 = no limit)
 
 config_map = {
-    "time":    {"name": "Temporal Sharing", "scheduler": "constant"},
-    "batch":   {"name": "batch",        "scheduler": "batch"},
-    "mps":     {"name": "Static MPS",          "scheduler": "constant"},
-    "pmps":     {"name": "Static MPS +",   "scheduler": "pconstant"},
-    "contextminus": {"name": "AdMix -", "scheduler": "contextminus"},
-    "utils":   {"name": "LLM only",     "scheduler": None},
-    "context": {"name": "AdMix",      "scheduler": "context"},
+    "mps":          {"name": "Static MPS",      "scheduler": "constant",     "color": "#1f77b4"},
+    "time":         {"name": "Temporal Sharing", "scheduler": "constant",    "color": "#ff7f0e"},
+    "batch":        {"name": "batch",            "scheduler": "batch",        "color": "#8c564b"},
+    "pmps":         {"name": "Static MPS +",     "scheduler": "pconstant",   "color": "#9467bd"},
+    "contextminus": {"name": "AdMix -",          "scheduler": "contextminus","color": "#2ca02c"},
+    "context":      {"name": "AdMix",            "scheduler": "context",     "color": "#d62728"},
+    "utils":        {"name": "LLM only",         "scheduler": None,          "color": "#2ca02c"},
 }
 
 max_batch_size = {
@@ -90,6 +91,13 @@ time_batch_size = {
     "vgg19": 4,
     "unet3d": 1,
     "deeplabv3": 2
+}
+
+model_display_names = {
+    "resnet50":   "Resnet50",
+    "vgg19":      "Vgg19",
+    "unet3d":     "UNet3d",
+    "deeplabv3":  "DeeplabV3",
 }
 
 
@@ -197,7 +205,8 @@ def plot_bar_chart(models, sub_paths, values, ylabel, ax=None, xtitle=None, ymax
     y_range = ymax_current - ymin_current
     offset = 0.06 * y_range
 
-    hatches = ['///', 'xx', '-', '\\\\', '+']
+    # hatches = ['///', 'xx', '-', '\\\\', '+']
+    hatches = [None, None, None, None, None]
     x = np.arange(len(models))  # model positions
     bar_width = 0.8 / len(sub_paths)  # divide bar width by number of bars per group
 
@@ -207,7 +216,7 @@ def plot_bar_chart(models, sub_paths, values, ylabel, ax=None, xtitle=None, ymax
             ymin if ymin is not None else -np.inf,
             ymax if ymax is not None else np.inf
         )
-        ax.bar(x + i * bar_width, y_plot, hatch=hatches[i], edgecolor='white', width=bar_width, label=config_map[config]["name"])
+        ax.bar(x + i * bar_width, y_plot, color=config_map[config]["color"], hatch=hatches[i], edgecolor='black', linewidth=0.2, width=bar_width, label=config_map[config]["name"])
         for xi, yi in zip(x, y):
             if ymax and (yi > ymax):
                 ax.text(xi, ymax - offset, f"{yi:.1f}", ha='center', va='bottom', fontsize=8)
@@ -215,10 +224,12 @@ def plot_bar_chart(models, sub_paths, values, ylabel, ax=None, xtitle=None, ymax
                 ax.text(xi, ymin + offset, f"{yi:.1f}",ha='center', va='top', fontsize=8)
 
     ax.set_xticks(x + bar_width * (len(sub_paths) / 2 - 0.5))
-    ax.set_xticklabels(models)
+    ax.set_xticklabels([model_display_names.get(m, m) for m in models])
     ax.set_ylabel(ylabel)
     if(xtitle):
         ax.set_xlabel(xtitle)
+    ax.grid(True, axis='y', linestyle='--', alpha=0.7)
+    ax.set_axisbelow(True)
     if show_legend:
         ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), columnspacing=1, ncol=len(sub_paths), frameon=True)
 
@@ -246,7 +257,7 @@ def plot_line_chart(models, sub_paths, values, ylabel, ax=None, xtitle=None, yma
             ymin if ymin is not None else -np.inf,
             ymax if ymax is not None else np.inf
         )
-        ax.plot(x, y_plot, styles[i], label=config_map[config]["name"])
+        ax.plot(x, y_plot, styles[i], color=config_map[config]["color"], label=config_map[config]["name"])
         for xi, yi in zip(x, y):
             if ymax and (yi > ymax):
                 ax.text(xi, ymax - offset, f"{yi:.2f}", ha='center', va='bottom', fontsize=8)
@@ -254,10 +265,11 @@ def plot_line_chart(models, sub_paths, values, ylabel, ax=None, xtitle=None, yma
                 ax.text(xi, ymin + offset, f"{yi:.2f}",ha='center', va='top', fontsize=8)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(models)
+    ax.set_xticklabels([model_display_names.get(m, m) for m in models])
     ax.set_ylabel(ylabel)
     if(xtitle):
         ax.set_xlabel(xtitle)
+    ax.grid(True, linestyle='--', alpha=0.7)
     if show_legend:
         ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), columnspacing=1, ncol=len(sub_paths), frameon=True)
 
@@ -407,14 +419,18 @@ def main():
             "Azure1,2000,100,3600,5,0.045": {"tag": "Qwen-14B - Azure"},
             "BurstGPT2,1000,100,3600,5,1.8": {"tag": "Qwen-14B - BurstGPT"},
         },
+        "qwen32b": {
+            "Azure1,2000,100,3600,5,0.12": {"tag": "Qwen-32B - Azure"},
+            "BurstGPT1,600,100,3600,5,2.5": {"tag": "Qwen-32B - BurstGPT"},
+        }
     }
     model_list = ["resnet50", "vgg19", "unet3d", "deeplabv3"]
     sub_paths = {
         "mps":     "mps",
         "time":    "time",
         # "batch":   "batch",
-        "pmps": "pmps",
-        "contextminus": "contextminus",
+        # "pmps": "pmps",
+        # "contextminus": "contextminus",
         "context": "context",
     }
 
@@ -426,11 +442,13 @@ def main():
         trace_list = trace_lists[MODEL]
         data = {}
         n_traces = len(trace_list)
-        fig, all_axes = plt.subplots(n_traces, 5, figsize=(24, 3 * n_traces))
+        fig, all_axes = plt.subplots(n_traces, 5, figsize=(24, 3.5 * n_traces))
         if n_traces == 1:
             all_axes = [all_axes]  # ensure 2-D indexing works
 
         row_labels = list('abcdefghijklmnopqrstuvwxyz')
+        configs = [c for c in sub_paths if c != 'utils']
+        all_degradations = {model: {c: {'ft': [], 'bt': []} for c in configs} for model in model_list}
         for row_idx, (trace, meta) in enumerate(trace_list.items()):
             tag = meta["tag"]
             axes = all_axes[row_idx]
@@ -439,13 +457,9 @@ def main():
                 data[trace][model] = {}
                 best_mps, min_not_qualifying = find_best_mps(trace, model, min_mps=MPS_LOWER_LIMIT)
                 print(f"[mps] {tag}/{model}: selected mps={best_mps}, min non-qualifying mps={min_not_qualifying}")
-                best_pmps, min_not_qualifying_pmps = find_best_mps(trace, model, min_mps=MPS_LOWER_LIMIT, sub_dir="pmps", scheduler_name="pconstant")
-                print(f"[pmps] {tag}/{model}: selected mps={best_pmps}, min non-qualifying mps={min_not_qualifying_pmps}")
                 for config, sub_path in sub_paths.items():
                     if config == "mps":
                         d = get_data(model, trace, config, sub_path, best_mps)
-                    elif config == "pmps":
-                        d = get_data(model, trace, config, sub_path, best_pmps)
                     else:
                         d = get_data(model, trace, config, sub_path)
                     data[trace][model][config] = d
@@ -454,29 +468,94 @@ def main():
             for model in model_list:
                 data[trace][model]['utils'] = d
 
-            print(f"\n[{tag}] TTFT / TBT degradation vs LLM-only baseline:")
-            configs = [c for c in sub_paths if c != 'utils']
-            header = f"  {'model':<12}" + "".join(f"  {config_map[c]['name']:>18}" for c in configs)
-            print(header)
             for model in model_list:
                 utils_ft = data[trace][model]['utils']['ft_mean']
                 utils_bt = data[trace][model]['utils']['bt_mean']
-                row = f"  {model:<12}"
                 for c in configs:
                     ft_deg = (data[trace][model][c]['ft_mean'] - utils_ft) / utils_ft * 100
                     bt_deg = (data[trace][model][c]['bt_mean'] - utils_bt) / utils_bt * 100
-                    row += f"  TTFT {ft_deg:+.1f}%  TBT {bt_deg:+.1f}%"
-                print(row)
+                    all_degradations[model][c]['ft'].append(ft_deg)
+                    all_degradations[model][c]['bt'].append(bt_deg)
+
+            print(f"\n[{tag}] TTFT / TPOT degradation vs LLM-only baseline (avg across models):")
+            header = "  " + "".join(f"  {config_map[c]['name']:>18}" for c in configs)
+            print(header)
+            row = "  "
+            for c in configs:
+                avg_ft = np.mean([all_degradations[model][c]['ft'][-1] for model in model_list])
+                avg_bt = np.mean([all_degradations[model][c]['bt'][-1] for model in model_list])
+                row += f"  TTFT {avg_ft:+.1f}%  TPOT {avg_bt:+.1f}%"
+            print(row)
+
+            print(f"\n[{tag}] Avg SLO attainment across opp. models:")
+            print(header)
+            row = "  "
+            for c in configs:
+                avg_slo = np.mean([data[trace][model][c]['satisfaction rate'] for model in model_list])
+                row += f"  {'SLO':>9} {avg_slo:>6.1f}%{'':>7}"
+            print(row)
+
+            print(f"\n[{tag}] Avg normalized throughput (vs MPS) across opp. models:")
+            print(header)
+            row = "  "
+            for c in configs:
+                avg_tp = np.mean([data[trace][model][c]['absolute throughput'] / data[trace][model]['mps']['absolute throughput'] for model in model_list])
+                row += f"  {'Thpt':>9} {avg_tp:>7.3f}x{'':>6}"
+            print(row)
+
+            print(f"\n[{tag}] Avg SM activity (vs LLM-only) across opp. models:")
+            print(header)
+            row = "  "
+            for c in configs:
+                avg_sm = np.mean([data[trace][model][c]['sm_active'] / data[trace][model]['utils']['sm_active'] for model in model_list])
+                avg_sm_inc = np.mean([data[trace][model][c]['sm_active'] - data[trace][model]['utils']['sm_active'] for model in model_list])
+                row += f"  {'SM act.':>9} {avg_sm:>6.3f}x ({avg_sm_inc:+.1f}pp)"
+            print(row)
             print()
             plot_normal_line(data[trace], 'SLO Attainment Rate (%)', 'satisfaction rate', axes[1], show_legend=False)
             plot_normal_line(data[trace], 'SM Activity (%)', 'sm_active', axes[2], show_legend=False)
             plot_normal_line(data[trace], 'Average TTFT (s)', 'ft_mean', axes[3], show_legend=False)
-            plot_normal_line(data[trace], 'Average TBT (s)', 'bt_mean', axes[4], show_legend=False)
+            plot_normal_line(data[trace], 'Average TPOT (s)', 'bt_mean', axes[4], show_legend=False)
+
+        print(f"\n[Average across traces and models] TTFT / TPOT degradation vs LLM-only baseline:")
+        print(header)
+        row = "  "
+        for c in configs:
+            avg_ft = np.mean([all_degradations[model][c]['ft'] for model in model_list])
+            avg_bt = np.mean([all_degradations[model][c]['bt'] for model in model_list])
+            row += f"  TTFT {avg_ft:+.1f}%  TPOT {avg_bt:+.1f}%"
+        print(row)
+
+        print(f"\n[Average across traces and models] Avg SLO attainment across opp. models:")
+        print(header)
+        row = "  "
+        for c in configs:
+            avg_slo = np.mean([data[trace][model][c]['satisfaction rate'] for trace in trace_list for model in model_list])
+            row += f"  {'SLO':>9} {avg_slo:>6.1f}%{'':>7}"
+        print(row)
+
+        print(f"\n[Average across traces and models] Avg normalized throughput (vs MPS) across opp. models:")
+        print(header)
+        row = "  "
+        for c in configs:
+            avg_tp = np.mean([data[trace][model][c]['absolute throughput'] / data[trace][model]['mps']['absolute throughput'] for trace in trace_list for model in model_list])
+            row += f"  {'Thpt':>9} {avg_tp:>7.3f}x{'':>6}"
+        print(row)
+
+        print(f"\n[Average across traces and models] Avg SM activity (vs LLM-only) across opp. models:")
+        print(header)
+        row = "  "
+        for c in configs:
+            avg_sm = np.mean([data[trace][model][c]['sm_active'] / data[trace][model]['utils']['sm_active'] for trace in trace_list for model in model_list])
+            avg_sm_inc = np.mean([data[trace][model][c]['sm_active'] - data[trace][model]['utils']['sm_active'] for trace in trace_list for model in model_list])
+            row += f"  {'SM act.':>9} {avg_sm:>6.3f}x ({avg_sm_inc:+.1f}pp)"
+        print(row)
+        print()
 
         _add_figure_legend(fig, all_axes[0])
         # Reserve space at top for legend and left margin for row labels
         fig.tight_layout(rect=[0.04, 0, 1, 0.94])
-        fig.subplots_adjust(hspace=0.15)
+        fig.subplots_adjust(hspace=0.23, wspace=0.26)
 
         # Add row labels on the left side of each row
         for row_idx, (trace, meta) in enumerate(trace_list.items()):
@@ -493,7 +572,7 @@ def main():
         #     tag = meta["tag"]
         #     fig, axes = plt.subplots(1, 2, figsize=(11, 4))
         #     plot_normal_line(data[trace], 'Average TTFT (s)', 'ft_mean', axes[0], show_legend=False)
-        #     plot_normal_line(data[trace], 'Average TBT (s)', 'bt_mean', axes[1], show_legend=False)
+        #     plot_normal_line(data[trace], 'Average TPOT (s)', 'bt_mean', axes[1], show_legend=False)
         #     _add_figure_legend(fig, axes)
         #     fig.tight_layout(rect=[0, 0, 1, 0.88])
         #     plt.savefig(f'{OUTPUT_FOLDER}/{tag}_latency.pdf')

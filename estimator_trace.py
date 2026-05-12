@@ -3,9 +3,9 @@ import sys
 import time
 import asyncio
 import argparse
-from trace.trace_utils import LLMTrace, set_LLM_trace_config, read_LLM_trace_config
+from admix.trace.trace_utils import LLMTrace, set_LLM_trace_config, read_LLM_trace_config
 from llm_utils import get_data_from_llm, async_inference, _LLM_MODEL_MAP, start_server, stop_server
-from profiling.constants import write_list_to_csv
+from admix.profiling.constants import write_list_to_csv
 
 # python estimator_trace.py my_trace_config output.csv --platform vllm --model qwen14b --test-time 120
 

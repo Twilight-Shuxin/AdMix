@@ -1,6 +1,6 @@
-from profiling.options import parse_profile_options 
-from profiling.profiler import ProfileServer  
-from profiling.constants import RuntimeMode
+from admix.profiling.options import parse_profile_options 
+from admix.profiling.profiler import ProfileServer  
+from admix.profiling.constants import RuntimeMode
 import torch.multiprocessing as mp 
         
 if __name__=="__main__":

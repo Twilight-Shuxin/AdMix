@@ -11,7 +11,7 @@ class PredHeaders:
     decode_len = "Decode Len"
     prefill_cnt = "Prefill Cnt"
 
-_default_output_pathname = "outputs"
+_default_output_pathname = "outputs/eval"
 MODEL_FOLDER = Path(os.getenv("PREDICT_MODEL_PATH", _default_output_pathname))
 MODEL_FOLDER.mkdir(parents = True, exist_ok = True)
 

@@ -8,6 +8,8 @@ from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D as MplLine2D
 from matplotlib.container import BarContainer
 
+plt.rcParams.update({'font.size': 16})
+
 
 class HandlerBarLine(HandlerBase):
     """Legend key that stacks the bar patch (top) over the line+marker (bottom)."""
@@ -69,13 +71,12 @@ DIMENSION = MODEL_DIMENSION[MODELS[0]]
 MPS_LOWER_LIMIT = 10  # ignore MPS percentage files below this value (0 = no limit)
 
 config_map = {
-    "time":    {"name": "Temporal Sharing", "scheduler": "constant"},
-    "batch":   {"name": "batch",        "scheduler": "batch"},
-    "mps":     {"name": "Static MPS",          "scheduler": "constant"},
-    "pmps":     {"name": "Static MPS +",   "scheduler": "pconstant"},
-    "contextminus": {"name": "AdMix -", "scheduler": "contextminus"},
-    "utils":   {"name": "LLM only",     "scheduler": None},
-    "context": {"name": "AdMix",      "scheduler": "context"},
+    "mps":          {"name": "Static MPS",          "scheduler": "constant",     "color": "#1f77b4"},
+    "pmps":         {"name": "Static MPS +",         "scheduler": "pconstant",   "color": "#ff7f0e"},
+    "pmps(best)":   {"name": "Static MPS + (best)",  "scheduler": "pconstant",   "color": "#2ca02c"},
+    "contextminus": {"name": "AdMix -",              "scheduler": "contextminus","color": "#9467bd"},
+    "context":      {"name": "AdMix",                "scheduler": "context",     "color": "#d62728"},
+    "utils":        {"name": "LLM only",             "scheduler": None,          "color": "#7f7f7f"},
 }
 
 max_batch_size = {
@@ -90,6 +91,13 @@ time_batch_size = {
     "vgg19": 4,
     "unet3d": 1,
     "deeplabv3": 2
+}
+
+model_display_names = {
+    "resnet50":   "Resnet50",
+    "vgg19":      "Vgg19",
+    "unet3d":     "UNet3d",
+    "deeplabv3":  "DeeplabV3",
 }
 
 
@@ -166,9 +174,9 @@ def get_data(model, trace_tag, config, sub_path, percentage=None):
     scheduler = config_map[config]["scheduler"]
     if scheduler is not None:
         if scheduler in ("constant", "pconstant"):
-            scheduler += f"[{max_batch_size[model]}]" if config in ("mps", "pmps") else f"[{time_batch_size[model]}]"
+            scheduler += f"[{max_batch_size[model]}]" if config in ("mps", "pmps", "pmps(best)") else f"[{time_batch_size[model]}]"
         set_tag = f'llm[{trace_tag}]+{model}'
-        if config in ("mps", "pmps"):
+        if config in ("mps", "pmps", "pmps(best)"):
             set_tag += f"(m{percentage})"
         set_tag += "-" + scheduler
         path_prefix = f"llm-{set_tag}"
@@ -198,6 +206,7 @@ def plot_bar_chart(models, sub_paths, values, ylabel, ax=None, xtitle=None, ymax
     offset = 0.06 * y_range
 
     hatches = ['///', 'xx', '-', '\\\\', '+']
+    hatches = [None, None, None, None, None]
     x = np.arange(len(models))  # model positions
     bar_width = 0.8 / len(sub_paths)  # divide bar width by number of bars per group
 
@@ -207,18 +216,20 @@ def plot_bar_chart(models, sub_paths, values, ylabel, ax=None, xtitle=None, ymax
             ymin if ymin is not None else -np.inf,
             ymax if ymax is not None else np.inf
         )
-        ax.bar(x + i * bar_width, y_plot, hatch=hatches[i], edgecolor='white', width=bar_width, label=config_map[config]["name"])
+        ax.bar(x + i * bar_width, y_plot, color=config_map[config]["color"], hatch=hatches[i], edgecolor='black', linewidth=0.1, width=bar_width, label=config_map[config]["name"])
         for xi, yi in zip(x, y):
             if ymax and (yi > ymax):
-                ax.text(xi, ymax - offset, f"{yi:.1f}", ha='center', va='bottom', fontsize=8)
+                ax.text(xi, ymax - offset, f"{yi:.1f}", ha='center', va='bottom', fontsize=15)
             if ymin and (yi < ymin):
-                ax.text(xi, ymin + offset, f"{yi:.1f}",ha='center', va='top', fontsize=8)
+                ax.text(xi, ymin + offset, f"{yi:.1f}",ha='center', va='top', fontsize=15)
 
     ax.set_xticks(x + bar_width * (len(sub_paths) / 2 - 0.5))
-    ax.set_xticklabels(models)
+    ax.set_xticklabels([model_display_names.get(m, m) for m in models])
     ax.set_ylabel(ylabel)
     if(xtitle):
         ax.set_xlabel(xtitle)
+    ax.grid(True, axis='y', linestyle='--', alpha=0.7)
+    ax.set_axisbelow(True)
     if show_legend:
         ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), columnspacing=1, ncol=len(sub_paths), frameon=True)
 
@@ -246,18 +257,19 @@ def plot_line_chart(models, sub_paths, values, ylabel, ax=None, xtitle=None, yma
             ymin if ymin is not None else -np.inf,
             ymax if ymax is not None else np.inf
         )
-        ax.plot(x, y_plot, styles[i], label=config_map[config]["name"])
+        ax.plot(x, y_plot, styles[i], color=config_map[config]["color"], label=config_map[config]["name"])
         for xi, yi in zip(x, y):
             if ymax and (yi > ymax):
-                ax.text(xi, ymax - offset, f"{yi:.2f}", ha='center', va='bottom', fontsize=8)
+                ax.text(xi, ymax - offset, f"{yi:.2f}", ha='center', va='bottom', fontsize=15)
             if ymin and (yi < ymin):
-                ax.text(xi, ymin + offset, f"{yi:.2f}",ha='center', va='top', fontsize=8)
+                ax.text(xi, ymin + offset, f"{yi:.2f}",ha='center', va='top', fontsize=15)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(models)
+    ax.set_xticklabels([model_display_names.get(m, m) for m in models])
     ax.set_ylabel(ylabel)
     if(xtitle):
         ax.set_xlabel(xtitle)
+    ax.grid(True, linestyle='--', alpha=0.7)
     if show_legend:
         ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), columnspacing=1, ncol=len(sub_paths), frameon=True)
 
@@ -414,6 +426,7 @@ def main():
         # "time":    "time",
         # "batch":   "batch",
         "pmps": "pmps",
+        "pmps(best)": "pmps",
         "contextminus": "contextminus",
         "context": "context",
     }
@@ -426,7 +439,7 @@ def main():
         trace_list = trace_lists[MODEL]
         data = {}
         n_traces = len(trace_list)
-        fig, all_axes = plt.subplots(n_traces, 2, figsize=(10, 3 * n_traces))
+        fig, all_axes = plt.subplots(n_traces, 2, figsize=(15, 4.5 * n_traces), gridspec_kw={'width_ratios': [4, 3]})
         if n_traces == 1:
             all_axes = [all_axes]  # ensure 2-D indexing works
 
@@ -444,26 +457,116 @@ def main():
                     if config == "mps":
                         d = get_data(model, trace, config, sub_path, best_mps)
                     elif config == "pmps":
+                        d = get_data(model, trace, config, sub_path, best_mps)
+                    elif config == "pmps(best)":
                         d = get_data(model, trace, config, sub_path, best_pmps)
                     else:
                         d = get_data(model, trace, config, sub_path)
                     data[trace][model][config] = d
             plot_base_mps(data[trace], 'Normalized Opp. WL Throughput', 'absolute throughput', axes[0], show_legend=False)
             plot_normal_line(data[trace], 'SLO Attainment Rate (%)', 'satisfaction rate', axes[1], show_legend=False)
+            d_utils = get_data(model, trace, 'utils', 'utils')
+            for m in model_list:
+                data[trace][m]['utils'] = d_utils
+
+        configs_latency = list(sub_paths.keys())
+        all_degradations = {model: {c: {'ft': [], 'bt': []} for c in configs_latency} for model in model_list}
+        header = f"  {'model':<12}" + "".join(f"  {config_map[c]['name']:>22}" for c in configs_latency)
+        print(f"\n[{MODEL}] TTFT / TPOT degradation vs LLM-only baseline:")
+        for trace, meta in trace_list.items():
+            tag = meta["tag"]
+            print(f"  [{tag}]")
+            print(header)
+            for model in model_list:
+                utils_ft = data[trace][model]['utils']['ft_mean']
+                utils_bt = data[trace][model]['utils']['bt_mean']
+                row = f"  {model:<12}"
+                for c in configs_latency:
+                    ft_deg = (data[trace][model][c]['ft_mean'] - utils_ft) / utils_ft * 100
+                    bt_deg = (data[trace][model][c]['bt_mean'] - utils_bt) / utils_bt * 100
+                    all_degradations[model][c]['ft'].append(ft_deg)
+                    all_degradations[model][c]['bt'].append(bt_deg)
+                    row += f"  TTFT {ft_deg:+.1f}%  TPOT {bt_deg:+.1f}%"
+                print(row)
+            print()
+        print(f"  [Average across traces]")
+        print(header)
+        for model in model_list:
+            row = f"  {model:<12}"
+            for c in configs_latency:
+                avg_ft = np.mean(all_degradations[model][c]['ft'])
+                avg_bt = np.mean(all_degradations[model][c]['bt'])
+                row += f"  TTFT {avg_ft:+.1f}%  TPOT {avg_bt:+.1f}%"
+            print(row)
+        print()
+
+        configs_to_compare = [c for c in sub_paths if c != "context"]
+        all_tp_diffs = {c: [] for c in configs_to_compare}
+        all_slo_diffs = {c: [] for c in configs_to_compare}
+        print(f"\n--- AdMix advantage ({MODEL}) ---")
+        for trace, meta in trace_list.items():
+            tag = meta["tag"]
+            trace_tp = {c: [] for c in configs_to_compare}
+            trace_slo = {c: [] for c in configs_to_compare}
+            for side_model in data[trace]:
+                admix = data[trace][side_model].get("context")
+                if admix is None:
+                    continue
+                for config in configs_to_compare:
+                    other = data[trace][side_model].get(config)
+                    if other is None:
+                        continue
+                    tp_diff = (admix["absolute throughput"] - other["absolute throughput"]) / admix["absolute throughput"] * 100
+                    slo_diff = admix["satisfaction rate"] - other["satisfaction rate"]
+                    trace_tp[config].append(tp_diff)
+                    trace_slo[config].append(slo_diff)
+                    all_tp_diffs[config].append(tp_diff)
+                    all_slo_diffs[config].append(slo_diff)
+            print(f"  {tag}:")
+            for config in configs_to_compare:
+                if trace_tp[config]:
+                    print(f"    vs {config_map[config]['name']}: throughput {np.mean(trace_tp[config]):+.1f}% higher | SLO attainment {np.mean(trace_slo[config]):+.1f}pp higher")
+        print(f"  Overall:")
+        for config in configs_to_compare:
+            if all_tp_diffs[config]:
+                print(f"    vs {config_map[config]['name']}: throughput {np.mean(all_tp_diffs[config]):+.1f}% higher | SLO attainment {np.mean(all_slo_diffs[config]):+.1f}pp higher")
+
+        print(f"\n--- Static MPS + vs Static MPS ({MODEL}) ---")
+        all_tp_pmps = []
+        all_slo_pmps = []
+        for trace, meta in trace_list.items():
+            tag = meta["tag"]
+            trace_tp_pmps = []
+            trace_slo_pmps = []
+            for side_model in data[trace]:
+                mps = data[trace][side_model].get("mps")
+                pmps = data[trace][side_model].get("pmps")
+                if mps is None or pmps is None:
+                    continue
+                tp_diff = (pmps["absolute throughput"] - mps["absolute throughput"]) / mps["absolute throughput"] * 100
+                slo_diff = pmps["satisfaction rate"] - mps["satisfaction rate"]
+                trace_tp_pmps.append(tp_diff)
+                trace_slo_pmps.append(slo_diff)
+                all_tp_pmps.append(tp_diff)
+                all_slo_pmps.append(slo_diff)
+            if trace_tp_pmps:
+                print(f"  {tag}: throughput {np.mean(trace_tp_pmps):+.1f}% | SLO attainment {np.mean(trace_slo_pmps):+.1f}pp")
+        if all_tp_pmps:
+            print(f"  Overall: throughput {np.mean(all_tp_pmps):+.1f}% | SLO attainment {np.mean(all_slo_pmps):+.1f}pp")
 
         _add_figure_legend(fig, all_axes[0])
         fig.tight_layout(rect=[0.15, 0, 1, 0.94])
-        fig.subplots_adjust(hspace=0.15)
+        fig.subplots_adjust(hspace=0.25, wspace=0.2)
 
         # Add row labels on the left side of each row
         for row_idx, (trace, meta) in enumerate(trace_list.items()):
             axes = all_axes[row_idx]
             label = meta["tag"]
             row_mid_y = (min(ax.get_position().y0 for ax in axes) + max(ax.get_position().y1 for ax in axes)) / 2
-            left_x = axes[0].get_position().x0 - 0.08
-            fig.text(left_x, row_mid_y, label, ha='center', va='center', fontsize=12, rotation=90)
+            left_x = axes[0].get_position().x0 - 0.06
+            fig.text(left_x, row_mid_y, label, ha='center', va='center', fontsize=15, rotation=90)
 
-        plt.savefig(f'{OUTPUT_FOLDER}/{MODEL}_ablation.pdf', bbox_inches='tight')
+        plt.savefig(f'{OUTPUT_FOLDER}/{MODEL}_ablation.pdf', bbox_inches='tight', pad_inches=0.2)
         plt.clf()
 
 

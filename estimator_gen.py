@@ -9,7 +9,7 @@ from tqdm import tqdm
 from itertools import chain, cycle
 import matplotlib.pyplot as plt
 from llm_utils import get_data_from_llm, async_inference, _LLM_MODEL_MAP, start_server, stop_server
-from profiling.constants import write_list_to_csv
+from admix.profiling.constants import write_list_to_csv
 
 # 7b: 86400
 KV_CACHE_TKN_SPACE = 152800
