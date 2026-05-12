@@ -46,6 +46,7 @@ class LLMWorker(ModelWorker):
         _llm_model_map = {
             "llama7b":  "meta-llama/Llama-2-7b-chat-hf",
             "qwen14b":  "Qwen/Qwen2.5-14B-Instruct",
+            "qwen32b":  "Qwen/Qwen2.5-32B-Instruct",
         }
         print(f"Using model {llm_model} {_llm_model_map.get(llm_model, llm_model)}")
         self.llm_model = _llm_model_map.get(llm_model, llm_model) if llm_model is not None else "meta-llama/Llama-2-7b-chat-hf"

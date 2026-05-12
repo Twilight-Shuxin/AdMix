@@ -24,7 +24,7 @@ def prefix_mps(UUID_list):
     return f'export CUDA_VISIBLE_DEVICES={','.join(UUID_list)} && export  CUDA_MPS_PIPE_DIRECTORY=/tmp/nvidia-mps-{UUID_hash} && export CUDA_MPS_LOG_DIRECTORY=/tmp/nvidia-log-{UUID_hash} && '
 
 def OpenMPS(UUID_list = []):
-    cmd = prefix_mps(UUID_list) + f'sudo -E nvidia-cuda-mps-control -d'
+    cmd = prefix_mps(UUID_list) + f'nvidia-cuda-mps-control -d'
     p = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE)
     p.wait()
     read = str(p.stdout.read())
@@ -40,20 +40,20 @@ def OpenMPS(UUID_list = []):
 
 
 def CloseMPS(UUID_list = []):
-    cmd = prefix_mps(UUID_list) + f'echo quit | sudo -E nvidia-cuda-mps-control '
+    cmd = prefix_mps(UUID_list) + f'echo quit | nvidia-cuda-mps-control'
     p = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE)
     p.wait()
     read = str(p.stdout.read())
 
 
 def SetPercentage(UUID_list, Percentage):
-    cmd = prefix_mps(UUID_list) + f'echo get_server_list | sudo -E nvidia-cuda-mps-control'
+    cmd = prefix_mps(UUID_list) + f'echo get_server_list | nvidia-cuda-mps-control'
     p = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE)
     p.wait()
     read = str(p.stdout.read().decode())
     server_ID = int(read)
 
-    cmd = prefix_mps(UUID_list) + f'sudo echo set_active_thread_percentage {server_ID} {Percentage} | sudo -E nvidia-cuda-mps-control'
+    cmd = prefix_mps(UUID_list) + f'echo set_active_thread_percentage {server_ID} {Percentage} | nvidia-cuda-mps-control'
     p = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE)
     p.wait()
 
@@ -62,13 +62,13 @@ def SetPercentageForClient(GPUID, Percentage):
     os.environ['CUDA_MPS_ACTIVE_THREAD_PERCENTAGE']=str(Percentage)
 
 def GetPercentage(UUID_list = []):
-    cmd = prefix_mps(UUID_list) + f'echo get_server_list | sudo -E nvidia-cuda-mps-control'
+    cmd = prefix_mps(UUID_list) + f'echo get_server_list | nvidia-cuda-mps-control'
     p = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE)
     p.wait()
     read = str(p.stdout.read().decode())
     server_ID = int(read)
 
-    cmd = prefix_mps(UUID_list) + f'sudo echo get_active_thread_percentage {server_ID}  |sudo -E nvidia-cuda-mps-control'
+    cmd = prefix_mps(UUID_list) + f'echo get_active_thread_percentage {server_ID} | nvidia-cuda-mps-control'
     p = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE)
     p.wait()
     read = str(p.stdout.read().decode().strip())
@@ -76,7 +76,7 @@ def GetPercentage(UUID_list = []):
     return SM_percentage
 
 def GetServerStarted(UUID_list = []):
-    cmd = prefix_mps(UUID_list) + f'echo get_server_list | sudo -E nvidia-cuda-mps-control'
+    cmd = prefix_mps(UUID_list) + f'echo get_server_list | nvidia-cuda-mps-control'
     p = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     stdout, stderr = p.communicate()
     if stdout:

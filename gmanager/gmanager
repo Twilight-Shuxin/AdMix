@@ -1,13 +1,12 @@
-#!/home/k43015/MPSTest/.venv/bin/python3
+#!/home/k43015/AdMix/.venv/bin/python3
 
 import sys 
 import subprocess, signal
 import os
 import logging
 import json
-from MIG_Operator import *
-from MPS_Operator import *
-from DCGM_operator import *
+from mps import *
+from dcgm import *
 from utils import *
 
 logger = logging.getLogger(__name__)
@@ -71,14 +70,6 @@ def main():
             print(get_hash(get_gpu_uuids(list(map(int, sys.argv[2].split(','))))))
         case "checkmps":
             print(GetServerStarted(get_gpu_uuids(list(map(int, sys.argv[2].split(','))))))
-        case "start_mig":
-            init_mig(get_gpu_uuid(int(sys.argv[2])))
-        case "stop_mig":
-            init_mig(disable_mig(int(sys.argv[2])))
-        case "reset_mig":
-            reset_mig(int(sys.argv[2]))
-        case "create_mig_inst":
-            create_ins(int(sys.argv[2]), sys.argv[3])
         case "start_dcgm":
             start_dcgm()
         case "stop_dcgm":
