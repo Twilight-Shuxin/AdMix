@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Delete all files associated with a given trace tag across data root folders.
 

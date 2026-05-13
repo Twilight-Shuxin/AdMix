@@ -202,9 +202,9 @@ TEST_RETRACT_INTERVAL = envs.SGLANG_TEST_RETRACT_INTERVAL.get()
 TEST_RETRACT_NO_PREFILL_BS = envs.SGLANG_TEST_RETRACT_NO_PREFILL_BS.get()
 GRAMMAR_TIMEOUT = float(os.environ.get("SGLANG_GRAMMAR_TIMEOUT", 300))
 
-SHUXIN_LLM_SOCKET_PATH = "/tmp/llm_intensity_socket"
+AdMix_LLM_SOCKET_PATH = "/tmp/admix_llm_intensity_socket"
 
-def shuxin_unix_server(socket_path, scheduler, shared_buffer, buffer_lock):
+def admix_unix_server(socket_path, scheduler, shared_buffer, buffer_lock):
     import json
     import os
     import socket
@@ -216,7 +216,7 @@ def shuxin_unix_server(socket_path, scheduler, shared_buffer, buffer_lock):
     server_sock.bind(socket_path)
     server_sock.listen()
 
-    print("Shuxin scheduler server listening on", socket_path)
+    print("Admix LLM intensity server listening on", socket_path)
 
     while True:
         conn, _ = server_sock.accept()
@@ -224,12 +224,12 @@ def shuxin_unix_server(socket_path, scheduler, shared_buffer, buffer_lock):
         with buffer_lock:
             batch = shared_buffer.copy()
             shared_buffer.clear()
-            processing = scheduler.shuxin_processing.copy() if scheduler.shuxin_processing else None
+            processing = scheduler.admix_processing.copy() if scheduler.admix_processing else None
             if processing:
                 processing[-1] = round(time.perf_counter() - processing[-1], 3) * 1000
         num_running = len(scheduler.running_batch.reqs) if scheduler.running_batch else 0
         num_waiting = len(scheduler.waiting_queue)
-        additional_data = (num_running + num_waiting, scheduler.shuxin_waiting_prompt_tkn_max)
+        additional_data = (num_running + num_waiting, scheduler.admix_waiting_prompt_tkn_max)
         payload = json.dumps([additional_data, processing, batch]).encode("utf-8")
         chunk_size = 64 * 1024
         
@@ -608,17 +608,17 @@ class Scheduler(
             ]
         )
 
-        self.shuxin_log_data = []
-        self.shuxin_processing = None
-        self.shuxin_waiting_prompt_tkn_max = 0
-        self.shuxin_buffer_lock = threading.Lock()
+        self.admix_log_data = []
+        self.admix_processing = None
+        self.admix_waiting_prompt_tkn_max = 0
+        self.admix_buffer_lock = threading.Lock()
         if self.tp_rank == 0:
-            shuxin_thread = threading.Thread(
-                target=shuxin_unix_server,
-                args=(SHUXIN_LLM_SOCKET_PATH, self, self.shuxin_log_data, self.shuxin_buffer_lock),
+            admix_thread = threading.Thread(
+                target=admix_unix_server,
+                args=(ADMIX_LLM_SOCKET_PATH, self, self.admix_log_data, self.admix_buffer_lock),
                 daemon=True,
             )
-            shuxin_thread.start()
+            admix_thread.start()
 
     def init_sockets(self, server_args: ServerArgs, port_args: PortArgs):
         context = zmq.Context(2)
@@ -1481,7 +1481,7 @@ class Scheduler(
                     r.extend_input_len for r in self.running_batch.reqs
                     if r.extend_input_len > 0
                 )
-            req.shuxin_waiting_prompt_tkn = waiting_tkns
+            req.admix_waiting_prompt_tkn = waiting_tkns
             self.waiting_queue.append(req)
             req.time_stats.wait_queue_entry_time = time.perf_counter()
             trace_slice_end(RequestStage.REQUEST_PROCESS, req.rid, auto_next_anon=True)
@@ -2009,23 +2009,23 @@ class Scheduler(
 
         # ---- batch stats logging ----
         if batch.forward_mode == ForwardMode.DECODE:
-            shuxin_total_num_scheduled_tokens = len(batch.reqs)
-            shuxin_cached_tokens = sum(req.seqlen - 1 for req in batch.reqs)
+            admix_total_num_scheduled_tokens = len(batch.reqs)
+            admix_cached_tokens = sum(req.seqlen - 1 for req in batch.reqs)
         else:
-            shuxin_total_num_scheduled_tokens = sum(req.extend_input_len for req in batch.reqs)
-            shuxin_cached_tokens = sum(len(req.fill_ids) - req.extend_input_len for req in batch.reqs)
-        shuxin_log = [shuxin_total_num_scheduled_tokens, shuxin_cached_tokens]
-        shuxin_start = time.perf_counter()
-        self.shuxin_waiting_prompt_tkn_max = max(
-            (getattr(req, "shuxin_waiting_prompt_tkn", 0) for req in self.waiting_queue),
+            admix_total_num_scheduled_tokens = sum(req.extend_input_len for req in batch.reqs)
+            admix_cached_tokens = sum(len(req.fill_ids) - req.extend_input_len for req in batch.reqs)
+        admix_log = [admix_total_num_scheduled_tokens, admix_cached_tokens]
+        admix_start = time.perf_counter()
+        self.admix_waiting_prompt_tkn_max = max(
+            (getattr(req, "admix_waiting_prompt_tkn", 0) for req in self.waiting_queue),
             default=0,
         )
-        if shuxin_total_num_scheduled_tokens > 0:
-            with self.shuxin_buffer_lock:
-                self.shuxin_processing = shuxin_log + [shuxin_start]
-        shuxin_start_event = torch.cuda.Event(enable_timing=True)
-        shuxin_end_event = torch.cuda.Event(enable_timing=True)
-        shuxin_start_event.record()
+        if admix_total_num_scheduled_tokens > 0:
+            with self.admix_buffer_lock:
+                self.admix_processing = admix_log + [admix_start]
+        admix_start_event = torch.cuda.Event(enable_timing=True)
+        admix_end_event = torch.cuda.Event(enable_timing=True)
+        admix_start_event.record()
 
         # Whether to run the profiler
         self._profile_batch_predicate(batch)
@@ -2144,12 +2144,12 @@ class Scheduler(
             for req in batch.reqs:
                 req.time_stats.prefill_end_time = current_time
 
-        shuxin_end_event.record()
-        shuxin_end_event.synchronize()
-        with self.shuxin_buffer_lock:
-            if shuxin_total_num_scheduled_tokens > 0:
-                self.shuxin_log_data.append(shuxin_log + [int(shuxin_start_event.elapsed_time(shuxin_end_event))])
-                self.shuxin_processing = None
+        admix_end_event.record()
+        admix_end_event.synchronize()
+        with self.admix_buffer_lock:
+            if admix_total_num_scheduled_tokens > 0:
+                self.admix_log_data.append(admix_log + [int(admix_start_event.elapsed_time(admix_end_event))])
+                self.admix_processing = None
         return ret
 
     def launch_batch_sample_if_needed(

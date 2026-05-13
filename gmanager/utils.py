@@ -1,6 +1,6 @@
-import subprocess
-import time
 import re
+import time
+import subprocess
 
 def get_gpu_uuid(gpu_id):
     process = subprocess.Popen(['nvidia-smi', '-L'], stdout=subprocess.PIPE, text=True)

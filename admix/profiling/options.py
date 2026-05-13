@@ -15,11 +15,10 @@ class ProfileConfig:
         self.devices = get_comma_list(args.devices, ArgsType.STRING)
         self.rec_pw = args.rec_pw
 
-        # Save log data to under MPSTest/args.path (default: MPSTest/data)
-        # Save profile data (data collected under running mode 'PROFILE') to under MPSTest/args.profile_path (default: MPSTest/profile_data)
-        dirname, filename = os.path.split(os.path.abspath(__file__))
-        self.path = dirname + "/../" + args.path
-        self.profile_path = dirname + "/../" + args.profile_path
+        # Save log data to under args.path (default: data)
+        # Save profile data (data collected under running mode 'PROFILE') to under args.profile_path (profile_data)
+        self.path = args.path
+        self.profile_path = args.profile_path
         Path(self.path).mkdir(parents=True, exist_ok=True)
         Path(self.profile_path).mkdir(parents=True, exist_ok=True)
 

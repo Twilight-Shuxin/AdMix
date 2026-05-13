@@ -58,9 +58,9 @@ HANDSHAKE_TIMEOUT_MINS = 5
 
 _R = TypeVar('_R')  # Return type for collective_rpc
 
-SHUXIN_LLM_SOCKET_PATH = "/tmp/llm_intensity_socket"
+ADMIX_LLM_SOCKET_PATH = "/tmp/admix_llm_intensity_socket"
 
-def shuxin_unix_server(socket_path, engine, shared_buffer, buffer_lock):
+def admix_unix_server(socket_path, engine, shared_buffer, buffer_lock):
     import socket
     import select
     import threading
@@ -73,7 +73,7 @@ def shuxin_unix_server(socket_path, engine, shared_buffer, buffer_lock):
     server_sock.bind(socket_path)
     server_sock.listen()
 
-    print("Shuxin server listening on", socket_path)
+    print("Admix LLM intensity server listening on", socket_path)
 
     while True:
         conn, _ = server_sock.accept()
@@ -81,10 +81,10 @@ def shuxin_unix_server(socket_path, engine, shared_buffer, buffer_lock):
         with buffer_lock:
             batch = shared_buffer.copy()
             shared_buffer.clear()
-            processing = engine.shuxin_processing.copy() if engine.shuxin_processing else None
+            processing = engine.admix_processing.copy() if engine.admix_processing else None
             if(processing):
                 processing[-1] = round(time.perf_counter() - processing[-1], 3) * 1000
-        additional_data = (len(engine.scheduler.running) + len(engine.scheduler.waiting), engine.shuxin_waiting_prompt_tkn_max)
+        additional_data = (len(engine.scheduler.running) + len(engine.scheduler.waiting), engine.admix_waiting_prompt_tkn_max)
         payload = json.dumps([additional_data, processing, batch]).encode("utf-8")
         chunk_size = 64 * 1024
 
@@ -197,16 +197,16 @@ class EngineCore:
             self.request_block_hasher = get_request_block_hasher(
                 block_size, caching_hash_fn)
         
-        self.shuxin_log_data = []
-        self.shuxin_processing = None
-        self.shuxin_waiting_prompt_tkn_max = 0
-        self.shuxin_buffer_lock = threading.Lock()
-        shuxin_thread = threading.Thread(
-            target=shuxin_unix_server,
-            args=(SHUXIN_LLM_SOCKET_PATH, self, self.shuxin_log_data, self.shuxin_buffer_lock),
+        self.admix_log_data = []
+        self.admix_processing = None
+        self.admix_waiting_prompt_tkn_max = 0
+        self.admix_buffer_lock = threading.Lock()
+        admix_thread = threading.Thread(
+            target=admix_unix_server,
+            args=(ADMIX_LLM_SOCKET_PATH, self, self.admix_log_data, self.admix_buffer_lock),
             daemon=True
         )
-        shuxin_thread.start()
+        admix_thread.start()
 
     def _initialize_kv_caches(
             self, vllm_config: VllmConfig) -> tuple[int, int, KVCacheConfig]:
@@ -305,7 +305,7 @@ class EngineCore:
             for req in self.scheduler.running
             if req.num_computed_tokens < req.num_prompt_tokens
         )
-        request.shuxin_waiting_prompt_tkn = waiting_tkns
+        request.admix_waiting_prompt_tkn = waiting_tkns
 
     def abort_requests(self, request_ids: list[str]):
         """Abort requests from the scheduler."""
@@ -346,18 +346,18 @@ class EngineCore:
         if not self.scheduler.has_requests():
             return {}, False
         scheduler_output = self.scheduler.schedule()
-        shuxin_start = time.perf_counter()
-        shuxin_cached_tokens = 0
+        admix_start = time.perf_counter()
+        admix_cached_tokens = 0
         for idx, req_id in enumerate(scheduler_output.scheduled_cached_reqs.req_ids):
-            shuxin_cached_tokens += scheduler_output.scheduled_cached_reqs.num_computed_tokens[idx]
-        self.shuxin_waiting_prompt_tkn_max = max(
-                (req.shuxin_waiting_prompt_tkn for req in list(self.scheduler.waiting)),
+            admix_cached_tokens += scheduler_output.scheduled_cached_reqs.num_computed_tokens[idx]
+        self.admix_waiting_prompt_tkn_max = max(
+                (req.admix_waiting_prompt_tkn for req in list(self.scheduler.waiting)),
                 default=0
             )
-        shuxin_log = [scheduler_output.total_num_scheduled_tokens, shuxin_cached_tokens]
+        admix_log = [scheduler_output.total_num_scheduled_tokens, admix_cached_tokens]
         if(scheduler_output.total_num_scheduled_tokens > 0):
-            with self.shuxin_buffer_lock:
-                self.shuxin_processing = shuxin_log + [shuxin_start]
+            with self.admix_buffer_lock:
+                self.admix_processing = admix_log + [admix_start]
         
         model_output = self.execute_model_with_error_logging(
             self.model_executor.execute_model,  # type: ignore
@@ -366,9 +366,9 @@ class EngineCore:
             scheduler_output, model_output)  # type: ignore
         
         if(scheduler_output.total_num_scheduled_tokens > 0):
-            with self.shuxin_buffer_lock:
-                self.shuxin_log_data.append(shuxin_log + [round(time.perf_counter() - shuxin_start, 3) * 1000])
-                self.shuxin_processing = None
+            with self.admix_buffer_lock:
+                self.admix_log_data.append(admix_log + [round(time.perf_counter() - admix_start, 3) * 1000])
+                self.admix_processing = None
         return (engine_core_outputs,
                 scheduler_output.total_num_scheduled_tokens > 0)
 

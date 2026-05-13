@@ -1,4 +1,6 @@
-#!/home/k43015/AdMix/.venv/bin/python3
+#!/bin/sh
+''''exec "$(dirname "$0")/../.venv/bin/python3" "$0" "$@"
+'''
 
 import sys 
 import subprocess, signal
@@ -46,30 +48,30 @@ def main():
     match module:
         case "startmps":
             if(len(sys.argv) < 3):
-                OpenMPS()
+                open_mps()
             else:
-                OpenMPS(get_gpu_uuids(list(map(int, sys.argv[2].split(',')))))
+                open_mps(get_gpu_uuids(list(map(int, sys.argv[2].split(',')))))
         case "stopmps":
             if(len(sys.argv) < 3):
-                CloseMPS()
+                close_mps()
             else:
-                CloseMPS(get_gpu_uuids(list(map(int, sys.argv[2].split(',')))))
+                close_mps(get_gpu_uuids(list(map(int, sys.argv[2].split(',')))))
         case "getp":
             if(len(sys.argv) < 3):
-                print(GetPercentage())
+                print(get_mps_percentage())
             else:
-                print(GetPercentage(get_gpu_uuids(list(map(int, sys.argv[2].split(','))))))
+                print(get_mps_percentage(get_gpu_uuids(list(map(int, sys.argv[2].split(','))))))
         case "setp":
             if(len(sys.argv) < 4):
-                SetPercentage(None, sys.argv[2])
+                set_mps_percentage(None, sys.argv[2])
             else:
-                SetPercentage(get_gpu_uuids(list(map(int, sys.argv[2].split(',')))), sys.argv[3])
+                set_mps_percentage(get_gpu_uuids(list(map(int, sys.argv[2].split(',')))), sys.argv[3])
         case "getuuid":
             print(get_gpu_uuid(int(sys.argv[2])))
         case "getuuid_hash":
             print(get_hash(get_gpu_uuids(list(map(int, sys.argv[2].split(','))))))
         case "checkmps":
-            print(GetServerStarted(get_gpu_uuids(list(map(int, sys.argv[2].split(','))))))
+            print(check_mps_started(get_gpu_uuids(list(map(int, sys.argv[2].split(','))))))
         case "start_dcgm":
             start_dcgm()
         case "stop_dcgm":

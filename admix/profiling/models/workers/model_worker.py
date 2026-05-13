@@ -350,9 +350,6 @@ class ModelWorker(Process):
         self.unload_delay      = 5  # seconds to wait before actually unloading GPU model
         self.current_ctx_pct = None
 
-        self._ctx_create_times = []   # ms per _ctx_create call
-        self._load_times = []          # ms per actual model load
-
         self._ctx_create(20)
         self._ctx_create(100)
 
@@ -474,7 +471,6 @@ class ModelWorker(Process):
 
         t = threading.Thread(target=_target, name=f"mps-ctx-{mps}pct", daemon=True)
         t.start()
-        self._ctx_create_times.append((time.perf_counter() - _t0_ctx) * 1000)
         with self._mps_ctx_lock:
             self.ctx_threads[mps] = t
 
@@ -515,7 +511,6 @@ class ModelWorker(Process):
             evt.wait()
 
         elapsed = self._send_cmd_mps_thread(mps, 'load')
-        self._load_times.append(elapsed)
         with self._mps_ctx_lock:
             self.ctx_states[mps] = 'loaded'
         return elapsed
@@ -638,11 +633,6 @@ class ModelWorker(Process):
         for mps in all_mps:
             self._destroy_ctx(mps)
         self.current_ctx_pct = None
-
-        if self._ctx_create_times:
-            print(f"[ctx-timing] context create : n={len(self._ctx_create_times)}, avg={np.mean(self._ctx_create_times):.1f} ms, min={min(self._ctx_create_times):.1f} ms, max={max(self._ctx_create_times):.1f} ms", flush=True)
-        if self._load_times:
-            print(f"[ctx-timing] model load     : n={len(self._load_times)}, avg={np.mean(self._load_times):.1f} ms, min={min(self._load_times):.1f} ms, max={max(self._load_times):.1f} ms", flush=True)
 
     def context_switch(self, mps):
         """Switch to `mps` context.

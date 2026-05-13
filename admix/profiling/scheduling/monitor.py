@@ -4,8 +4,8 @@ import socket
 import asyncio
 import subprocess
 
-LLM_INTENSITY_SOCKET_PATH = "/tmp/llm_intensity_socket"
-LLM_SERVER_SOCKET_PATH = "/tmp/llm_server_socket"
+LLM_INTENSITY_SOCKET_PATH = "/tmp/admix_llm_intensity_socket"
+LLM_SERVER_SOCKET_PATH = "/tmp/admix_llm_server_socket"
 
 """
     Read observation data from llm server using scheduling data format.
