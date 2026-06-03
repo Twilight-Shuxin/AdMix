@@ -6,10 +6,10 @@ import random
 import asyncio
 import argparse
 from tqdm import tqdm
-from itertools import chain, cycle
 import matplotlib.pyplot as plt
-from llm_utils import get_data_from_llm, async_inference, _LLM_MODEL_MAP, start_server, stop_server
+from itertools import chain, cycle
 from admix.profiling.constants import write_list_to_csv
+from llm_utils import get_data_from_llm, async_inference, _LLM_MODEL_MAP, _TP_MAP, start_server, stop_server
 
 # 7b: 86400
 KV_CACHE_TKN_SPACE = 152800
@@ -29,7 +29,6 @@ def _split_tokens(total, n):
     cuts = sorted(random.sample(range(1, total), n - 1))
     parts = [b - a for a, b in zip([0] + cuts, cuts + [total])]
     return [min(p, MAX_PROMPT_LENGTH) for p in parts]
-
 
 async def prefill_burst(stop_event, limit):
     while not stop_event.is_set():
@@ -72,10 +71,13 @@ async def test():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("output_file", nargs="?", default="kv_cache_fill_new.csv")
+    parser.add_argument("output_file", nargs="?", default=None)
     parser.add_argument("--platform", required=True, choices=["vllm", "sglang"], help="LLM serving platform")
     parser.add_argument("--model", required=True, help="Model name or shorthand (llama7b, qwen14b, qwen32b, or full HF path)")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.output_file is None:
+        args.output_file = f"{args.platform}_{args.model}_profiled.csv"
+    return args
 
 def main():
     args = parse_args()
@@ -101,6 +103,8 @@ def main():
         plt.close()
 
         data.sort()
+        if args.platform == "sglang" and _TP_MAP.get(args.model, 1) >= 2:
+            data = [row for row in data if not (row[1] == 0 and row[0] < 20)]
         write_list_to_csv(
             f"./llm_predict/inputs/{args.output_file}",
             ["Scheduled Tkns", "Cached Tkns", "Latency"],

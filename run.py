@@ -1,7 +1,7 @@
-from admix.profiling.options import parse_profile_options 
+import torch.multiprocessing as mp 
 from admix.profiling.profiler import ProfileServer  
 from admix.profiling.constants import RuntimeMode
-import torch.multiprocessing as mp 
+from admix.profiling.options import parse_profile_options 
         
 if __name__=="__main__":
     mp.set_start_method('spawn')

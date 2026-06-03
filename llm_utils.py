@@ -1,13 +1,13 @@
 import os
 import json
 import time
+import torch
 import signal
 import socket
 import asyncio
 import aiohttp
 import requests
 import subprocess
-import torch
 from admix.profiling.constants import *
 from admix.dataset.sharegpt_dataset import ShareGPTDataset
 from admix.profiling.scheduling.monitor import LLM_INTENSITY_SOCKET_PATH
@@ -39,7 +39,7 @@ def _wait_for_server(health_url):
             time.sleep(1)
     print("Server ready!")
 
-def _start_vllm_server(llm_model, tp, memory_util="0.7"):
+def _start_vllm_server(llm_model, tp, memory_util=os.environ.get('ADMIX_LLM_KV_MEM', "0.7")):
     os.environ['VLLM_LOGGING_LEVEL'] = 'ERROR'
     proc = subprocess.Popen([
         "python", "-m", "vllm.entrypoints.api_server",
@@ -51,7 +51,7 @@ def _start_vllm_server(llm_model, tp, memory_util="0.7"):
     _wait_for_server(f"http://localhost:{_PORT}/health")
     return proc
 
-def _start_sglang_server(llm_model, tp, memory_util="0.7"):
+def _start_sglang_server(llm_model, tp, memory_util=os.environ.get('ADMIX_LLM_KV_MEM', "0.7")):
     env = os.environ.copy()
     env.update({"NO_PROXY": "0.0.0.0,localhost,127.0.0.1", "no_proxy": "0.0.0.0,localhost,127.0.0.1"})
     proc = subprocess.Popen([

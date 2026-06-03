@@ -1,4 +1,4 @@
-# MPSTest
+# AdMix
 
 ## Environment notes
 
@@ -55,6 +55,13 @@ Before running Admix:
 export ADMIX_LLM_SERVING_PLATFORM=sglang
 ```
 Note that running Admix this way Admix will still be using the default environment built for vllm, only the sglang server is referencing the specific environment.
+
+## Environment variables
+
+```
+ADMIX_LLM_SERVING_PLATFORM=vllm or sglang (default vllm)
+ADMIX_LLM_KV_MEM=0.7 (default 0.7) fraction of GPU memory reserved for KV cache
+```
 
 ## Usage
 
