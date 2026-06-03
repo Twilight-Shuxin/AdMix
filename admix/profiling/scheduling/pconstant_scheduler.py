@@ -1,30 +1,35 @@
 import time
 from admix.profiling.models.workers.constants import SyncType
 from admix.profiling.scheduling.schedule_plan import BasicSchedulePlan
-from admix.profiling.scheduling.batch_base_scheduler import (
-    BatchBaseScheduler, BatchSchedulingDataFormat, ObservationData, ObservationSingleBatchData
+from admix.profiling.scheduling.context_scheduler import (
+    context_predict, ContextSchedulingDataFormat, ObservationData, ObservationSingleBatchData
 )
 from admix.profiling.scheduling.monitor import get_llm_intensity_unix
-from admix.profiling.scheduling.batch_predict.MLP_model import MLPPredictModel
+from admix.profiling.scheduling.context_predict.MLP_model import MLPPredictModel
+from admix.profiling.scheduling.scheduler import Scheduler
 
-class PConstantScheduler(BatchBaseScheduler):
-    data_format = BatchSchedulingDataFormat
+class PConstantScheduler(Scheduler):
+    data_format = ContextSchedulingDataFormat
     scheduling_plan = BasicSchedulePlan
 
     def __init__(self, batch_size=16):
-        super().__init__()
+        self.prediction_logs = []
+        self.execution_logs = []
+        self.llm_token_budget = 2048
+        self.last_execution_time = 0
         self.batch_size = batch_size
         self.observed_percentages = []
         self.pause = False
         self.prefill_estimate_time = (0, 0)
         self.current_plan = None
         self.time_interval = 0.05  # 50ms
-    
+
     def scheduler_init(self):
         device = "cuda"
         input_dim = ObservationSingleBatchData().get_pred_feature_len()
         self.predictor = MLPPredictModel(input_dim, device, self.model_client.llm_model)
-        self.max_process_speed = self.get_prediction(
+        self.max_process_speed = context_predict(
+            self.predictor,
             ObservationData(
                 batch_data = [
                     ObservationSingleBatchData(
@@ -39,7 +44,7 @@ class PConstantScheduler(BatchBaseScheduler):
         self.start_round_time = time.perf_counter()
         if intensity_data.processing:
             intensity_data.batch_data.append(intensity_data.processing)
-        pred_latency = [float(x) for x in self.get_prediction(intensity_data)]
+        pred_latency = [float(x) for x in context_predict(self.predictor, intensity_data)]
 
         processing_pred_latency = 0
         self.prefill_estimate_time = (int(intensity_data.waiting_prompt_tkns * self.max_process_speed), 0)

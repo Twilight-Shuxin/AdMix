@@ -97,12 +97,12 @@ def main():
         plt.title("Cached Tkns over Time")
         plt.tight_layout()
         plot_name = os.path.splitext(args.output_file)[0] + "_cached_tkns.png"
-        plt.savefig(f"./batch_predict/plot/outputs/{plot_name}", dpi=150, bbox_inches="tight")
+        plt.savefig(f"./llm_predict/plot/outputs/{plot_name}", dpi=150, bbox_inches="tight")
         plt.close()
 
         data.sort()
         write_list_to_csv(
-            f"./batch_predict/inputs/{args.output_file}",
+            f"./llm_predict/inputs/{args.output_file}",
             ["Scheduled Tkns", "Cached Tkns", "Latency"],
             data,
         )

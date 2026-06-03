@@ -1,19 +1,76 @@
+import json
 import random
 import time
+import torch
 from tqdm import tqdm
+from typing import List, Optional
+from pydantic import Field
 from admix.profiling.models.workers.constants import SyncType
+from admix.profiling.scheduling.constants import FeatureModel
 from admix.profiling.scheduling.monitor import get_llm_intensity_unix
 from admix.profiling.scheduling.schedule_plan import ContextSchedulePlan
 from admix.plotting.trace_plot import TracePlotData, TraceAxisData, plot_trace_graph
-from admix.profiling.scheduling.batch_base_scheduler import BatchBaseScheduler, BatchSchedulingDataFormat, ObservationData, ObservationSingleBatchData
-from admix.profiling.scheduling.batch_predict.MLP_model import MLPPredictModel
+from admix.profiling.scheduling.context_predict.MLP_model import MLPPredictModel
+from admix.profiling.scheduling.scheduler import Scheduler, SchedulingDataFormat, conn_get_data
 
-class ContextScheduler(BatchBaseScheduler):
-    data_format = BatchSchedulingDataFormat
+class ObservationSingleBatchData(FeatureModel):
+    scheduled_tokens: int = 0
+    cached_tokens: int = 0
+    latency: float = 0
+
+    def pred_feature_data(self):
+        return self.vector()[:-1]
+
+    def get_pred_feature_len(self):
+        return len(self.pred_feature_data())
+
+class ObservationData(FeatureModel):
+    NQ: int = 0
+    waiting_prompt_tkns: int = 0
+    processing: Optional[ObservationSingleBatchData] = None
+    batch_data: List[ObservationSingleBatchData] = Field(default_factory=list)
+
+    @classmethod
+    def parse_raw(cls, payload) -> "ObservationData":
+        (nq, waiting_prompt_tkns), processing, batch_data = json.loads(payload)
+        return cls(
+            NQ = nq,
+            waiting_prompt_tkns = waiting_prompt_tkns,
+            processing = ObservationSingleBatchData(**dict(zip(ObservationSingleBatchData.model_fields, processing))) if processing else None,
+            batch_data=[
+                ObservationSingleBatchData(**dict(zip(ObservationSingleBatchData.model_fields, row)))
+                for row in batch_data
+            ]
+        )
+
+    def pred_feature_data(self):
+        return [x.pred_feature_data() for x in self.batch_data]
+
+class ContextSchedulingDataFormat(SchedulingDataFormat):
+    @classmethod
+    def default_data(cls):
+        return ObservationData()
+
+    @classmethod
+    def read_data(cls, client_socket):
+        return conn_get_data(ObservationData, client_socket, chunked = True)
+
+def context_predict(predictor, observation_data):
+    vals = observation_data.pred_feature_data()
+    if not vals:
+        return []
+    result = predictor.exec(vals)
+    torch.cuda.synchronize()
+    return result
+
+class ContextScheduler(Scheduler):
+    data_format = ContextSchedulingDataFormat
     scheduling_plan = ContextSchedulePlan
 
     def __init__(self):
-        super().__init__()
+        self.prediction_logs = []
+        self.execution_logs = []
+        self.llm_token_budget = 2048
         self.solo_mode = False
         self.time_interval = 0.05 # 50ms
         self.current_plan = None
@@ -24,12 +81,13 @@ class ContextScheduler(BatchBaseScheduler):
         self.context_switch_interval = 10  # seconds
         self.last_context_switch_time = None
         self.pause = False
-    
+
     def scheduler_init(self):
         device = "cuda"
         input_dim = ObservationSingleBatchData().get_pred_feature_len()
         self.predictor = MLPPredictModel(input_dim, device, self.model_client.llm_model)
-        self.max_process_speed = self.get_prediction(
+        self.max_process_speed = context_predict(
+            self.predictor,
             ObservationData(
                 batch_data = [
                     ObservationSingleBatchData(
@@ -54,7 +112,7 @@ class ContextScheduler(BatchBaseScheduler):
         self.prefill_estimate_time = 0
         self.normal_plan = ContextSchedulePlan(self.pre_solo_mps, self.max_batch_size)
         self.last_context_switch_time = time.perf_counter()
-    
+
     def get_scheduling_plan(self, intensity_data, pred_latency):
         current_mps = self.current_plan.mps if self.current_plan else self.normal_plan.mps
 
@@ -76,27 +134,27 @@ class ContextScheduler(BatchBaseScheduler):
                     intensity_data.pred_feature_data(), real_latency, pred_latency,
                 )
             ])
-        
+
         if intensity_data.NQ == 0: # No running queries — run solo
             if not self.solo_mode:
                 self.pre_solo_mps = current_mps
                 self.solo_mode = True
             self.pause = False
             return ContextSchedulePlan(100, self.max_batch_size_full)
-           
+
         avg = sum(self.observed_percentages) / len(self.observed_percentages) if self.observed_percentages else 0
         self.prefill_estimate_time = (int(self.prefill_estimate_time[0] * (1 + avg + 0.2)), round(avg,2))
         self.pause = (self.prefill_estimate_time[0] > self.llm_slo_info['first'] or
             processing_pred_latency * (1 + avg + 0.1) > self.llm_slo_info['speed']
         )
-        
+
         if self.solo_mode: # First round back from solo_mode;
             self.solo_mode = False
             return ContextSchedulePlan(self.pre_solo_mps, self.max_batch_size if self.pause != True else 0)
 
         if(self.pause or not self.current_plan):
             return ContextSchedulePlan(current_mps, self.max_batch_size if self.pause != True else 0)
-            
+
         # Normal mode: check if interval has elapsed for MPS adjustment
         if time.perf_counter() - self.last_context_switch_time > self.context_switch_interval:
             new_mps = current_mps
@@ -115,7 +173,7 @@ class ContextScheduler(BatchBaseScheduler):
         self.start_round_time = time.perf_counter()
         if(intensity_data.processing):
             intensity_data.batch_data.append(intensity_data.processing)
-        pred_latency = [float(x) for x in self.get_prediction(intensity_data)]
+        pred_latency = [float(x) for x in context_predict(self.predictor, intensity_data)]
         log_processing = None
         if(intensity_data.processing):
             log_processing = list(intensity_data.processing.pred_feature_data()) + [intensity_data.processing.latency, pred_latency[-1]]
@@ -151,7 +209,7 @@ class ContextScheduler(BatchBaseScheduler):
                 pbar.update(now - last)
                 last = now
         self.model_client.broadcast_workers(ContextSchedulePlan(-1, -1, True), sync = SyncType.ALL)
-        
+
         self.model_client.write_csv("batch_predicted.csv",
             ["Scheduled Tkns", "Cached Tkns", "Real Latency", "Pred Latency"],
             self.prediction_logs)

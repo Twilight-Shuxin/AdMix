@@ -57,7 +57,7 @@ def main():
         additional_data, processed, data = get_data_from_llm()
         data.sort(key=lambda x: (x[0] * x[1]))
         data.sort()
-        write_list_to_csv(f"./batch_predict/inputs/{args.output_file}", ["Scheduled Tkns", "Cached Tkns", "Latency"], data)
+        write_list_to_csv(f"./context_predict/inputs/{args.output_file}", ["Scheduled Tkns", "Cached Tkns", "Latency"], data)
     finally:
         stop_server(server_proc)
 

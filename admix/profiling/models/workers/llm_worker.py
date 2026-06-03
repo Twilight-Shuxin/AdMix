@@ -12,7 +12,8 @@ from admix.dataset.sharegpt_dataset import ShareGPTDataset
 from admix.profiling.models.workers.model_worker import ModelWorker
 from admix.profiling.scheduling.utils import get_scheduler_class
 from admix.profiling.scheduling.monitor import LLM_SERVER_SOCKET_PATH, LLM_INTENSITY_SOCKET_PATH
-from admix.profiling.scheduling import AIMDScheduler, AIMDSchedulingDataFormat, PredictiveScheduler, PredictiveSchedulingDataFormat, BatchBaseScheduler, BatchScheduler
+from admix.profiling.scheduling import AIMDScheduler, AIMDSchedulingDataFormat, PredictiveScheduler, PredictiveSchedulingDataFormat
+from admix.profiling.scheduling.context_scheduler import ContextSchedulingDataFormat
 from admix.trace.trace_utils import LLMTrace, set_LLM_trace_config, read_LLM_trace_config
 
 modify_cnt = 0 
@@ -104,9 +105,8 @@ class LLMWorker(ModelWorker):
 
     def start_server(self):
         from admix.profiling.scheduling.utils import get_scheduler_class
-        from admix.profiling.scheduling.batch_base_scheduler import BatchBaseScheduler
         scheduler_class = get_scheduler_class(self.scheduler)
-        use_modified = scheduler_class is not None and issubclass(scheduler_class, BatchBaseScheduler)
+        use_modified = scheduler_class is not None and getattr(scheduler_class, 'data_format', None) is ContextSchedulingDataFormat
         system_setup_cmd = "bash llm_platform_setup.sh"
         if use_modified:
             system_setup_cmd += " modified"
@@ -429,7 +429,7 @@ class LLMWorker(ModelWorker):
 
         print("Starting Unix servers")
         self.scheduler_data.general_server = await asyncio.start_unix_server(server_unix_handler, LLM_SERVER_SOCKET_PATH)
-        if(self.scheduler_data.scheduler_type is not None and not issubclass(self.scheduler_data.scheduler_type, BatchBaseScheduler)):
+        if(self.scheduler_data.scheduler_type is not None and self.scheduler_data.scheduling_data_format is not ContextSchedulingDataFormat):
             self.scheduler_data.intensity_server = await asyncio.start_unix_server(intensity_unix_handler, LLM_INTENSITY_SOCKET_PATH)
     
     async def _test(self):

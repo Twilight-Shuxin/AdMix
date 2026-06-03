@@ -1,24 +1,19 @@
 from admix.profiling.scheduling import *
 
+_SCHEDULERS = {
+    "context": ContextScheduler,
+    "contextminus": ContextMinusScheduler,
+}
+
 def get_scheduler_class(scheduler_name):
-    if(scheduler_name is None):
+    if scheduler_name is None:
         return None
-    if(scheduler_name.startswith("constant")):
+    if scheduler_name.startswith("constant"):
         return ConstantScheduler
-    match(scheduler_name):
-        case "AIMD":
-            return AIMDScheduler
-        case "predictive":
-            return PredictiveScheduler
-        case "batch":
-            return BatchScheduler
-        case "context":
-            return ContextScheduler
-        case "contextminus":
-            return ContextMinusScheduler
-        case _ if scheduler_name.startswith("pconstant"):
-            return PConstantScheduler
-    return None
+    if scheduler_name.startswith("pconstant"):
+        return PConstantScheduler
+    return _SCHEDULERS.get(scheduler_name)
+
 
 def get_scheduler(scheduler_name):
     if scheduler_name is None:
