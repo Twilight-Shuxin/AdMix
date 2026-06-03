@@ -7,8 +7,8 @@ import pandas as pd
 
 plt.rcParams.update({'font.size': 12})
 
-data_root = "/home/k43015/MPSTest/data_final"
-profile_root = "/home/k43015/MPSTest/profile_data"
+data_root = "../data_final"
+profile_root = "../profile_data"
 output_dir = "./outputs"
 
 llm_model_d = {

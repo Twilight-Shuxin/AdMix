@@ -4,17 +4,13 @@
 
 The uv environment can be built with the following commands (but with lock file can be reproduced directly using `uv sync`, only as a note for myself in case necessary to build environment from scratch again).
 
-`gmanager` (located in `./gmanager/`) manages MPS and DCGM settings. Add this directory to your PATH before running  AdMix. DCGM needs to be installed separately.
+`gmanager` (located in `./gmanager/`) manages MPS and DCGM settings. Add this directory to your PATH before running AdMix (`export PATH="$PATH:$(pwd)/gmanager"`). DCGM needs to be installed separately.
 
 ### Trace & Dataset
 
-The prompt generation utilizes ShareGPT prompt set available at: 
-```
-wget https://raw.githubusercontent.com/HPMLL/BurstGPT/main/example/preprocess_data/shareGPT.json
-```
-Please download this into folder `./dataset/`.
+Download ShareGPT prompt set by `wget -P ./admix/dataset/ https://raw.githubusercontent.com/HPMLL/BurstGPT/main/example/preprocess_data/shareGPT.json`
 
-The BurstGPT and Azure traces download & setup scripts are available at `download_traces.sh` under `./trace/`
+Download BurstGPT and Azure traces by `cd ./admix/trace && download_traces.sh`.
 
 #### VLLM
 

@@ -3,8 +3,8 @@ import pandas as pd
 import json
 
 CODE_DIR_PATH=os.path.dirname(os.path.realpath(__file__))
-LLM_TRACE_CONFIG_LIST_FILENAME="trace_config_list.json"
 LLM_TRACE_CONFIG_FILENAME="trace_config.json"
+LLM_TRACE_CONFIG_LIST_FILENAME="trace_config_list.json"
 
 """
     A class used to hold LLM trace config data.

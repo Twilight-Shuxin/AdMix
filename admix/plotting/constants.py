@@ -1,6 +1,6 @@
 import os
 
-PLOTTING_BIN_SIZE = float(os.environ.get('GVLLM_PLOTTING_BIN_SIZE', '2'))
+PLOTTING_BIN_SIZE = float(os.environ.get('ADMIX_PLOTTING_BIN_SIZE', '2'))
 
 color_list = ["#4B0082", "#377eb8", "#FF4500"]
 line_style_list = ["-", "--", ":"]

@@ -72,7 +72,7 @@ def parse_profile_options():
         "--devices", type = str, default = "0"
     )
     parser.add_argument(
-        "--path", type = str, default = "data"
+        "--path", type = str, default = "outputs"
     )
     parser.add_argument(
         "--profile_path", type = str, default = "profile_data"
