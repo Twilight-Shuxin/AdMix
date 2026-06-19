@@ -88,7 +88,7 @@ Many arguments accept comma-separated values (one entry per model when running m
 | `--tag TAG` | `None` | Tag string attached to result records for identification. |
 | `--test_time TEST_TIME` | `100` | The total test time (seconds). |
 | `--mode MODE` | `TEST` | Runtime mode. One of: `TEST` (default benchmark), `PROFILE` (single-model profiling), `SERVE` (LLM serving with scheduler). |
-| `--scheduler SCHEDULER` | `None` | Scheduler to use in `SERVE` mode (if specified, mode is set to SERVE by default). One of: `constant[N]` (fixed batch size `N`, default 16; no MPS/SLO awareness), `context` (Admix schedulder). |
+| `--scheduler SCHEDULER` | `None` | Scheduler to use in `SERVE` mode (if specified, mode is set to SERVE by default). One of: `constant[N]` (fixed batch size `N`, is to be used with MPS config through `--mps`), `context` (Admix schedulder). |
 | `--rec-pw` | *(flag)* | If set, record GPU power/energy usage during the run. |
 
 ### Examples:
