@@ -88,7 +88,7 @@ Many arguments accept comma-separated values (one entry per model when running m
 | `--tag TAG` | `None` | Tag string attached to result records for identification. |
 | `--test_time TEST_TIME` | `100` | The total test time (seconds). |
 | `--mode MODE` | `TEST` | Runtime mode. One of: `TEST` (default benchmark), `PROFILE` (single-model profiling), `SERVE` (LLM serving with scheduler). |
-| `--scheduler SCHEDULER` | `None` | Scheduler to use in `SERVE` mode (if specified, mode is set to SERVE by default). |
+| `--scheduler SCHEDULER` | `None` | Scheduler to use in `SERVE` mode (if specified, mode is set to SERVE by default). One of: `constant[N]` (fixed batch size `N`, default 16; no MPS/SLO awareness), `context` (Admix schedulder). |
 | `--rec-pw` | *(flag)* | If set, record GPU power/energy usage during the run. |
 
 ### Examples:
@@ -97,5 +97,14 @@ uv run run.py --model resnet50 --batch_size 1 --devices 0 --test_time 50
 uv run run.py --model resnet50 --batch_size 1 --devices 0 --mps 50 --test_time 50
 uv run run.py --model resnet50 --batch_size 1 --devices 0 --test_time 50 --mode PROFILE
 uv run run.py --model llm --devices 0 --trace test
-uv run run.py --model llm,resnet50 --devices 0 --trace test --scheduler batch
+uv run run.py --model llm,resnet50 --devices 0 --trace test --scheduler context
 ```
+
+### AdMix Scheduler
+
+To use the AdMix scheduler, an LLM performance estimator must be trained in advance.
+The trained model should be stored under `./admix/profiling/scheduling/context_predict/models/{llm_platform}/{llm_name}`.
+The folders currently include models trained in our own evaluation environment, which can be used to try out the workflow. For performance evaluation on other setup environments, ignore these and train new estimators from scratch.
+
+To train a new predictor, run `estimator_gen.py` for training data collection. You may need to tune the hyper-parameters a bit according to your model and deployment details.
+The generated training data will be stored under `./llm_predict/inputs`, and to train the estimator run `./llm_predict/train_new.sh`, which will train the estimator and store it under `./llm_predict/outputs`.
