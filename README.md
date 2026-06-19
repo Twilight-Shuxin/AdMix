@@ -24,7 +24,7 @@ uv add scikit-learn
 uv add matplotlib
 ```
 
-Use a slienced version of vllm: Reference my own comment @ https://github.com/vllm-project/vllm/issues/5338
+Use a slienced version of vllm: Reference my comment @ https://github.com/vllm-project/vllm/issues/5338
 
 Before running Admix: 
 ```
