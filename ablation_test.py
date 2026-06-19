@@ -53,12 +53,12 @@ traces_map = {
         {"trace": "Azure_npref_7b_d1_1",    "mps": [15]},#10,25
     ],
     "qwen14b": [
-        # {"trace": "BurstGPT_npref_14b_d2_1", "mps": [30]},#10,15
+        {"trace": "BurstGPT_npref_14b_d2_1", "mps": [30]},#10,15
         {"trace": "Azure_npref_14b_d2_1", "mps": [10]},#5
     ],
     "qwen32b": [
-        # {"trace": "BurstGPT_npref_32b_d4_1", "mps": [20]},#10,15
-        {"trace": "Azure_npref_32b_d4_1", "mps": [10]},#5
+        {"trace": "BurstGPT_npref_32b_d4_1", "mps": [15]},#10,15
+        {"trace": "Azure_npref_32b_d4_1", "mps": [25]},#5
     ],
 }
 

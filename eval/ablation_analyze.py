@@ -61,14 +61,13 @@ MODEL_DIMENSION = {
     "qwen14b": "d2",
     "qwen32b": "d4",
 }
-MODELS = ["llama7b", "qwen14b"]
-# MODELS = ["qwen14b"]
+MODELS = ["llama7b", "qwen14b", "qwen32b"]
 ROOT_FOLDER = f"../data_final/{MODELS[0]}"
 PROFILE_DATA_FOLDER = "../profile_data"
 OUTPUT_FOLDER = "./outputs"
 DIMENSION = MODEL_DIMENSION[MODELS[0]]
 
-MPS_LOWER_LIMIT = 10  # ignore MPS percentage files below this value (0 = no limit)
+MPS_LOWER_LIMIT = 5  # ignore MPS percentage files below this value (0 = no limit)
 
 config_map = {
     "mps":          {"name": "Static MPS",          "scheduler": "constant",     "color": "#1f77b4"},
@@ -419,12 +418,14 @@ def main():
             "Azure1,2000,100,3600,5,0.045": {"tag": "Qwen-14B - Azure"},
             "BurstGPT2,1000,100,3600,5,1.8": {"tag": "Qwen-14B - BurstGPT"},
         },
+        "qwen32b": {
+            "Azure1,2000,100,3600,5,0.12": {"tag": "Qwen-32B - Azure"},
+            "BurstGPT1,600,100,3600,5,2.5": {"tag": "Qwen-32B - BurstGPT"},
+        }
     }
     model_list = ["resnet50", "vgg19", "unet3d", "deeplabv3"]
     sub_paths = {
         "mps":     "mps",
-        # "time":    "time",
-        # "batch":   "batch",
         "pmps": "pmps",
         "pmps(best)": "pmps",
         "contextminus": "contextminus",
