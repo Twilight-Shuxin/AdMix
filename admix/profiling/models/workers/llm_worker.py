@@ -12,7 +12,6 @@ from admix.dataset.sharegpt_dataset import ShareGPTDataset
 from admix.profiling.models.workers.model_worker import ModelWorker
 from admix.profiling.scheduling.utils import get_scheduler_class
 from admix.profiling.scheduling.monitor import LLM_SERVER_SOCKET_PATH, LLM_INTENSITY_SOCKET_PATH
-from admix.profiling.scheduling import AIMDScheduler, AIMDSchedulingDataFormat, PredictiveScheduler, PredictiveSchedulingDataFormat
 from admix.profiling.scheduling.context_scheduler import ContextSchedulingDataFormat
 from admix.trace.trace_utils import LLMTrace, set_LLM_trace_config, read_LLM_trace_config
 
@@ -176,26 +175,6 @@ class LLMWorker(ModelWorker):
         self.scheduler_data.scheduler_type = get_scheduler_class(self.test_config.scheduler)
         self.scheduler_data.scheduling_data_format = self.scheduler_data.scheduler_type.data_format
         self.scheduler_data.opp_ready = asyncio.Event()
-
-        # basic_aimd
-        if(self.scheduler_data.scheduler_type == AIMDScheduler):
-            self.scheduler_data.uncompleted_tokens = 0
-
-        # predict
-        if(self.scheduler_data.scheduler_type == PredictiveScheduler):
-            # point data
-            self.scheduler_data.total_prefill_length = 0
-            self.scheduler_data.prefill_length_heap = DeletableMaxHeap()
-            self.scheduler_data.total_decode_length = 0
-
-            # period data
-            self.scheduler_data.prefill_throughput_period = 0
-            self.scheduler_data.decode_throughput_period = 0
-            self.scheduler_data.prefill_length_period = 0
-            self.scheduler_data.prefill_length_heap_period = MaxHeap()
-            self.scheduler_data.finished_count_period = 0
-            self.scheduler_data.finished_tokens_period = 0
-            self.scheduler_data.refreshed_counter = 0
     
     @classmethod
     def get_trace_config(cls, test_config):
@@ -273,12 +252,7 @@ class LLMWorker(ModelWorker):
         last_received_time = request_timestamp
         reading_time = self.initial_time
         waiting_time = 0
-        
         token_cnt = input_length
-
-        if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
-            received_token_period = 0
-            last_refreshed_counter = self.scheduler_data.refreshed_counter
 
         try:
             first = None
@@ -291,46 +265,22 @@ class LLMWorker(ModelWorker):
                 
                 between_token_time = current_timestamp - last_received_time
                 token_cnt += 1
-                if(self.scheduler_data.scheduling_data_format == AIMDSchedulingDataFormat):
-                    self.scheduler_data.uncompleted_tokens -= 1
 
                 if first_chunk_time is None:
                     first_chunk_time = between_token_time
                     if(self.test_config.recording_action.record_statistics): 
                         self.profile_data.first_token_time.append_to_bin(current_timestamp, first_chunk_time)
                     self.runtime_data.waiting_first_record_counter.rm(current_timestamp)
-                    
-                    if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
-                        self.scheduler_data.prefill_throughput_period += 1
-                        self.scheduler_data.total_prefill_length -= input_length
-                        self.scheduler_data.prefill_length_heap.delete((input_length, request_timestamp))
-                        self.scheduler_data.total_decode_length += token_cnt
                 else:
                     waiting_time += between_token_time
                     if(self.test_config.recording_action.record_statistics):
                         self.profile_data.between_token_time.append_to_bin(current_timestamp, between_token_time)
-                    
-                    if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
-                        if(last_refreshed_counter != self.scheduler_data.refreshed_counter):
-                            received_token_period = 0
-                            last_refreshed_counter = self.scheduler_data.refreshed_counter
-                        received_token_period += 1
-                        self.scheduler_data.total_decode_length += 1
-                        self.scheduler_data.decode_throughput_period += 1
                     
                     user_idle_time, user_idle_time_info_record = update_user_idle_time_info_record(
                         user_idle_time, user_idle_time_info_record, current_timestamp, waiting_time - reading_time)
                     reading_time += self.SPEED_CONST
 
                 last_received_time = current_timestamp
-            if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
-                self.scheduler_data.total_decode_length -= token_cnt
-                if(last_refreshed_counter == self.scheduler_data.refreshed_counter):
-                    self.scheduler_data.finished_tokens_period += received_token_period
-                    self.scheduler_data.finished_count_period += 1
-            if(self.scheduler_data.scheduling_data_format == AIMDSchedulingDataFormat):
-                if(output_length != token_cnt - input_length):
-                    self.scheduler_data.uncompleted_tokens -= output_length + input_length - token_cnt
             return first_chunk_time, user_idle_time, user_idle_time_info_record, 1
         except asyncio.CancelledError:
             current_timestamp = time.perf_counter() - self.runtime_data.start_time_pointer
@@ -350,8 +300,6 @@ class LLMWorker(ModelWorker):
         user_idle_time = 0 
         user_idle_time_info_record = None
         request_timestamp = None
-        if(self.scheduler_data.scheduler_type == AIMDScheduler):
-            self.scheduler_data.uncompleted_tokens += max_tokens
         completed = False
 
         try:
@@ -359,12 +307,6 @@ class LLMWorker(ModelWorker):
             current_timestamp = request_timestamp
             self.runtime_data.submitted_record_counter.add(current_timestamp)
             self.runtime_data.waiting_first_record_counter.add(current_timestamp)
-                      
-            if(self.scheduler_data.scheduling_data_format == PredictiveSchedulingDataFormat):
-                self.scheduler_data.total_prefill_length += prompt_len
-                self.scheduler_data.prefill_length_period += prompt_len
-                self.scheduler_data.prefill_length_heap.push((prompt_len, request_timestamp))
-                self.scheduler_data.prefill_length_heap_period.push((prompt_len, request_timestamp))
 
             timeout = aiohttp.ClientTimeout(total=4 * 60 * 60)
             async with aiohttp.ClientSession(timeout=timeout) as session:
