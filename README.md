@@ -33,7 +33,7 @@ export ADMIX_LLM_SERVING_PLATFORM=vllm
 
 #### Sglang
 
-The environment Sglang is to be built under `plugins/sglang_env`, and can be built as follows:
+The environment Sglang is to be built under `engines/sglang_env`, and can be built as follows:
 
 ```bash
 uv add sglang
@@ -81,8 +81,8 @@ Many arguments accept comma-separated values (one entry per model when running m
 | `--end END` | `""` | Comma-separated list of end operator indices per model. |
 | `--dcgm_group DCGM_GROUP` | `-1` | Comma-separated DCGM group IDs for GPU metric monitoring via `dcgm`. |
 | `--devices DEVICES` | `0` | Comma-separated GPU device IDs to use (e.g. `0,1`). |
-| `--path PATH` | `data` | Directory (relative to `MPSTest/`) to save test log output. |
-| `--profile_path PROFILE_PATH` | `profile_data` | Directory (relative to `MPSTest/`) to save data collected in `PROFILE` mode. |
+| `--path PATH` | `data` | Directory (relative to `AdMix/`) to save test log output. |
+| `--profile_path PROFILE_PATH` | `profile_data` | Directory (relative to `AdMix/`) to save data collected in `PROFILE` mode. |
 | `--trace TRACE` | `""` | Comma-separated list of trace file paths (or trace config id for llm) per model. |
 | `--seq_len SEQ_LEN` | `""` | Sequence length for LLM workers, as `prompt_len,output_len`. |
 | `--tag TAG` | `None` | Tag string attached to result records for identification. |
