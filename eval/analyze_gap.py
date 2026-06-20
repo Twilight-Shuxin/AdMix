@@ -12,8 +12,9 @@ profile_root = "../profile_data"
 output_dir = "./outputs"
 
 llm_model_d = {
-    "llama7b": 1,
-    "qwen14b": 2,
+    # "llama7b": 1,
+    # "qwen14b": 2,
+    "qwen32b": 4,
 }
 
 trace_tags = {
@@ -25,6 +26,10 @@ trace_tags = {
         "Azure1,2000,100,3600,5,0.045",
         "BurstGPT2,1000,100,3600,5,1.8",
     ],
+    "qwen32b": [
+        "Azure1,2000,100,3600,5,0.12",
+        "BurstGPT1,600,100,3600,5,2.5",
+    ],
 }
 
 trace_labels = {
@@ -32,6 +37,8 @@ trace_labels = {
     "BurstGPT2,200,100,3600,5,1.5":  "BurstGPT",
     "Azure1,2000,100,3600,5,0.045":  "Azure",
     "BurstGPT2,1000,100,3600,5,1.8": "BurstGPT",
+    "Azure1,2000,100,3600,5,0.12":   "Azure",
+    "BurstGPT1,600,100,3600,5,2.5": "BurstGPT",
 }
 
 model_order = ["resnet50", "vgg19", "unet3d", "deeplabv3"]
