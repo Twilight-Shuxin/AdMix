@@ -12,8 +12,8 @@ profile_root = "../profile_data"
 output_dir = "./outputs"
 
 llm_model_d = {
-    # "llama7b": 1,
-    # "qwen14b": 2,
+    "llama7b": 1,
+    "qwen14b": 2,
     "qwen32b": 4,
 }
 
@@ -126,10 +126,10 @@ def find_best_mps(llm_model: str, trace_tag: str, model: str):
     return max(qualifying) if qualifying else min(mps_satisfaction)
 
 
-def compute_mps_items(mps_all_path: str, mps100_time: float, batch_size: int):
+def compute_mps_items(mps_all_path: str, mps100_time: float, batch_size: int, d: int):
     """Return (estimated_mps100_items, total_items) for a constant-MPS run.
 
-    estimated_mps100_items = mps100_time / min_latency_s * batch_size
+    estimated_mps100_items = mps100_time / min_latency_s * batch_size * d
     """
     df = pd.read_csv(mps_all_path, header=None, skiprows=1,
                      names=['Device_id', 'Batch Size', 'Latency (ms)', 'MPS'])
@@ -139,7 +139,7 @@ def compute_mps_items(mps_all_path: str, mps100_time: float, batch_size: int):
     total = int(df["Batch Size"].sum())
     if total == 0:
         return np.nan, np.nan
-    estimated = (mps100_time / (min_latency_ms / 1000.0)) * batch_size
+    estimated = (mps100_time / (min_latency_ms / 1000.0)) * batch_size * d
     return estimated, total
 
 
@@ -180,7 +180,7 @@ def collect_results():
                     )
                     if os.path.exists(mps_all_path):
                         mps_est_items, mps_total_items = compute_mps_items(
-                            mps_all_path, mps100_time, max_batch_size[model]
+                            mps_all_path, mps100_time, max_batch_size[model], d
                         )
                     else:
                         print(f"MISSING mps all.csv: {llm_model} | {trace_tag} | {model} (m{mps_pct})")
