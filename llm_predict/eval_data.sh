@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ~/MPSTest/script_utils.sh
+source ~/AdMix/script_utils.sh
 
 # Usage: ./eval_data.sh $data_file $output_tag [$model_name]
 

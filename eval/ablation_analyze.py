@@ -119,7 +119,8 @@ def read_final_summary(path, side_model = True):
 
     result["met"] = met
     result["all_submitted"] = all_submitted
-    result["satisfaction rate"] = round((met / all_submitted) * 100, 1)
+    result["satisfaction_rate_raw"] = (met / all_submitted) * 100
+    result["satisfaction rate"] = round(result["satisfaction_rate_raw"], 1)
     if(side_model):
         # ---- Parse second line ----
         # Example: unet3d 45232
@@ -380,7 +381,7 @@ def find_best_mps(trace_tag, model, slo_threshold=99.0, min_mps=0, sub_dir="mps"
         pct = int(float(m.group(1)))
         try:
             d = read_final_summary(os.path.join(mps_dir, filename))
-            all_satisfaction[pct] = d["satisfaction rate"]
+            all_satisfaction[pct] = d["satisfaction_rate_raw"]
         except Exception:
             pass
 

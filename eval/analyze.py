@@ -8,7 +8,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D as MplLine2D
 from matplotlib.container import BarContainer
 
-plt.rcParams.update({'font.size': 15})
+plt.rcParams.update({'font.size': 15, 'axes.titlesize': 15})
 
 
 class HandlerBarLine(HandlerBase):
@@ -44,17 +44,22 @@ class HandlerBarLine(HandlerBase):
         # Bottom — line with a single center marker (matches default HandlerLine2D behavior)
         mid_x = xdescent + width / 2
         line = MplLine2D(
-            [xdescent, mid_x, xdescent + width], [line_y, line_y, line_y],
+            [xdescent, xdescent + width], [line_y, line_y],
             color=line_h.get_color(),
             linestyle=line_h.get_linestyle(),
             linewidth=line_h.get_linewidth(),
+            transform=trans,
+        )
+        marker = MplLine2D(
+            [mid_x], [line_y],
+            color=line_h.get_color(),
+            linestyle='None',
             marker=line_h.get_marker(),
             markersize=max(line_h.get_markersize() * 0.8, 4),
-            markevery=[1],
             transform=trans,
         )
 
-        return [rect, line]
+        return [rect, line, marker]
 
 MODEL_DIMENSION = {
     "llama7b": "d1",
@@ -64,7 +69,7 @@ MODEL_DIMENSION = {
 MODELS = ["llama7b", "qwen14b", "qwen32b"]
 ROOT_FOLDER = f"../data_final/{MODELS[0]}"
 PROFILE_DATA_FOLDER = "../profile_data"
-OUTPUT_FOLDER = "./outputs"
+OUTPUT_FOLDER = "./output_best_effort"
 DIMENSION = MODEL_DIMENSION[MODELS[0]]
 
 MPS_LOWER_LIMIT = 5  # ignore MPS percentage files below this value (0 = no limit)
@@ -120,7 +125,8 @@ def read_final_summary(path, side_model = True):
 
     result["met"] = met
     result["all_submitted"] = all_submitted
-    result["satisfaction rate"] = round((met / all_submitted) * 100, 1)
+    result["satisfaction_rate_raw"] = (met / all_submitted) * 100
+    result["satisfaction rate"] = round(result["satisfaction_rate_raw"], 1)
     if(side_model):
         # ---- Parse second line ----
         # Example: unet3d 45232
@@ -225,7 +231,7 @@ def plot_bar_chart(models, sub_paths, values, ylabel, ax=None, xtitle=None, ymax
 
     ax.set_xticks(x + bar_width * (len(sub_paths) / 2 - 0.5))
     ax.set_xticklabels([model_display_names.get(m, m) for m in models])
-    ax.set_ylabel(ylabel)
+    ax.set_title(ylabel)
     if(xtitle):
         ax.set_xlabel(xtitle)
     ax.grid(True, axis='y', linestyle='--', alpha=0.7)
@@ -266,7 +272,7 @@ def plot_line_chart(models, sub_paths, values, ylabel, ax=None, xtitle=None, yma
 
     ax.set_xticks(x)
     ax.set_xticklabels([model_display_names.get(m, m) for m in models])
-    ax.set_ylabel(ylabel)
+    ax.set_title(ylabel)
     if(xtitle):
         ax.set_xlabel(xtitle)
     ax.grid(True, linestyle='--', alpha=0.7)
@@ -354,7 +360,7 @@ def _add_figure_legend(fig, axes):
     fig.legend(combined_handles, combined_labels,
                handler_map=handler_map,
                loc='center', ncol=len(combined_labels),
-               bbox_to_anchor=(0.5, 0.97), frameon=True, columnspacing=1,
+               bbox_to_anchor=(0.5, 1.0), frameon=True, columnspacing=1,
                handleheight=2.4, handlelength=2.5, borderpad=0.6)
 
 
@@ -381,7 +387,7 @@ def find_best_mps(trace_tag, model, slo_threshold=99.0, min_mps=0, sub_dir="mps"
         pct = int(float(m.group(1)))
         try:
             d = read_final_summary(os.path.join(mps_dir, filename))
-            all_satisfaction[pct] = d["satisfaction rate"]
+            all_satisfaction[pct] = d["satisfaction_rate_raw"]
         except Exception:
             pass
 
@@ -442,7 +448,8 @@ def main():
         trace_list = trace_lists[MODEL]
         data = {}
         n_traces = len(trace_list)
-        fig, all_axes = plt.subplots(n_traces, 5, figsize=(24, 3.5 * n_traces))
+        fig, all_axes = plt.subplots(n_traces, 5, figsize=(24, 3.7 * n_traces),
+                                      gridspec_kw={'width_ratios': [1.15, 0.93, 0.93, 0.93, 0.93]})
         if n_traces == 1:
             all_axes = [all_axes]  # ensure 2-D indexing works
 
@@ -463,7 +470,7 @@ def main():
                     else:
                         d = get_data(model, trace, config, sub_path)
                     data[trace][model][config] = d
-            plot_base_mps(data[trace], 'Normalized Opp. WL Throughput', 'absolute throughput', axes[0], show_legend=False)
+            plot_base_mps(data[trace], 'Norm. Best-effort. Throughput', 'absolute throughput', axes[0], show_legend=False)
             d = get_data(model, trace, 'utils', 'utils')
             for model in model_list:
                 data[trace][model]['utils'] = d
@@ -555,54 +562,48 @@ def main():
         _add_figure_legend(fig, all_axes[0])
         # Reserve space at top for legend and left margin for row labels
         fig.tight_layout(rect=[0.04, 0, 1, 0.94])
-        fig.subplots_adjust(hspace=0.23, wspace=0.26)
+        fig.subplots_adjust(hspace=0.35, wspace=0.26)
 
         # Add row labels on the left side of each row
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
         for row_idx, (trace, meta) in enumerate(trace_list.items()):
             axes = all_axes[row_idx]
             label = meta["tag"]
             row_mid_y = (min(ax.get_position().y0 for ax in axes) + max(ax.get_position().y1 for ax in axes)) / 2
-            left_x = axes[0].get_position().x0 - 0.03
-            fig.text(left_x, row_mid_y, label, ha='center', va='center', fontsize=12, rotation=90)
+            tick_bbox = axes[0].yaxis.get_tightbbox(renderer).transformed(fig.transFigure.inverted())
+            left_x = tick_bbox.x0 - 0.008
+            fig.text(left_x, row_mid_y, label, ha='center', va='center', fontsize=15, rotation=90)
 
         plt.savefig(f'{OUTPUT_FOLDER}/{MODEL}_combined.pdf', bbox_inches='tight')
+        plt.savefig(f'{OUTPUT_FOLDER}/{MODEL}_combined.png', bbox_inches='tight', dpi=150)
         plt.clf()
 
+        # profile_data = {model: load_profile_data(model) for model in model_list}
         # for trace, meta in trace_list.items():
         #     tag = meta["tag"]
-        #     fig, axes = plt.subplots(1, 2, figsize=(11, 4))
-        #     plot_normal_line(data[trace], 'Average TTFT (s)', 'ft_mean', axes[0], show_legend=False)
-        #     plot_normal_line(data[trace], 'Average TPOT (s)', 'bt_mean', axes[1], show_legend=False)
-        #     _add_figure_legend(fig, axes)
-        #     fig.tight_layout(rect=[0, 0, 1, 0.88])
-        #     plt.savefig(f'{OUTPUT_FOLDER}/{tag}_latency.pdf')
+        #     # Compute normalized energy: actual / (llm_only + side_model_separate)
+        #     norm_energy = {}
+        #     for model in model_list:
+        #         batch_size = max_batch_size[model]
+        #         llm_energy = data[trace][model]['utils']['energy']
+        #         side_energy_per_output = profile_data[model][str(batch_size)]['avg_energy'] / 1000 # Energy in profile is J
+        #         norm_energy[model] = {}
+        #         for config in sub_paths:
+        #             d = data[trace][model][config]
+        #             separate_energy = llm_energy + d['absolute throughput'] * side_energy_per_output
+        #             norm_energy[model][config] = round((d['energy'] / separate_energy) * 100, 1)
+
+        #     configs = list(sub_paths.keys())
+        #     values = np.array([
+        #         [norm_energy[model][config] for config in configs]
+        #         for model in model_list
+        #     ])
+        #     fig, ax = plt.subplots(figsize=(6, 4))
+        #     plot_line_chart(model_list, configs, values, 'Normalized Energy (%)', ax)
+        #     fig.tight_layout()
+        #     plt.savefig(f'{OUTPUT_FOLDER}/{tag}_energy.pdf')
         #     plt.clf()
-
-        profile_data = {model: load_profile_data(model) for model in model_list}
-        for trace, meta in trace_list.items():
-            tag = meta["tag"]
-            # Compute normalized energy: actual / (llm_only + side_model_separate)
-            norm_energy = {}
-            for model in model_list:
-                batch_size = max_batch_size[model]
-                llm_energy = data[trace][model]['utils']['energy']
-                side_energy_per_output = profile_data[model][str(batch_size)]['avg_energy'] / 1000 # Energy in profile is J
-                norm_energy[model] = {}
-                for config in sub_paths:
-                    d = data[trace][model][config]
-                    separate_energy = llm_energy + d['absolute throughput'] * side_energy_per_output
-                    norm_energy[model][config] = round((d['energy'] / separate_energy) * 100, 1)
-
-            configs = list(sub_paths.keys())
-            values = np.array([
-                [norm_energy[model][config] for config in configs]
-                for model in model_list
-            ])
-            fig, ax = plt.subplots(figsize=(6, 4))
-            plot_line_chart(model_list, configs, values, 'Normalized Energy (%)', ax)
-            fig.tight_layout()
-            plt.savefig(f'{OUTPUT_FOLDER}/{tag}_energy.pdf')
-            plt.clf()
 
 
 if __name__ == "__main__":
