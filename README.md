@@ -1,5 +1,7 @@
 # AdMix
 
+Code for: [Adaptive GPU Sharing for Real-time LLM Serving with Best-effort Workloads](https://dl.acm.org/doi/10.1145/3816891.3834895)
+
 ## Environment notes
 
 The uv environment can be built with the following commands (but with lock file can be reproduced directly using `uv sync`, only as a note for myself in case necessary to build environment from scratch again).
